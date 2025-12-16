@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Play } from 'lucide-react';
 import { Button } from './Button';
@@ -9,6 +10,7 @@ interface HeroProps {
 }
 
 export function Hero({ onCreateClick }: HeroProps) {
+  const router = useRouter();
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Background Effects */}
@@ -78,7 +80,7 @@ export function Hero({ onCreateClick }: HeroProps) {
             Create with AI
             <ArrowRight className="w-5 h-5" />
           </Button>
-          <Button variant="outline" size="lg">
+          <Button variant="outline" size="lg" onClick={() => router.push('/hunts')}>
             <Play className="w-5 h-5" />
             Join a Hunt
           </Button>

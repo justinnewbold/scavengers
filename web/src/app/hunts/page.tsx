@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Map, Clock, Users, Trophy, MoreVertical, Edit, Trash2, Play, Share2 } from 'lucide-react';
+import { Plus, Map, Clock, Users, Trophy, MoreVertical, Trash2, Play, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
@@ -190,13 +190,6 @@ export default function MyHuntsPage() {
                           >
                             <Play className="w-4 h-4" />
                             View Hunt
-                          </Link>
-                          <Link
-                            href={`/hunt/${hunt.id}/edit`}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-[#30363D] transition-colors text-white"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Edit
                           </Link>
                           <button
                             onClick={() => duplicateHunt(hunt)}

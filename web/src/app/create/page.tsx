@@ -12,12 +12,14 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 
+type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
+
 interface Challenge {
   id: string;
   title: string;
   description: string;
   points: number;
-  verification_type: 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
+  verification_type: VerificationType;
   verification_data?: any;
   hint?: string;
 }
@@ -140,7 +142,7 @@ export default function CreateHuntPage() {
     }
   };
 
-  const verificationOptions = [
+  const verificationOptions: { type: VerificationType; icon: typeof Camera; label: string; desc: string }[] = [
     { type: 'photo', icon: Camera, label: 'Photo', desc: 'Take a photo to verify' },
     { type: 'gps', icon: MapPin, label: 'GPS', desc: 'Visit a location' },
     { type: 'qr_code', icon: QrCode, label: 'QR Code', desc: 'Scan a QR code' },
@@ -421,7 +423,7 @@ export default function CreateHuntPage() {
                                 return (
                                   <button
                                     key={opt.type}
-                                    onClick={() => updateChallenge(index, { verification_type: opt.type as any })}
+                                    onClick={() => updateChallenge(index, { verification_type: opt.type })}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                                       challenge.verification_type === opt.type
                                         ? 'bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/30'

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Compass, Plus, User, Menu, X } from 'lucide-react';
+import { Map, Compass, Plus, Menu, X } from 'lucide-react';
 import { Button } from './Button';
 
 interface NavbarProps {
@@ -25,8 +25,7 @@ export function Navbar({ onCreateClick }: NavbarProps) {
 
   const navLinks = [
     { href: '/', label: 'Discover', icon: Compass },
-    { href: '/my-hunts', label: 'My Hunts', icon: Map },
-    { href: '/profile', label: 'Profile', icon: User },
+    { href: '/hunts', label: 'My Hunts', icon: Map },
   ];
 
   return (

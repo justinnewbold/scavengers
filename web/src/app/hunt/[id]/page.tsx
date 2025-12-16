@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, Play, Share2, Edit, Trophy, Map, Clock, Users, 
+import {
+  ArrowLeft, Play, Share2, Trophy, Map, Clock, Users,
   Camera, MapPin, QrCode, MessageSquare, CheckCircle, Lock,
   Copy, Check
 } from 'lucide-react';
@@ -184,11 +184,6 @@ export default function HuntDetailPage() {
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copied ? 'Copied!' : 'Share'}
                 </Button>
-                <Link href={`/hunt/${hunt.id}/edit`}>
-                  <Button variant="outline">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                </Link>
               </div>
             </div>
           </div>
