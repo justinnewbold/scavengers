@@ -2,16 +2,26 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Map, Compass, Plus, User, Menu, X } from 'lucide-react';
 import { Button } from './Button';
 
 interface NavbarProps {
-  onCreateClick: () => void;
+  onCreateClick?: () => void;
 }
 
 export function Navbar({ onCreateClick }: NavbarProps) {
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleCreateClick = () => {
+    if (onCreateClick) {
+      onCreateClick();
+    } else {
+      router.push('/create');
+    }
+  };
 
   const navLinks = [
     { href: '/', label: 'Discover', icon: Compass },
@@ -49,7 +59,7 @@ export function Navbar({ onCreateClick }: NavbarProps) {
 
           {/* Create Button */}
           <div className="hidden md:block">
-            <Button variant="primary" size="sm" onClick={onCreateClick}>
+            <Button variant="primary" size="sm" onClick={handleCreateClick}>
               <Plus className="w-4 h-4" />
               Create Hunt
             </Button>
@@ -96,7 +106,7 @@ export function Navbar({ onCreateClick }: NavbarProps) {
                   className="w-full"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    onCreateClick();
+                    handleCreateClick();
                   }}
                 >
                   <Plus className="w-4 h-4" />

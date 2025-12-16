@@ -45,7 +45,7 @@ export default function PlayHuntPage() {
   const [showCompletion, setShowCompletion] = useState(false);
   const [showChallengeList, setShowChallengeList] = useState(false);
   
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     if (params.id) {

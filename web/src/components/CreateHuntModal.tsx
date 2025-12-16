@@ -9,8 +9,9 @@ import { useHuntStore } from '@/stores/huntStore';
 import { generateId } from '@/lib/utils';
 
 interface CreateHuntModalProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
+  onCreated?: (hunt: any) => void;
 }
 
 const themes = [
@@ -30,7 +31,7 @@ const difficulties = [
   { id: 'hard', label: 'Hard', description: 'For experienced hunters', color: 'text-red-400 border-red-400/30' },
 ];
 
-export function CreateHuntModal({ isOpen, onClose }: CreateHuntModalProps) {
+export function CreateHuntModal({ isOpen = true, onClose, onCreated }: CreateHuntModalProps) {
   const [step, setStep] = useState(1);
   const [theme, setTheme] = useState('');
   const [location, setLocation] = useState('');
@@ -68,6 +69,9 @@ export function CreateHuntModal({ isOpen, onClose }: CreateHuntModalProps) {
       };
       
       addHunt(mockHunt);
+      if (onCreated) {
+        onCreated(mockHunt);
+      }
       onClose();
       setStep(1);
     } catch (err) {
