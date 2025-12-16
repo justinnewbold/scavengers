@@ -22,7 +22,7 @@ export function HuntCard({ hunt, onClick, featured = false }: HuntCardProps) {
         bg-gradient-to-br from-[#21262D] to-[#161B22]
         border border-[#30363D] hover:border-[#FF6B35]/50
         transition-all duration-300
-        ${featured ? 'col-span-2 row-span-2' : ''}
+        ${featured ? 'md:col-span-2 md:row-span-2' : ''}
       `}
     >
       {/* Glow effect on hover */}

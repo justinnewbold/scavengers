@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
 
 type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
 
@@ -28,6 +29,7 @@ type Step = 'basics' | 'challenges' | 'review';
 
 export default function CreateHuntPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [step, setStep] = useState<Step>('basics');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,7 +99,7 @@ export default function CreateHuntPage() {
       }
     } catch (error) {
       console.error('AI generation failed:', error);
-      alert('Failed to generate hunt. Please try again.');
+      showToast('Failed to generate hunt. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -105,12 +107,12 @@ export default function CreateHuntPage() {
 
   const saveHunt = async (status: 'draft' | 'active') => {
     if (!title.trim()) {
-      alert('Please enter a title');
+      showToast('Please enter a title', 'warning');
       return;
     }
     
     if (challenges.length === 0) {
-      alert('Please add at least one challenge');
+      showToast('Please add at least one challenge', 'warning');
       return;
     }
     
@@ -136,7 +138,7 @@ export default function CreateHuntPage() {
       router.push(`/hunt/${hunt.id}`);
     } catch (error) {
       console.error('Failed to save hunt:', error);
-      alert('Failed to save hunt. Please try again.');
+      showToast('Failed to save hunt. Please try again.');
     } finally {
       setIsSaving(false);
     }

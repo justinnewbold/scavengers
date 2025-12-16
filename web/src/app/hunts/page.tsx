@@ -245,15 +245,14 @@ export default function MyHuntsPage() {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <CreateHuntModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={(hunt) => {
-            setHunts([hunt, ...hunts]);
-            setShowCreateModal(false);
-          }}
-        />
-      )}
+      <CreateHuntModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={(hunt) => {
+          setHunts([hunt, ...hunts]);
+          setShowCreateModal(false);
+        }}
+      />
     </main>
   );
 }
