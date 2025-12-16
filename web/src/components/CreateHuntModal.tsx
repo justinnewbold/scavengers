@@ -1,0 +1,349 @@
+'use client';
+
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Sparkles, MapPin, Clock, Target, Zap } from 'lucide-react';
+import { Button } from './Button';
+import { generateHuntWithAI } from '@/lib/ai';
+import { useHuntStore } from '@/stores/huntStore';
+import { generateId } from '@/lib/utils';
+
+interface CreateHuntModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const themes = [
+  { id: 'adventure', label: 'Adventure', emoji: '🏔️' },
+  { id: 'mystery', label: 'Mystery', emoji: '🔍' },
+  { id: 'nature', label: 'Nature', emoji: '🌿' },
+  { id: 'urban', label: 'Urban', emoji: '🏙️' },
+  { id: 'history', label: 'History', emoji: '🏛️' },
+  { id: 'art', label: 'Art & Culture', emoji: '🎨' },
+  { id: 'food', label: 'Food & Drink', emoji: '🍕' },
+  { id: 'sports', label: 'Sports', emoji: '⚽' },
+];
+
+const difficulties = [
+  { id: 'easy', label: 'Easy', description: 'Perfect for beginners', color: 'text-green-400 border-green-400/30' },
+  { id: 'medium', label: 'Medium', description: 'A balanced challenge', color: 'text-yellow-400 border-yellow-400/30' },
+  { id: 'hard', label: 'Hard', description: 'For experienced hunters', color: 'text-red-400 border-red-400/30' },
+];
+
+export function CreateHuntModal({ isOpen, onClose }: CreateHuntModalProps) {
+  const [step, setStep] = useState(1);
+  const [theme, setTheme] = useState('');
+  const [location, setLocation] = useState('');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [challengeCount, setChallengeCount] = useState(8);
+  const [duration, setDuration] = useState(60);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState('');
+  
+  const addHunt = useHuntStore((state) => state.addHunt);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError('');
+    
+    try {
+      // For demo, we'll create a mock hunt since API key would be needed
+      // In production, you'd use: const result = await generateHuntWithAI({ theme, location, difficulty, challengeCount, duration }, apiKey);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      
+      const mockHunt = {
+        id: generateId(),
+        title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer: ${location || 'Local Area'}`,
+        description: `An exciting ${difficulty} difficulty scavenger hunt with ${challengeCount} challenges. Perfect for ${duration} minutes of adventure!`,
+        difficulty,
+        estimatedTime: duration,
+        challengeCount,
+        participantCount: 0,
+        location: location || 'Flexible Location',
+        isPublic: true,
+        createdAt: new Date().toISOString(),
+        createdBy: 'You',
+        tags: [theme, difficulty, 'ai-generated'],
+      };
+      
+      addHunt(mockHunt);
+      onClose();
+      setStep(1);
+    } catch (err) {
+      setError('Failed to generate hunt. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const resetAndClose = () => {
+    setStep(1);
+    setTheme('');
+    setLocation('');
+    setDifficulty('medium');
+    setChallengeCount(8);
+    setDuration(60);
+    setError('');
+    onClose();
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={resetAndClose}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40"
+          />
+
+          {/* Modal */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="fixed inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 
+                       md:w-full md:max-w-2xl md:max-h-[85vh] overflow-auto
+                       bg-gradient-to-br from-[#161B22] to-[#0D1117]
+                       border border-[#30363D] rounded-3xl z-50 shadow-2xl"
+          >
+            {/* Header */}
+            <div className="sticky top-0 bg-[#161B22]/95 backdrop-blur-sm border-b border-[#30363D] px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF6B35] to-[#FFE66D] flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-display text-2xl text-white tracking-wide">AI Quick Create</h2>
+                  <p className="text-sm text-[#8B949E]">Step {step} of 3</p>
+                </div>
+              </div>
+              <button
+                onClick={resetAndClose}
+                className="p-2 rounded-lg hover:bg-[#21262D] transition-colors"
+              >
+                <X className="w-5 h-5 text-[#8B949E]" />
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="h-1 bg-[#21262D]">
+              <motion.div
+                initial={{ width: '33%' }}
+                animate={{ width: `${(step / 3) * 100}%` }}
+                className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFE66D]"
+              />
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <AnimatePresence mode="wait">
+                {/* Step 1: Theme Selection */}
+                {step === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <h3 className="text-xl font-semibold text-white mb-2">Choose a Theme</h3>
+                    <p className="text-[#8B949E] mb-6">What kind of adventure are you looking for?</p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {themes.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTheme(t.id)}
+                          className={`p-4 rounded-xl border-2 transition-all duration-200 text-center
+                            ${theme === t.id
+                              ? 'border-[#FF6B35] bg-[#FF6B35]/10 text-white'
+                              : 'border-[#30363D] hover:border-[#484F58] text-[#8B949E]'
+                            }`}
+                        >
+                          <span className="text-2xl block mb-1">{t.emoji}</span>
+                          <span className="text-sm font-medium">{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mt-6">
+                      <label className="block text-sm text-[#8B949E] mb-2">
+                        <MapPin className="inline w-4 h-4 mr-1" />
+                        Location (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="e.g., Central Park, Downtown, My Neighborhood"
+                        className="w-full px-4 py-3 rounded-xl bg-[#21262D] border border-[#30363D] 
+                                 text-white placeholder-[#484F58] focus:border-[#FF6B35] focus:outline-none"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Step 2: Difficulty */}
+                {step === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <h3 className="text-xl font-semibold text-white mb-2">Set the Challenge Level</h3>
+                    <p className="text-[#8B949E] mb-6">How challenging should this hunt be?</p>
+                    
+                    <div className="space-y-3">
+                      {difficulties.map((d) => (
+                        <button
+                          key={d.id}
+                          onClick={() => setDifficulty(d.id as 'easy' | 'medium' | 'hard')}
+                          className={`w-full p-4 rounded-xl border-2 transition-all duration-200 text-left
+                            ${difficulty === d.id
+                              ? `${d.color} bg-opacity-10`
+                              : 'border-[#30363D] hover:border-[#484F58]'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className={`font-semibold ${difficulty === d.id ? d.color.split(' ')[0] : 'text-white'}`}>
+                                {d.label}
+                              </span>
+                              <p className="text-sm text-[#8B949E] mt-1">{d.description}</p>
+                            </div>
+                            {difficulty === d.id && (
+                              <div className="w-6 h-6 rounded-full bg-current flex items-center justify-center">
+                                <svg className="w-4 h-4 text-[#0D1117]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Step 3: Details */}
+                {step === 3 && (
+                  <motion.div
+                    key="step3"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <h3 className="text-xl font-semibold text-white mb-2">Final Details</h3>
+                    <p className="text-[#8B949E] mb-6">Customize the length of your hunt</p>
+                    
+                    <div className="space-y-6">
+                      {/* Challenge Count */}
+                      <div>
+                        <label className="flex items-center gap-2 text-sm text-[#8B949E] mb-3">
+                          <Target className="w-4 h-4" />
+                          Number of Challenges: <span className="text-[#FF6B35] font-semibold">{challengeCount}</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="3"
+                          max="20"
+                          value={challengeCount}
+                          onChange={(e) => setChallengeCount(parseInt(e.target.value))}
+                          className="w-full h-2 rounded-full bg-[#21262D] appearance-none cursor-pointer
+                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 
+                                   [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full 
+                                   [&::-webkit-slider-thumb]:bg-[#FF6B35] [&::-webkit-slider-thumb]:cursor-pointer
+                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FF6B35]/30"
+                        />
+                        <div className="flex justify-between text-xs text-[#484F58] mt-1">
+                          <span>3</span>
+                          <span>20</span>
+                        </div>
+                      </div>
+
+                      {/* Duration */}
+                      <div>
+                        <label className="flex items-center gap-2 text-sm text-[#8B949E] mb-3">
+                          <Clock className="w-4 h-4" />
+                          Estimated Duration: <span className="text-[#FFE66D] font-semibold">{duration} minutes</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="15"
+                          max="180"
+                          step="15"
+                          value={duration}
+                          onChange={(e) => setDuration(parseInt(e.target.value))}
+                          className="w-full h-2 rounded-full bg-[#21262D] appearance-none cursor-pointer
+                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 
+                                   [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full 
+                                   [&::-webkit-slider-thumb]:bg-[#FFE66D] [&::-webkit-slider-thumb]:cursor-pointer
+                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FFE66D]/30"
+                        />
+                        <div className="flex justify-between text-xs text-[#484F58] mt-1">
+                          <span>15 min</span>
+                          <span>3 hours</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="mt-6 p-4 rounded-xl bg-[#21262D]/50 border border-[#30363D]">
+                      <h4 className="text-sm font-medium text-[#8B949E] mb-2">Your Hunt Summary</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div><span className="text-[#484F58]">Theme:</span> <span className="text-white capitalize">{theme}</span></div>
+                        <div><span className="text-[#484F58]">Difficulty:</span> <span className="text-white capitalize">{difficulty}</span></div>
+                        <div><span className="text-[#484F58]">Challenges:</span> <span className="text-white">{challengeCount}</span></div>
+                        <div><span className="text-[#484F58]">Duration:</span> <span className="text-white">{duration} min</span></div>
+                        {location && <div className="col-span-2"><span className="text-[#484F58]">Location:</span> <span className="text-white">{location}</span></div>}
+                      </div>
+                    </div>
+
+                    {error && (
+                      <p className="mt-4 text-red-400 text-sm">{error}</p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-[#161B22]/95 backdrop-blur-sm border-t border-[#30363D] px-6 py-4 flex justify-between">
+              <Button
+                variant="ghost"
+                onClick={() => step > 1 ? setStep(step - 1) : resetAndClose()}
+              >
+                {step > 1 ? 'Back' : 'Cancel'}
+              </Button>
+              
+              {step < 3 ? (
+                <Button
+                  variant="primary"
+                  onClick={() => setStep(step + 1)}
+                  disabled={step === 1 && !theme}
+                >
+                  Continue
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleGenerate}
+                  isLoading={isGenerating}
+                  disabled={isGenerating}
+                >
+                  <Zap className="w-4 h-4" />
+                  Generate Hunt
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

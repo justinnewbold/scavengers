@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-body: 'Space Grotesk', sans-serif;
+  --background: #0D1117;
+  --foreground: #F0F6FC;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-hunt-orange: #FF6B35;
+  --color-hunt-gold: #FFE66D;
+  --color-hunt-teal: #1A535C;
+  --color-hunt-dark: #0D1117;
+  --color-hunt-surface: #161B22;
+  --color-hunt-card: #21262D;
+  --color-hunt-border: #30363D;
+  --color-hunt-muted: #8B949E;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #161B22;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #484F58;
+}
+
+::selection {
+  background: rgba(255, 107, 53, 0.3);
+  color: #FFE66D;
+}
