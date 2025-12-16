@@ -1,0 +1,484 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft, ArrowRight, Camera, MapPin, QrCode, MessageSquare, 
+  CheckCircle, Trophy, Clock, X, ChevronDown, ChevronUp,
+  Sparkles, PartyPopper, Share2
+} from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
+import { Button } from '@/components/Button';
+
+interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  verification_type: 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
+  verification_data?: any;
+  hint?: string;
+  order_index: number;
+}
+
+interface Hunt {
+  id: string;
+  title: string;
+  description: string;
+  challenges: Challenge[];
+}
+
+export default function PlayHuntPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [hunt, setHunt] = useState<Hunt | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [completedChallenges, setCompletedChallenges] = useState<Set<string>>(new Set());
+  const [score, setScore] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [showHint, setShowHint] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [textAnswer, setTextAnswer] = useState('');
+  const [answerFeedback, setAnswerFeedback] = useState<'correct' | 'incorrect' | null>(null);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [showChallengeList, setShowChallengeList] = useState(false);
+  
+  const timerRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (params.id) {
+      fetchHunt(params.id as string);
+    }
+    
+    // Start timer
+    timerRef.current = setInterval(() => {
+      setTimeElapsed(prev => prev + 1);
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [params.id]);
+
+  const fetchHunt = async (id: string) => {
+    try {
+      const res = await fetch(`/api/hunts/${id}`);
+      if (!res.ok) throw new Error('Hunt not found');
+      const data = await res.json();
+      setHunt(data);
+    } catch (error) {
+      console.error('Failed to fetch hunt:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const currentChallenge = hunt?.challenges[currentIndex];
+  const totalPoints = hunt?.challenges.reduce((sum, c) => sum + c.points, 0) || 0;
+  const progress = hunt ? (completedChallenges.size / hunt.challenges.length) * 100 : 0;
+
+  const completeChallenge = (challengeId: string, points: number) => {
+    if (completedChallenges.has(challengeId)) return;
+    
+    setCompletedChallenges(prev => new Set([...prev, challengeId]));
+    setScore(prev => prev + points);
+    
+    // Check if hunt is complete
+    if (hunt && completedChallenges.size + 1 >= hunt.challenges.length) {
+      setTimeout(() => setShowCompletion(true), 500);
+    } else {
+      // Move to next challenge
+      setTimeout(() => {
+        if (currentIndex < (hunt?.challenges.length || 1) - 1) {
+          setCurrentIndex(prev => prev + 1);
+        }
+      }, 1000);
+    }
+  };
+
+  const handleTextAnswer = () => {
+    if (!currentChallenge?.verification_data?.correct_answer) return;
+    
+    const correct = currentChallenge.verification_data.case_sensitive
+      ? textAnswer === currentChallenge.verification_data.correct_answer
+      : textAnswer.toLowerCase() === currentChallenge.verification_data.correct_answer.toLowerCase();
+    
+    setAnswerFeedback(correct ? 'correct' : 'incorrect');
+    
+    if (correct) {
+      completeChallenge(currentChallenge.id, currentChallenge.points);
+    }
+    
+    setTimeout(() => {
+      setAnswerFeedback(null);
+      setTextAnswer('');
+    }, 2000);
+  };
+
+  const handleManualComplete = () => {
+    if (currentChallenge) {
+      completeChallenge(currentChallenge.id, currentChallenge.points);
+    }
+  };
+
+  const getVerificationIcon = (type: string) => {
+    switch (type) {
+      case 'photo': return Camera;
+      case 'gps': return MapPin;
+      case 'qr_code': return QrCode;
+      case 'text_answer': return MessageSquare;
+      default: return CheckCircle;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-[#0D1117] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#FF6B35] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#8B949E]">Loading hunt...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!hunt || !currentChallenge) {
+    return (
+      <main className="min-h-screen bg-[#0D1117] flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-[#8B949E] mb-4">Hunt not found</p>
+          <Button onClick={() => router.push('/hunts')}>Back to Hunts</Button>
+        </div>
+      </main>
+    );
+  }
+
+  const Icon = getVerificationIcon(currentChallenge.verification_type);
+  const isCompleted = completedChallenges.has(currentChallenge.id);
+
+  return (
+    <main className="min-h-screen bg-[#0D1117]">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-[#0D1117]/95 backdrop-blur-xl border-b border-[#21262D]">
+        {/* Progress Bar */}
+        <div className="h-1 bg-[#21262D]">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFE66D]"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+        
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => router.push(`/hunt/${hunt.id}`)}
+              className="flex items-center gap-2 text-[#8B949E] hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+              <span className="hidden sm:inline">Exit</span>
+            </button>
+            
+            <h1 className="font-semibold text-white truncate max-w-[200px]">{hunt.title}</h1>
+            
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1 text-[#8B949E]">
+                <Clock className="w-4 h-4" />
+                <span className="font-mono">{formatTime(timeElapsed)}</span>
+              </div>
+              <div className="flex items-center gap-1 text-[#FF6B35]">
+                <Trophy className="w-4 h-4" />
+                <span className="font-bold">{score}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="pt-20 pb-32 px-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Challenge Card */}
+          <motion.div
+            key={currentChallenge.id}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className={`bg-[#161B22] rounded-2xl border ${isCompleted ? 'border-green-500/50' : 'border-[#30363D]'} overflow-hidden`}
+          >
+            {/* Challenge Header */}
+            <div className="p-6 border-b border-[#21262D]">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm text-[#8B949E]">
+                  Challenge {currentIndex + 1} of {hunt.challenges.length}
+                </span>
+                <span className={`text-lg font-bold ${isCompleted ? 'text-green-400' : 'text-[#FF6B35]'}`}>
+                  {isCompleted ? '✓ ' : ''}{currentChallenge.points} pts
+                </span>
+              </div>
+              
+              <h2 className="text-2xl font-bold text-white mb-2">{currentChallenge.title}</h2>
+              <p className="text-[#8B949E] text-lg">{currentChallenge.description}</p>
+            </div>
+
+            {/* Verification Section */}
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-6 text-[#8B949E]">
+                <div className="w-10 h-10 rounded-xl bg-[#21262D] flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-[#FF6B35]" />
+                </div>
+                <span>
+                  {currentChallenge.verification_type === 'photo' && 'Take a photo to verify'}
+                  {currentChallenge.verification_type === 'gps' && 'Go to the location'}
+                  {currentChallenge.verification_type === 'qr_code' && 'Scan a QR code'}
+                  {currentChallenge.verification_type === 'text_answer' && 'Enter your answer'}
+                  {currentChallenge.verification_type === 'manual' && 'Mark as complete'}
+                </span>
+              </div>
+
+              {/* Text Answer Input */}
+              {currentChallenge.verification_type === 'text_answer' && !isCompleted && (
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    value={textAnswer}
+                    onChange={(e) => setTextAnswer(e.target.value)}
+                    placeholder="Type your answer..."
+                    className={`w-full px-4 py-3 rounded-xl bg-[#21262D] border ${
+                      answerFeedback === 'correct' ? 'border-green-500' :
+                      answerFeedback === 'incorrect' ? 'border-red-500' :
+                      'border-[#30363D]'
+                    } text-white placeholder-[#8B949E] focus:outline-none focus:border-[#FF6B35]`}
+                    onKeyDown={(e) => e.key === 'Enter' && handleTextAnswer()}
+                  />
+                  <Button onClick={handleTextAnswer} className="w-full" disabled={!textAnswer.trim()}>
+                    Submit Answer
+                  </Button>
+                  {answerFeedback === 'incorrect' && (
+                    <p className="text-red-400 text-center">Incorrect! Try again.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Photo/GPS/QR - Web simulation */}
+              {['photo', 'gps', 'qr_code'].includes(currentChallenge.verification_type) && !isCompleted && (
+                <div className="text-center">
+                  <div className="bg-[#21262D] rounded-xl p-8 mb-4">
+                    <Icon className="w-12 h-12 text-[#8B949E] mx-auto mb-4" />
+                    <p className="text-[#8B949E] mb-4">
+                      {currentChallenge.verification_type === 'photo' && 'Photo verification works best on mobile'}
+                      {currentChallenge.verification_type === 'gps' && 'GPS verification works best on mobile'}
+                      {currentChallenge.verification_type === 'qr_code' && 'QR scanning works best on mobile'}
+                    </p>
+                    <Button variant="outline" onClick={handleManualComplete}>
+                      Mark as Complete (Demo)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Manual Complete */}
+              {currentChallenge.verification_type === 'manual' && !isCompleted && (
+                <Button onClick={handleManualComplete} className="w-full">
+                  <CheckCircle className="w-5 h-5" />
+                  Mark as Complete
+                </Button>
+              )}
+
+              {/* Completed State */}
+              {isCompleted && (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center py-4"
+                >
+                  <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-green-400" />
+                  </div>
+                  <p className="text-green-400 font-semibold text-lg">Challenge Complete!</p>
+                  <p className="text-[#8B949E]">+{currentChallenge.points} points</p>
+                </motion.div>
+              )}
+
+              {/* Hint */}
+              {currentChallenge.hint && !isCompleted && (
+                <div className="mt-6">
+                  <button
+                    onClick={() => setShowHint(!showHint)}
+                    className="flex items-center gap-2 text-yellow-500 hover:text-yellow-400 transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {showHint ? 'Hide Hint' : 'Show Hint'}
+                    {showHint ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  
+                  <AnimatePresence>
+                    {showHint && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                          <p className="text-yellow-200">{currentChallenge.hint}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Challenge Navigation */}
+          <button
+            onClick={() => setShowChallengeList(!showChallengeList)}
+            className="w-full mt-4 p-4 rounded-xl bg-[#161B22] border border-[#30363D] text-[#8B949E] hover:text-white hover:border-[#484F58] transition-all flex items-center justify-between"
+          >
+            <span>View All Challenges</span>
+            {showChallengeList ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+          </button>
+
+          <AnimatePresence>
+            {showChallengeList && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 space-y-2">
+                  {hunt.challenges.map((challenge, index) => {
+                    const isComplete = completedChallenges.has(challenge.id);
+                    const isCurrent = index === currentIndex;
+                    return (
+                      <button
+                        key={challenge.id}
+                        onClick={() => {
+                          setCurrentIndex(index);
+                          setShowChallengeList(false);
+                        }}
+                        className={`w-full p-4 rounded-xl border text-left transition-all ${
+                          isCurrent 
+                            ? 'bg-[#FF6B35]/10 border-[#FF6B35]' 
+                            : isComplete
+                              ? 'bg-green-500/10 border-green-500/30'
+                              : 'bg-[#161B22] border-[#30363D] hover:border-[#484F58]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              isComplete ? 'bg-green-500/20 text-green-400' : 'bg-[#21262D] text-[#8B949E]'
+                            }`}>
+                              {isComplete ? <CheckCircle className="w-4 h-4" /> : index + 1}
+                            </div>
+                            <span className={isComplete ? 'text-green-400' : 'text-white'}>{challenge.title}</span>
+                          </div>
+                          <span className={`font-bold ${isComplete ? 'text-green-400' : 'text-[#FF6B35]'}`}>
+                            {challenge.points}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-[#0D1117]/95 backdrop-blur-xl border-t border-[#21262D] p-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+            disabled={currentIndex === 0}
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Previous
+          </Button>
+          
+          <span className="text-[#8B949E]">
+            {completedChallenges.size} / {hunt.challenges.length} complete
+          </span>
+          
+          <Button
+            variant="outline"
+            onClick={() => setCurrentIndex(prev => Math.min(hunt.challenges.length - 1, prev + 1))}
+            disabled={currentIndex >= hunt.challenges.length - 1}
+          >
+            Next
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Completion Modal */}
+      <AnimatePresence>
+        {showCompletion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-[#161B22] rounded-2xl border border-[#30363D] p-8 max-w-md w-full text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: 'spring' }}
+              >
+                <PartyPopper className="w-20 h-20 text-[#FFE66D] mx-auto mb-6" />
+              </motion.div>
+              
+              <h2 className="text-3xl font-bold text-white mb-2">Hunt Complete!</h2>
+              <p className="text-[#8B949E] mb-6">You've conquered all the challenges!</p>
+              
+              <div className="bg-[#21262D] rounded-xl p-6 mb-6">
+                <div className="text-4xl font-bold text-[#FF6B35] mb-2">{score}</div>
+                <div className="text-[#8B949E]">Total Points</div>
+                <div className="mt-4 pt-4 border-t border-[#30363D] flex justify-around">
+                  <div>
+                    <div className="text-xl font-bold text-white">{formatTime(timeElapsed)}</div>
+                    <div className="text-xs text-[#8B949E]">Time</div>
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white">{hunt.challenges.length}</div>
+                    <div className="text-xs text-[#8B949E]">Challenges</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => router.push('/hunts')} className="flex-1">
+                  Back to Hunts
+                </Button>
+                <Button className="flex-1">
+                  <Share2 className="w-4 h-4" />
+                  Share Results
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+}
