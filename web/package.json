@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.3",
+    "@vercel/postgres": "^0.10.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.561.0",
     "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "uuid": "^11.0.3",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -23,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.10",
     "tailwindcss": "^4",
