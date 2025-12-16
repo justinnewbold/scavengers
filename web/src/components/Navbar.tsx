@@ -4,8 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, Compass, Plus, Menu, X } from 'lucide-react';
+import { Map, Compass, Plus, Menu, X, User, LogOut } from 'lucide-react';
 import { Button } from './Button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NavbarProps {
   onCreateClick?: () => void;
@@ -13,7 +14,9 @@ interface NavbarProps {
 
 export function Navbar({ onCreateClick }: NavbarProps) {
   const router = useRouter();
+  const { user, isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleCreateClick = () => {
     if (onCreateClick) {
@@ -21,6 +24,12 @@ export function Navbar({ onCreateClick }: NavbarProps) {
     } else {
       router.push('/create');
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setShowUserMenu(false);
+    router.push('/');
   };
 
   const navLinks = [
@@ -56,12 +65,52 @@ export function Navbar({ onCreateClick }: NavbarProps) {
             ))}
           </div>
 
-          {/* Create Button */}
-          <div className="hidden md:block">
+          {/* Right Side Actions */}
+          <div className="hidden md:flex items-center gap-3">
             <Button variant="primary" size="sm" onClick={handleCreateClick}>
               <Plus className="w-4 h-4" />
               Create Hunt
             </Button>
+
+            {isAuthenticated ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#21262D] transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#21262D] flex items-center justify-center">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <User className="w-4 h-4 text-[#8B949E]" />
+                    )}
+                  </div>
+                  <span className="text-sm text-[#8B949E]">{user?.display_name}</span>
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 top-12 w-48 bg-[#161B22] rounded-xl border border-[#30363D] shadow-xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#30363D]">
+                      <p className="text-sm font-medium text-white">{user?.display_name}</p>
+                      <p className="text-xs text-[#8B949E]">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-[#8B949E] hover:text-white hover:bg-[#21262D] transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  Sign In
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -88,6 +137,22 @@ export function Navbar({ onCreateClick }: NavbarProps) {
             className="md:hidden bg-[#161B22] border-b border-[#21262D] overflow-hidden"
           >
             <div className="px-4 py-4 space-y-2">
+              {isAuthenticated && (
+                <div className="flex items-center gap-3 p-3 border-b border-[#30363D] mb-2">
+                  <div className="w-10 h-10 rounded-full bg-[#21262D] flex items-center justify-center">
+                    {user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-10 h-10 rounded-full" />
+                    ) : (
+                      <User className="w-5 h-5 text-[#8B949E]" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">{user?.display_name}</p>
+                    <p className="text-xs text-[#8B949E]">{user?.email}</p>
+                  </div>
+                </div>
+              )}
+
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
@@ -99,7 +164,8 @@ export function Navbar({ onCreateClick }: NavbarProps) {
                   <span>{link.label}</span>
                 </Link>
               ))}
-              <div className="pt-2">
+
+              <div className="pt-2 space-y-2">
                 <Button
                   variant="primary"
                   className="w-full"
@@ -111,6 +177,27 @@ export function Navbar({ onCreateClick }: NavbarProps) {
                   <Plus className="w-4 h-4" />
                   Create Hunt
                 </Button>
+
+                {isAuthenticated ? (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </Button>
+                ) : (
+                  <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full">
+                      <User className="w-4 h-4" />
+                      Sign In
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </motion.div>
