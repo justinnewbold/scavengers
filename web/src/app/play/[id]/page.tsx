@@ -12,13 +12,20 @@ import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
 
+interface VerificationData {
+  correct_answer?: string;
+  case_sensitive?: boolean;
+  location?: { lat: number; lng: number; radius?: number };
+  qrCode?: string;
+}
+
 interface Challenge {
   id: string;
   title: string;
   description: string;
   points: number;
   verification_type: 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
-  verification_data?: any;
+  verification_data?: VerificationData;
   hint?: string;
   order_index: number;
 }
@@ -80,8 +87,8 @@ export default function PlayHuntPage() {
       if (!res.ok) throw new Error('Hunt not found');
       const data = await res.json();
       setHunt(data);
-    } catch (error) {
-      console.error('Failed to fetch hunt:', error);
+    } catch {
+      showToast('Failed to load hunt', 'error');
     } finally {
       setIsLoading(false);
     }

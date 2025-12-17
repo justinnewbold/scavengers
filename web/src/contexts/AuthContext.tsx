@@ -63,15 +63,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        // API returns user directly, not wrapped in { user: ... }
+        const userData = await res.json();
+        setUser(userData);
+        localStorage.setItem(USER_KEY, JSON.stringify(userData));
       } else {
         // Token invalid, clear auth state
         logout();
       }
-    } catch (error) {
-      console.error('Token verification failed:', error);
+    } catch {
+      // Token verification failed - keep existing state
     } finally {
       setIsLoading(false);
     }
@@ -97,8 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
       return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
   }, []);
@@ -123,8 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
       return { success: true };
-    } catch (error) {
-      console.error('Registration error:', error);
+    } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
   }, []);
@@ -161,8 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(USER_KEY, JSON.stringify(responseData.user));
 
       return { success: true };
-    } catch (error) {
-      console.error('Profile update error:', error);
+    } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
   }, [token]);

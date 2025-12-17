@@ -15,13 +15,29 @@ import { useToast } from '@/components/Toast';
 
 type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
 
+interface VerificationData {
+  correct_answer?: string;
+  case_sensitive?: boolean;
+  location?: { lat: number; lng: number; radius?: number };
+  qrCode?: string;
+}
+
 interface Challenge {
   id: string;
   title: string;
   description: string;
   points: number;
   verification_type: VerificationType;
-  verification_data?: any;
+  verification_data?: VerificationData;
+  hint?: string;
+}
+
+interface GeneratedChallenge {
+  title: string;
+  description: string;
+  points: number;
+  type?: string;
+  verification_type?: VerificationType;
   hint?: string;
 }
 
@@ -88,17 +104,21 @@ export default function CreateHuntPage() {
       
       const data = await res.json();
       
-      if (data.title) {
-        setTitle(data.title);
-        setDescription(data.description || '');
-        setChallenges(data.challenges?.map((c: any, i: number) => ({
+      if (data.hunt?.title || data.title) {
+        setTitle(data.hunt?.title || data.title);
+        setDescription(data.hunt?.description || data.description || '');
+        const generatedChallenges = data.challenges || [];
+        setChallenges(generatedChallenges.map((c: GeneratedChallenge, i: number) => ({
           id: `temp-${Date.now()}-${i}`,
-          ...c,
-        })) || []);
+          title: c.title || '',
+          description: c.description || '',
+          points: c.points || 10,
+          verification_type: (c.verification_type || c.type || 'manual') as VerificationType,
+          hint: c.hint || '',
+        })));
         setStep('challenges');
       }
-    } catch (error) {
-      console.error('AI generation failed:', error);
+    } catch {
       showToast('Failed to generate hunt. Please try again.');
     } finally {
       setIsGenerating(false);
@@ -135,10 +155,13 @@ export default function CreateHuntPage() {
       });
       
       const hunt = await res.json();
+      if (hunt.error) {
+        showToast(hunt.error, 'error');
+        return;
+      }
       router.push(`/hunt/${hunt.id}`);
-    } catch (error) {
-      console.error('Failed to save hunt:', error);
-      showToast('Failed to save hunt. Please try again.');
+    } catch {
+      showToast('Failed to save hunt. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
