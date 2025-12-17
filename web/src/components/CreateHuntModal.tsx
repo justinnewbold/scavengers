@@ -4,14 +4,22 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, MapPin, Clock, Target, Zap } from 'lucide-react';
 import { Button } from './Button';
-import { generateHuntWithAI } from '@/lib/ai';
-import { useHuntStore } from '@/stores/huntStore';
-import { generateId } from '@/lib/utils';
+
+interface Hunt {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  status: 'draft' | 'active' | 'completed' | 'archived';
+  is_public: boolean;
+  challenges?: { id: string; points: number }[];
+  created_at: string;
+}
 
 interface CreateHuntModalProps {
   isOpen?: boolean;
   onClose: () => void;
-  onCreated?: (hunt: any) => void;
+  onCreated?: (hunt: Hunt) => void;
 }
 
 const themes = [
@@ -31,7 +39,7 @@ const difficulties = [
   { id: 'hard', label: 'Hard', description: 'For experienced hunters', color: 'text-red-400 border-red-400/30' },
 ];
 
-export function CreateHuntModal({ isOpen = true, onClose, onCreated }: CreateHuntModalProps) {
+export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHuntModalProps) {
   const [step, setStep] = useState(1);
   const [theme, setTheme] = useState('');
   const [location, setLocation] = useState('');
@@ -40,42 +48,62 @@ export function CreateHuntModal({ isOpen = true, onClose, onCreated }: CreateHun
   const [duration, setDuration] = useState(60);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
-  
-  const addHunt = useHuntStore((state) => state.addHunt);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError('');
-    
+
     try {
-      // For demo, we'll create a mock hunt since API key would be needed
-      // In production, you'd use: const result = await generateHuntWithAI({ theme, location, difficulty, challengeCount, duration }, apiKey);
-      
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
-      
-      const mockHunt = {
-        id: generateId(),
-        title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer: ${location || 'Local Area'}`,
-        description: `An exciting ${difficulty} difficulty scavenger hunt with ${challengeCount} challenges. Perfect for ${duration} minutes of adventure!`,
-        difficulty,
-        estimatedTime: duration,
-        challengeCount,
-        participantCount: 0,
-        location: location || 'Flexible Location',
-        isPublic: true,
-        createdAt: new Date().toISOString(),
-        createdBy: 'You',
-        tags: [theme, difficulty, 'ai-generated'],
-      };
-      
-      addHunt(mockHunt);
+      // First, generate AI content
+      const aiRes = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          theme,
+          location,
+          difficulty,
+          challengeCount,
+          duration,
+        }),
+      });
+
+      const aiData = await aiRes.json();
+
+      // Create the hunt via API
+      const huntRes = await fetch('/api/hunts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: aiData.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
+          description: aiData.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
+          difficulty,
+          is_public: true,
+          status: 'active',
+          location: location || undefined,
+          challenges: aiData.challenges?.map((c: { title: string; description: string; points: number; type?: string }, i: number) => ({
+            title: c.title,
+            description: c.description,
+            points: c.points || 10,
+            verification_type: c.type === 'gps' ? 'gps' : c.type === 'text' ? 'text_answer' : 'photo',
+            order_index: i,
+          })) || [],
+        }),
+      });
+
+      if (!huntRes.ok) {
+        const errorData = await huntRes.json();
+        throw new Error(errorData.error || 'Failed to create hunt');
+      }
+
+      const hunt = await huntRes.json();
+
       if (onCreated) {
-        onCreated(mockHunt);
+        onCreated(hunt);
       }
       onClose();
       setStep(1);
     } catch (err) {
-      setError('Failed to generate hunt. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to generate hunt. Please try again.');
     } finally {
       setIsGenerating(false);
     }

@@ -96,9 +96,8 @@ export default function CreateHuntPage() {
         body: JSON.stringify({
           theme: aiTheme,
           difficulty,
-          challenge_count: aiChallengeCount,
-          include_photo_challenges: true,
-          include_gps_challenges: false,
+          challengeCount: aiChallengeCount,
+          duration: 60,
         }),
       });
       

@@ -35,8 +35,8 @@ export default function MyHuntsPage() {
       const res = await fetch('/api/hunts');
       const data = await res.json();
       setHunts(data.hunts || []);
-    } catch (error) {
-      console.error('Failed to fetch hunts:', error);
+    } catch {
+      // Failed to fetch hunts - user will see empty state
     } finally {
       setIsLoading(false);
     }
@@ -48,8 +48,8 @@ export default function MyHuntsPage() {
     try {
       await fetch(`/api/hunts/${id}`, { method: 'DELETE' });
       setHunts(hunts.filter(h => h.id !== id));
-    } catch (error) {
-      console.error('Failed to delete hunt:', error);
+    } catch {
+      // Failed to delete - user can retry
     }
   };
 

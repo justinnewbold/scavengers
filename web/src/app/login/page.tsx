@@ -42,8 +42,20 @@ export default function LoginPage() {
 
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (mode === 'signup') {
+      // Strict validation for signup to match server requirements
+      if (password.length < 8) {
+        newErrors.password = 'Password must be at least 8 characters';
+      } else if (!/[A-Z]/.test(password)) {
+        newErrors.password = 'Password must contain an uppercase letter';
+      } else if (!/[a-z]/.test(password)) {
+        newErrors.password = 'Password must contain a lowercase letter';
+      } else if (!/[0-9]/.test(password)) {
+        newErrors.password = 'Password must contain a number';
+      }
+    } else if (password.length < 1) {
+      // For login, just require non-empty (server will validate)
+      newErrors.password = 'Password is required';
     }
 
     if (mode === 'signup' && !displayName) {
@@ -206,7 +218,7 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
+                  placeholder={mode === 'signup' ? '8+ chars, upper, lower, number' : 'Enter password'}
                   className={`w-full pl-10 pr-12 py-3 rounded-xl bg-[#21262D] border ${
                     errors.password ? 'border-red-500' : 'border-[#30363D]'
                   } text-white placeholder-[#484F58] focus:outline-none focus:border-[#FF6B35]`}
