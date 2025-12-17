@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { v4 as uuidv4 } from 'uuid';
+import { requireAuth } from '@/lib/auth';
 
 interface VerificationData {
   correct_answer?: string;
@@ -53,8 +54,7 @@ function verifySubmission(
       const targetLocation = verificationData.location;
 
       if (!targetLocation) {
-        // No location configured - auto-verify
-        return { verified: true };
+        return { verified: false, reason: 'No GPS location configured for this challenge' };
       }
 
       const distance = calculateDistance(
@@ -75,8 +75,7 @@ function verifySubmission(
       const expectedCode = verificationData.qrCode;
 
       if (!expectedCode) {
-        // No code configured - auto-verify
-        return { verified: true };
+        return { verified: false, reason: 'No QR code configured for this challenge' };
       }
 
       const isCorrect = code?.toLowerCase() === expectedCode.toLowerCase();
@@ -106,6 +105,12 @@ function verifySubmission(
 // POST /api/submissions - Create submission
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const auth = await requireAuth(request);
+    if ('error' in auth) {
+      return auth.error;
+    }
+
     const body = await request.json();
     const { participant_id, challenge_id, submission_type, submission_data } = body;
 
@@ -117,9 +122,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify participant exists and is playing
+    // Verify participant exists, is playing, and belongs to the authenticated user
     const participantResult = await sql`
-      SELECT p.id, p.hunt_id, p.status
+      SELECT p.id, p.hunt_id, p.status, p.user_id
       FROM participants p
       WHERE p.id = ${participant_id}
     `;
@@ -132,6 +137,15 @@ export async function POST(request: NextRequest) {
     }
 
     const participant = participantResult.rows[0];
+
+    // Verify participant belongs to the authenticated user
+    if (participant.user_id !== auth.user.id) {
+      return NextResponse.json(
+        { error: 'You can only submit for your own participation' },
+        { status: 403 }
+      );
+    }
+
     if (participant.status !== 'playing') {
       return NextResponse.json(
         { error: 'Participant is not actively playing' },
@@ -157,6 +171,14 @@ export async function POST(request: NextRequest) {
     if (challenge.hunt_id !== participant.hunt_id) {
       return NextResponse.json(
         { error: 'Challenge does not belong to this hunt' },
+        { status: 400 }
+      );
+    }
+
+    // Validate submission type matches challenge verification type
+    if (submission_type !== challenge.verification_type) {
+      return NextResponse.json(
+        { error: `Invalid submission type. Expected ${challenge.verification_type}, got ${submission_type}` },
         { status: 400 }
       );
     }
@@ -249,35 +271,47 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/submissions - List submissions
+// GET /api/submissions - List submissions (requires auth, returns only user's submissions)
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication
+    const auth = await requireAuth(request);
+    if ('error' in auth) {
+      return auth.error;
+    }
+
     const { searchParams } = new URL(request.url);
     const participantId = searchParams.get('participant_id');
-    const challengeId = searchParams.get('challenge_id');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
     const offset = (page - 1) * limit;
 
+    // Only return submissions for participants that belong to the authenticated user
     let result;
     if (participantId) {
+      // Verify the participant belongs to the user
+      const participantCheck = await sql`
+        SELECT id FROM participants WHERE id = ${participantId} AND user_id = ${auth.user.id}
+      `;
+      if (participantCheck.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Participant not found or access denied' },
+          { status: 403 }
+        );
+      }
       result = await sql`
         SELECT * FROM submissions
         WHERE participant_id = ${participantId}
         ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
-    } else if (challengeId) {
-      result = await sql`
-        SELECT * FROM submissions
-        WHERE challenge_id = ${challengeId}
-        ORDER BY created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
     } else {
+      // Return all submissions for the user's participants
       result = await sql`
-        SELECT * FROM submissions
-        ORDER BY created_at DESC
+        SELECT s.* FROM submissions s
+        INNER JOIN participants p ON s.participant_id = p.id
+        WHERE p.user_id = ${auth.user.id}
+        ORDER BY s.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     }

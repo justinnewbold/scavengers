@@ -77,7 +77,13 @@ Respond ONLY with valid JSON, no markdown or explanations.`;
     throw new Error('Invalid JSON response from AI');
   }
 
-  return JSON.parse(jsonMatch[0]) as AIGenerateResponse;
+  try {
+    return JSON.parse(jsonMatch[0]) as AIGenerateResponse;
+  } catch (parseError) {
+    throw new Error(
+      `Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`
+    );
+  }
 }
 
 // Demo hunts for showcase

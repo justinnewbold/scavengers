@@ -22,6 +22,7 @@ interface Hunt {
 export default function MyHuntsPage() {
   const [hunts, setHunts] = useState<Hunt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'completed'>('all');
@@ -31,12 +32,16 @@ export default function MyHuntsPage() {
   }, []);
 
   const fetchHunts = async () => {
+    setError(null);
     try {
       const res = await fetch('/api/hunts');
+      if (!res.ok) {
+        throw new Error('Failed to fetch hunts');
+      }
       const data = await res.json();
       setHunts(data.hunts || []);
     } catch {
-      // Failed to fetch hunts - user will see empty state
+      setError('Failed to load hunts. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -64,10 +69,13 @@ export default function MyHuntsPage() {
           status: 'draft',
         }),
       });
+      if (!res.ok) {
+        throw new Error('Failed to duplicate');
+      }
       const newHunt = await res.json();
       setHunts([newHunt, ...hunts]);
-    } catch (error) {
-      console.error('Failed to duplicate hunt:', error);
+    } catch {
+      setError('Failed to duplicate hunt. Please try again.');
     }
   };
 
@@ -137,6 +145,21 @@ export default function MyHuntsPage() {
               <div key={i} className="animate-pulse bg-[#161B22] rounded-2xl p-6 h-64" />
             ))}
           </div>
+        ) : error ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <div className="w-16 h-16 bg-red-400/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Map className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Something went wrong</h3>
+            <p className="text-[#8B949E] mb-6">{error}</p>
+            <Button onClick={fetchHunts}>
+              Try Again
+            </Button>
+          </motion.div>
         ) : filteredHunts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}

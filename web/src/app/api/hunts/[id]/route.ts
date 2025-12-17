@@ -10,6 +10,8 @@ export async function GET(
   try {
     const { id } = await params;
 
+    // Note: verification_data is intentionally NOT returned to prevent cheating
+    // It contains correct answers, GPS coordinates, and QR codes
     const result = await sql`
       SELECT h.*,
         COALESCE(
@@ -20,7 +22,6 @@ export async function GET(
               'description', c.description,
               'points', c.points,
               'verification_type', c.verification_type,
-              'verification_data', c.verification_data,
               'hint', c.hint,
               'order_index', c.order_index
             ) ORDER BY c.order_index

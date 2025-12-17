@@ -28,5 +28,10 @@ export function getDifficultyColor(difficulty: 'easy' | 'medium' | 'hard'): stri
 }
 
 export function generateId(): string {
+  // Use crypto.randomUUID() for better randomness
+  // Falls back to Math.random() for environments without crypto API
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }

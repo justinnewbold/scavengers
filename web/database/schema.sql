@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   display_name VARCHAR(100),
-  avatar_url TEXT,
+  avatar_url VARCHAR(500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -97,6 +97,12 @@ CREATE INDEX IF NOT EXISTS idx_participants_status ON participants(status);
 CREATE INDEX IF NOT EXISTS idx_submissions_participant_id ON submissions(participant_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON submissions(challenge_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
+
+-- Unique partial index to prevent race conditions on approved submissions
+-- Only one approved submission per participant per challenge is allowed
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_approved_submission
+  ON submissions(participant_id, challenge_id)
+  WHERE status = 'approved';
 
 -- Insert sample hunts with challenges
 INSERT INTO hunts (id, title, description, difficulty, is_public, status) VALUES

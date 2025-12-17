@@ -21,11 +21,7 @@ export async function GET() {
       error: dbConnection.connected ? null : dbConnection.error,
     },
     stats: dbStats,
-    environment: {
-      hasPostgresUrl: !!process.env.POSTGRES_URL,
-      hasJwtSecret: !!process.env.JWT_SECRET,
-      nodeEnv: process.env.NODE_ENV,
-    },
+    // Environment info removed for security - don't expose config details
   };
 
   return NextResponse.json(health, {
