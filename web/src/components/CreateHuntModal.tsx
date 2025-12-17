@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, MapPin, Clock, Target, Zap } from 'lucide-react';
 import { Button } from './Button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Hunt {
   id: string;
@@ -40,6 +41,7 @@ const difficulties = [
 ];
 
 export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHuntModalProps) {
+  const { token } = useAuth();
   const [step, setStep] = useState(1);
   const [theme, setTheme] = useState('');
   const [location, setLocation] = useState('');
@@ -50,6 +52,11 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
   const [error, setError] = useState('');
 
   const handleGenerate = async () => {
+    if (!token) {
+      setError('Please log in to create a hunt');
+      return;
+    }
+
     setIsGenerating(true);
     setError('');
 
@@ -67,12 +74,20 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
         }),
       });
 
+      if (!aiRes.ok) {
+        const errorData = await aiRes.json();
+        throw new Error(errorData.error || 'Failed to generate hunt content');
+      }
+
       const aiData = await aiRes.json();
 
-      // Create the hunt via API
+      // Create the hunt via API with auth token
       const huntRes = await fetch('/api/hunts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title: aiData.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
           description: aiData.hunt?.description || `An exciting ${difficulty} scavenger hunt`,

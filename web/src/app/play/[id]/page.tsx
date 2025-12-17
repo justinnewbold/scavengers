@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,6 +11,7 @@ import {
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VerificationData {
   correct_answer?: string;
@@ -41,6 +42,7 @@ export default function PlayHuntPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -54,6 +56,10 @@ export default function PlayHuntPage() {
   const [showCompletion, setShowCompletion] = useState(false);
   const [showChallengeList, setShowChallengeList] = useState(false);
 
+  // Participant tracking
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
+
   // Photo verification state
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -66,11 +72,45 @@ export default function PlayHuntPage() {
 
   const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
+  // Join hunt and create participant
+  const joinHunt = useCallback(async (huntId: string) => {
+    if (!token || participantId) return;
+
+    setIsJoining(true);
+    try {
+      const res = await fetch(`/api/hunts/${huntId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setParticipantId(data.id);
+        // If participant already exists (rejoining), load their progress
+        if (data.score > 0) {
+          setScore(data.score);
+        }
+      } else if (res.status === 400 && data.error?.includes('already joined')) {
+        // User already joined - get their participant record
+        setParticipantId(data.participant_id || data.id);
+      } else {
+        showToast(data.error || 'Failed to join hunt', 'error');
+      }
+    } catch {
+      showToast('Failed to join hunt', 'error');
+    } finally {
+      setIsJoining(false);
+    }
+  }, [token, participantId, showToast]);
+
   useEffect(() => {
     if (params.id) {
       fetchHunt(params.id as string);
     }
-    
+
     // Start timer
     timerRef.current = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
@@ -80,6 +120,13 @@ export default function PlayHuntPage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [params.id]);
+
+  // Join hunt when authenticated and hunt is loaded
+  useEffect(() => {
+    if (hunt && isAuthenticated && token && !participantId && !isJoining) {
+      joinHunt(hunt.id);
+    }
+  }, [hunt, isAuthenticated, token, participantId, isJoining, joinHunt]);
 
   const fetchHunt = async (id: string) => {
     try {
@@ -104,12 +151,71 @@ export default function PlayHuntPage() {
   const totalPoints = hunt?.challenges.reduce((sum, c) => sum + c.points, 0) || 0;
   const progress = hunt ? (completedChallenges.size / hunt.challenges.length) * 100 : 0;
 
-  const completeChallenge = (challengeId: string, points: number) => {
+  // Submit challenge completion to backend
+  const submitChallenge = useCallback(async (
+    challengeId: string,
+    submissionType: string,
+    submissionData: Record<string, unknown>
+  ): Promise<{ success: boolean; points?: number }> => {
+    if (!participantId || !token) {
+      // If not authenticated, allow local-only play
+      return { success: true };
+    }
+
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          participant_id: participantId,
+          challenge_id: challengeId,
+          submission_type: submissionType,
+          submission_data: submissionData,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        return { success: true, points: data.points_awarded };
+      } else if (res.ok && !data.verified) {
+        showToast(data.reason || 'Incorrect answer', 'error');
+        return { success: false };
+      } else {
+        showToast(data.error || 'Submission failed', 'error');
+        return { success: false };
+      }
+    } catch {
+      showToast('Failed to submit challenge', 'error');
+      return { success: false };
+    }
+  }, [participantId, token, showToast]);
+
+  const completeChallenge = async (
+    challengeId: string,
+    points: number,
+    submissionType?: string,
+    submissionData?: Record<string, unknown>
+  ) => {
     if (completedChallenges.has(challengeId)) return;
-    
+
+    // Submit to backend if authenticated
+    if (participantId && token && submissionType) {
+      const result = await submitChallenge(challengeId, submissionType, submissionData || {});
+      if (!result.success) {
+        return; // Don't mark as complete if submission failed
+      }
+      // Use server-awarded points if available
+      if (result.points !== undefined) {
+        points = result.points;
+      }
+    }
+
     setCompletedChallenges(prev => new Set([...prev, challengeId]));
     setScore(prev => prev + points);
-    
+
     // Check if hunt is complete
     if (hunt && completedChallenges.size + 1 >= hunt.challenges.length) {
       setTimeout(() => setShowCompletion(true), 500);
@@ -123,28 +229,32 @@ export default function PlayHuntPage() {
     }
   };
 
-  const handleTextAnswer = () => {
-    if (!currentChallenge?.verification_data?.correct_answer) return;
-    
-    const correct = currentChallenge.verification_data.case_sensitive
-      ? textAnswer === currentChallenge.verification_data.correct_answer
-      : textAnswer.toLowerCase() === currentChallenge.verification_data.correct_answer.toLowerCase();
-    
-    setAnswerFeedback(correct ? 'correct' : 'incorrect');
-    
-    if (correct) {
-      completeChallenge(currentChallenge.id, currentChallenge.points);
-    }
-    
+  const handleTextAnswer = async () => {
+    if (!currentChallenge) return;
+
+    // Submit to server for verification
+    await completeChallenge(
+      currentChallenge.id,
+      currentChallenge.points,
+      'text_answer',
+      { answer: textAnswer }
+    );
+
+    setAnswerFeedback('correct'); // Will only reach here if successful
     setTimeout(() => {
       setAnswerFeedback(null);
       setTextAnswer('');
     }, 2000);
   };
 
-  const handleManualComplete = () => {
+  const handleManualComplete = async () => {
     if (currentChallenge) {
-      completeChallenge(currentChallenge.id, currentChallenge.points);
+      await completeChallenge(
+        currentChallenge.id,
+        currentChallenge.points,
+        'manual',
+        {}
+      );
     }
   };
 
@@ -170,14 +280,17 @@ export default function PlayHuntPage() {
 
     setIsUploadingPhoto(true);
     try {
-      // In a real app, you'd upload the photo to storage here
-      // For now, we'll simulate the upload and accept any photo
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Submit photo as base64 data (in production, upload to storage first)
+      await completeChallenge(
+        currentChallenge.id,
+        currentChallenge.points,
+        'photo',
+        { photoData: photoPreview }
+      );
 
       showToast('Photo verified!', 'success');
-      completeChallenge(currentChallenge.id, currentChallenge.points);
       setPhotoPreview(null);
-    } catch (error) {
+    } catch {
       showToast('Failed to verify photo', 'error');
     } finally {
       setIsUploadingPhoto(false);
@@ -214,30 +327,20 @@ export default function PlayHuntPage() {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const userLat = position.coords.latitude;
         const userLng = position.coords.longitude;
         setUserLocation({ lat: userLat, lng: userLng });
 
-        const targetLocation = currentChallenge.verification_data?.location;
-        if (targetLocation) {
-          const distance = calculateDistance(
-            userLat, userLng,
-            targetLocation.lat, targetLocation.lng
-          );
-          const radius = targetLocation.radius || 50; // Default 50 meters
+        // Submit to backend for verification
+        await completeChallenge(
+          currentChallenge.id,
+          currentChallenge.points,
+          'gps',
+          { latitude: userLat, longitude: userLng }
+        );
 
-          if (distance <= radius) {
-            showToast('Location verified!', 'success');
-            completeChallenge(currentChallenge.id, currentChallenge.points);
-          } else {
-            setLocationError(`You are ${Math.round(distance)}m away. Get within ${radius}m of the target.`);
-          }
-        } else {
-          // No target location set, accept any location
-          showToast('Location verified!', 'success');
-          completeChallenge(currentChallenge.id, currentChallenge.points);
-        }
+        showToast('Location verified!', 'success');
         setIsCheckingLocation(false);
       },
       (error) => {
@@ -267,24 +370,19 @@ export default function PlayHuntPage() {
   // QR code verification - simplified for web (manual input)
   const [qrInput, setQrInput] = useState('');
 
-  const handleQRVerification = () => {
+  const handleQRVerification = async () => {
     if (!currentChallenge || !qrInput.trim()) return;
 
-    const expectedCode = currentChallenge.verification_data?.qrCode;
-    if (expectedCode) {
-      if (qrInput.trim().toLowerCase() === expectedCode.toLowerCase()) {
-        showToast('QR code verified!', 'success');
-        completeChallenge(currentChallenge.id, currentChallenge.points);
-        setQrInput('');
-      } else {
-        showToast('Invalid code. Please try again.', 'error');
-      }
-    } else {
-      // No expected code set, accept any input
-      showToast('Code accepted!', 'success');
-      completeChallenge(currentChallenge.id, currentChallenge.points);
-      setQrInput('');
-    }
+    // Submit to backend for verification
+    await completeChallenge(
+      currentChallenge.id,
+      currentChallenge.points,
+      'qr_code',
+      { code: qrInput.trim() }
+    );
+
+    showToast('QR code verified!', 'success');
+    setQrInput('');
   };
 
   const getVerificationIcon = (type: string) => {

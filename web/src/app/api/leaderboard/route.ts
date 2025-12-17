@@ -17,6 +17,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Verify hunt exists
+    const huntCheck = await sql`SELECT id FROM hunts WHERE id = ${huntId}`;
+    if (huntCheck.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Hunt not found' },
+        { status: 404 }
+      );
+    }
+
     // Optimized leaderboard query - pre-compute challenges_completed in a CTE
     const result = await sql`
       WITH submission_counts AS (

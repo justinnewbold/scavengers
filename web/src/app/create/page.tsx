@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, GripVertical,
   Camera, MapPin, QrCode, MessageSquare, CheckCircle, Wand2,
   Save, Eye, Loader2
@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
 
@@ -46,17 +47,26 @@ type Step = 'basics' | 'challenges' | 'review';
 export default function CreateHuntPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>('basics');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      showToast('Please log in to create a hunt', 'warning');
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router, showToast]);
+
   // Hunt data
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isPublic, setIsPublic] = useState(true);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  
+
   // AI Generation
   const [aiTheme, setAiTheme] = useState('');
   const [aiChallengeCount, setAiChallengeCount] = useState(5);
@@ -107,12 +117,34 @@ export default function CreateHuntPage() {
         setTitle(data.hunt?.title || data.title);
         setDescription(data.hunt?.description || data.description || '');
         const generatedChallenges = data.challenges || [];
+
+        // Map AI type values to backend verification types
+        const mapAiTypeToVerificationType = (aiType?: string): VerificationType => {
+          if (!aiType) return 'manual';
+          switch (aiType.toLowerCase()) {
+            case 'text':
+            case 'text_answer':
+              return 'text_answer';
+            case 'photo':
+            case 'image':
+              return 'photo';
+            case 'gps':
+            case 'location':
+              return 'gps';
+            case 'qr':
+            case 'qr_code':
+              return 'qr_code';
+            default:
+              return 'manual';
+          }
+        };
+
         setChallenges(generatedChallenges.map((c: GeneratedChallenge, i: number) => ({
           id: `temp-${Date.now()}-${i}`,
           title: c.title || '',
           description: c.description || '',
           points: c.points || 10,
-          verification_type: (c.verification_type || c.type || 'manual') as VerificationType,
+          verification_type: mapAiTypeToVerificationType(c.verification_type || c.type),
           hint: c.hint || '',
         })));
         setStep('challenges');
@@ -125,21 +157,30 @@ export default function CreateHuntPage() {
   };
 
   const saveHunt = async (status: 'draft' | 'active') => {
+    if (!token) {
+      showToast('Please log in to create a hunt', 'error');
+      router.push('/login');
+      return;
+    }
+
     if (!title.trim()) {
       showToast('Please enter a title', 'warning');
       return;
     }
-    
+
     if (challenges.length === 0) {
       showToast('Please add at least one challenge', 'warning');
       return;
     }
-    
+
     setIsSaving(true);
     try {
       const res = await fetch('/api/hunts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title,
           description,
@@ -152,10 +193,10 @@ export default function CreateHuntPage() {
           })),
         }),
       });
-      
+
       const hunt = await res.json();
-      if (hunt.error) {
-        showToast(hunt.error, 'error');
+      if (!res.ok || hunt.error) {
+        showToast(hunt.error || 'Failed to create hunt', 'error');
         return;
       }
       router.push(`/hunt/${hunt.id}`);
