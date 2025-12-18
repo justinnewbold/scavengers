@@ -3,6 +3,10 @@ import { Pool, QueryResultRow } from 'pg';
 /**
  * Database connection pool for Scavengers
  * Uses standard pg library for compatibility with Supabase
+ *
+ * SSL Fix: Supabase's Supavisor pooler requires special SSL handling.
+ * We modify the connection string to use sslmode=no-verify which bypasses
+ * certificate chain validation while still using SSL encryption.
  */
 
 // Create a connection pool (lazy initialization)
@@ -10,22 +14,31 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    // Get connection string and remove Vercel-specific parameters
+    // Get connection string
     let connectionString = process.env.POSTGRES_URL || '';
 
-    // Remove supa=base-pooler.x parameter (Vercel-specific, not needed for pg)
+    // Remove Vercel-specific parameters that pg doesn't understand
     connectionString = connectionString.replace(/[&?]supa=base-pooler\.x/g, '');
+
+    // Replace sslmode=require with sslmode=no-verify to bypass cert chain issues
+    // This still uses SSL encryption but doesn't verify the certificate chain
+    connectionString = connectionString.replace('sslmode=require', 'sslmode=no-verify');
+
+    // If no sslmode specified, add no-verify
+    if (!connectionString.includes('sslmode=')) {
+      connectionString += connectionString.includes('?') ? '&sslmode=no-verify' : '?sslmode=no-verify';
+    }
 
     pool = new Pool({
       connectionString,
-      // SSL configuration for Supabase
-      ssl: {
-        rejectUnauthorized: false,
-      },
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
     });
+
+    // Log connection info (without password) for debugging
+    const sanitizedUrl = connectionString.replace(/:[^:@]+@/, ':***@');
+    console.log('Database pool created with URL:', sanitizedUrl);
   }
   return pool;
 }
