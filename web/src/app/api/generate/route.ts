@@ -56,38 +56,73 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('AI generation error:', error);
+    // Always log errors for debugging (visible in Vercel logs)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('AI generation error:', {
+      message: errorMessage,
+      hasApiKey: !!process.env.GEMINI_API_KEY,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Return mock data fallback - this ensures hunt creation still works
+    // even when the AI API is unavailable or the API key is invalid
+    let body: { theme?: string; difficulty?: string; challengeCount?: number; duration?: number; location?: string } = {};
+    try {
+      body = await request.clone().json();
+    } catch {
+      // If we can't parse the body, use defaults
     }
 
-    // Return a user-friendly error with mock data fallback
-    const body = await request.clone().json().catch(() => ({}));
     const theme = body.theme || 'adventure';
     const difficulty = body.difficulty || 'medium';
     const challengeCount = body.challengeCount || 5;
     const duration = body.duration || 60;
     const location = body.location;
 
+    // Generate themed challenges based on the theme
+    const themedChallenges = generateThemedChallenges(theme, difficulty, challengeCount);
+
     return NextResponse.json({
       hunt: {
         title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
-        description: `A ${difficulty} scavenger hunt with ${challengeCount} challenges. AI generation unavailable - using template.`,
+        description: `An exciting ${difficulty} scavenger hunt with ${challengeCount} challenges${location ? ` in ${location}` : ''}. Explore, discover, and have fun!`,
         difficulty,
         estimatedTime: duration,
         challengeCount,
         isPublic: true,
-        tags: [theme, difficulty],
+        tags: [theme, difficulty, 'scavenger-hunt'],
         location: location || 'Flexible Location',
       },
-      challenges: Array.from({ length: challengeCount }, (_, i) => ({
-        title: `Challenge ${i + 1}`,
-        description: `Find something interesting related to ${theme}`,
-        points: difficulty === 'easy' ? 10 : difficulty === 'medium' ? 25 : 40,
-        type: 'photo',
-        hint: 'Be creative!',
-        order: i + 1,
-      })),
-      warning: 'AI generation failed, using template instead',
+      challenges: themedChallenges,
+      note: 'Generated with template (AI unavailable)',
     });
   }
+}
+
+// Helper to generate themed challenges when AI is unavailable
+function generateThemedChallenges(theme: string, difficulty: string, count: number) {
+  const basePoints = difficulty === 'easy' ? 10 : difficulty === 'medium' ? 25 : 40;
+
+  const themeIdeas: Record<string, string[]> = {
+    adventure: ['hidden trail marker', 'unusual rock formation', 'scenic viewpoint', 'old bridge', 'wildlife tracks'],
+    mystery: ['mysterious symbol', 'hidden message', 'locked door', 'secret passage clue', 'coded message'],
+    nature: ['unique flower', 'bird nest', 'interesting insect', 'fallen leaf pattern', 'tree with unusual bark'],
+    urban: ['street art mural', 'historic building detail', 'unique door', 'vintage sign', 'architectural feature'],
+    history: ['historic plaque', 'old monument', 'vintage storefront', 'memorial statue', 'heritage site'],
+    art: ['public sculpture', 'gallery artwork', 'street performance spot', 'artistic graffiti', 'mosaic'],
+    food: ['local specialty shop', 'farmers market stall', 'cafe with character', 'food truck', 'bakery display'],
+    sports: ['sports field', 'trophy case', 'team memorabilia', 'training equipment', 'championship banner'],
+  };
+
+  const ideas = themeIdeas[theme] || themeIdeas.adventure;
+  const types = ['photo', 'photo', 'photo', 'text', 'gps'];
+
+  return Array.from({ length: count }, (_, i) => ({
+    title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Challenge ${i + 1}`,
+    description: `Find and document: ${ideas[i % ideas.length]}`,
+    points: basePoints + (i * 5),
+    type: types[i % types.length],
+    hint: 'Look carefully in your surroundings!',
+    order: i + 1,
+  }));
 }

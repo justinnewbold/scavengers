@@ -192,11 +192,25 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(hunt, { status: 201 });
   } catch (error) {
+    // Always log errors for debugging (visible in Vercel logs)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Failed to create hunt:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Return more specific error in non-production
     if (process.env.NODE_ENV !== 'production') {
-      console.error('Failed to create hunt:', error);
+      return NextResponse.json(
+        { error: `Failed to create hunt: ${errorMessage}` },
+        { status: 500 }
+      );
     }
+
     return NextResponse.json(
-      { error: 'Failed to create hunt' },
+      { error: 'Failed to create hunt. Please try again.' },
       { status: 500 }
     );
   }
