@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '@/lib/auth';
 

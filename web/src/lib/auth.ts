@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify, SignJWT } from 'jose';
-import { sql } from '@vercel/postgres';
+import { sql } from '@/lib/db';
 
 /**
  * Get JWT Secret - lazily loaded to avoid build-time errors

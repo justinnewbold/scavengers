@@ -1,19 +1,57 @@
-import { sql } from '@vercel/postgres';
+import { Pool, QueryResultRow } from 'pg';
 
 /**
- * Database utility functions for Scavengers
- *
- * This file provides helper functions for common database operations.
- * All API routes use @vercel/postgres which automatically connects
- * using the POSTGRES_URL environment variable.
+ * Database connection pool for Scavengers
+ * Uses standard pg library for compatibility with Supabase
  */
+
+// Create a connection pool (lazy initialization)
+let pool: Pool | null = null;
+
+function getPool(): Pool {
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.POSTGRES_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+  }
+  return pool;
+}
+
+/**
+ * Tagged template literal for SQL queries (compatible with @vercel/postgres syntax)
+ */
+export async function sql<T extends QueryResultRow = QueryResultRow>(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<{ rows: T[]; rowCount: number }> {
+  // Build parameterized query
+  let text = '';
+  const params: unknown[] = [];
+
+  strings.forEach((string, i) => {
+    text += string;
+    if (i < values.length) {
+      params.push(values[i]);
+      text += `$${params.length}`;
+    }
+  });
+
+  const result = await getPool().query<T>(text, params);
+  return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+}
 
 /**
  * Test database connection
  */
 export async function testConnection() {
   try {
-    const result = await sql`SELECT NOW() as current_time`;
+    const result = await sql<{ current_time: Date }>`SELECT NOW() as current_time`;
     return { connected: true, time: result.rows[0].current_time };
   } catch (error) {
     console.error('Database connection error:', error);
@@ -27,9 +65,9 @@ export async function testConnection() {
 export async function getDbStats() {
   try {
     const [users, hunts, challenges] = await Promise.all([
-      sql`SELECT COUNT(*) as count FROM users`,
-      sql`SELECT COUNT(*) as count FROM hunts`,
-      sql`SELECT COUNT(*) as count FROM challenges`,
+      sql<{ count: string }>`SELECT COUNT(*) as count FROM users`,
+      sql<{ count: string }>`SELECT COUNT(*) as count FROM hunts`,
+      sql<{ count: string }>`SELECT COUNT(*) as count FROM challenges`,
     ]);
 
     return {
