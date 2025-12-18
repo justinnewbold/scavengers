@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ArrowLeft, ArrowRight, Sparkles, Plus, Trash2, GripVertical,
   Camera, MapPin, QrCode, MessageSquare, CheckCircle, Wand2,
   Save, Eye, Loader2
@@ -11,14 +11,34 @@ import {
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
+
+type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
+
+interface VerificationData {
+  correct_answer?: string;
+  case_sensitive?: boolean;
+  location?: { lat: number; lng: number; radius?: number };
+  qrCode?: string;
+}
 
 interface Challenge {
   id: string;
   title: string;
   description: string;
   points: number;
-  verification_type: 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
-  verification_data?: any;
+  verification_type: VerificationType;
+  verification_data?: VerificationData;
+  hint?: string;
+}
+
+interface GeneratedChallenge {
+  title: string;
+  description: string;
+  points: number;
+  type?: string;
+  verification_type?: VerificationType;
   hint?: string;
 }
 
@@ -26,17 +46,27 @@ type Step = 'basics' | 'challenges' | 'review';
 
 export default function CreateHuntPage() {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState<Step>('basics');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      showToast('Please log in to create a hunt', 'warning');
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, router, showToast]);
+
   // Hunt data
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [isPublic, setIsPublic] = useState(true);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  
+
   // AI Generation
   const [aiTheme, setAiTheme] = useState('');
   const [aiChallengeCount, setAiChallengeCount] = useState(5);
@@ -76,47 +106,81 @@ export default function CreateHuntPage() {
         body: JSON.stringify({
           theme: aiTheme,
           difficulty,
-          challenge_count: aiChallengeCount,
-          include_photo_challenges: true,
-          include_gps_challenges: false,
+          challengeCount: aiChallengeCount,
+          duration: 60,
         }),
       });
       
       const data = await res.json();
       
-      if (data.title) {
-        setTitle(data.title);
-        setDescription(data.description || '');
-        setChallenges(data.challenges?.map((c: any, i: number) => ({
+      if (data.hunt?.title || data.title) {
+        setTitle(data.hunt?.title || data.title);
+        setDescription(data.hunt?.description || data.description || '');
+        const generatedChallenges = data.challenges || [];
+
+        // Map AI type values to backend verification types
+        const mapAiTypeToVerificationType = (aiType?: string): VerificationType => {
+          if (!aiType) return 'manual';
+          switch (aiType.toLowerCase()) {
+            case 'text':
+            case 'text_answer':
+              return 'text_answer';
+            case 'photo':
+            case 'image':
+              return 'photo';
+            case 'gps':
+            case 'location':
+              return 'gps';
+            case 'qr':
+            case 'qr_code':
+              return 'qr_code';
+            default:
+              return 'manual';
+          }
+        };
+
+        setChallenges(generatedChallenges.map((c: GeneratedChallenge, i: number) => ({
           id: `temp-${Date.now()}-${i}`,
-          ...c,
-        })) || []);
+          title: c.title || '',
+          description: c.description || '',
+          points: c.points || 10,
+          verification_type: mapAiTypeToVerificationType(c.verification_type || c.type),
+          hint: c.hint || '',
+        })));
         setStep('challenges');
       }
-    } catch (error) {
-      console.error('AI generation failed:', error);
-      alert('Failed to generate hunt. Please try again.');
+    } catch {
+      showToast('Failed to generate hunt. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
   const saveHunt = async (status: 'draft' | 'active') => {
+    if (!token) {
+      showToast('Please log in to create a hunt', 'error');
+      router.push('/login');
+      return;
+    }
+
     if (!title.trim()) {
-      alert('Please enter a title');
+      showToast('Please enter a title', 'warning');
       return;
     }
-    
+
     if (challenges.length === 0) {
-      alert('Please add at least one challenge');
+      showToast('Please add at least one challenge', 'warning');
       return;
     }
-    
+
     setIsSaving(true);
     try {
       const res = await fetch('/api/hunts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title,
           description,
@@ -129,18 +193,21 @@ export default function CreateHuntPage() {
           })),
         }),
       });
-      
+
       const hunt = await res.json();
+      if (!res.ok || hunt.error) {
+        showToast(hunt.error || 'Failed to create hunt', 'error');
+        return;
+      }
       router.push(`/hunt/${hunt.id}`);
-    } catch (error) {
-      console.error('Failed to save hunt:', error);
-      alert('Failed to save hunt. Please try again.');
+    } catch {
+      showToast('Failed to save hunt. Please try again.', 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const verificationOptions = [
+  const verificationOptions: { type: VerificationType; icon: typeof Camera; label: string; desc: string }[] = [
     { type: 'photo', icon: Camera, label: 'Photo', desc: 'Take a photo to verify' },
     { type: 'gps', icon: MapPin, label: 'GPS', desc: 'Visit a location' },
     { type: 'qr_code', icon: QrCode, label: 'QR Code', desc: 'Scan a QR code' },
@@ -421,7 +488,7 @@ export default function CreateHuntPage() {
                                 return (
                                   <button
                                     key={opt.type}
-                                    onClick={() => updateChallenge(index, { verification_type: opt.type as any })}
+                                    onClick={() => updateChallenge(index, { verification_type: opt.type })}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                                       challenge.verification_type === opt.type
                                         ? 'bg-[#FF6B35]/20 text-[#FF6B35] border border-[#FF6B35]/30'

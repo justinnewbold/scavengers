@@ -1,15 +1,14 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { 
-  Sparkles, 
-  Camera, 
-  MapPin, 
-  Users, 
-  Wifi, 
-  Shield, 
+import {
+  Sparkles,
+  Camera,
+  MapPin,
+  Users,
+  Wifi,
   Zap,
-  DollarSign 
+  DollarSign
 } from 'lucide-react';
 
 const features = [

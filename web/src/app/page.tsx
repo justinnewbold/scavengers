@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Navbar, Hero, Features, HuntCard, CreateHuntModal } from '@/components';
 import { useHuntStore } from '@/stores/huntStore';
@@ -99,10 +100,8 @@ export default function Home() {
             <span className="font-display text-xl text-white tracking-wider">SCAVENGERS</span>
           </div>
           <div className="flex items-center gap-6 text-[#8B949E]">
-            <a href="#" className="hover:text-white transition-colors">About</a>
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
+            <Link href="/hunts" className="hover:text-white transition-colors">Browse Hunts</Link>
+            <Link href="/create" className="hover:text-white transition-colors">Create</Link>
           </div>
           <p className="text-[#484F58] text-sm">
             © 2024 Scavengers. Made for humans.

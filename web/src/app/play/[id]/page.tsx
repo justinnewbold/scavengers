@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ArrowLeft, ArrowRight, Camera, MapPin, QrCode, MessageSquare, 
+import {
+  ArrowLeft, ArrowRight, Camera, MapPin, QrCode, MessageSquare,
   CheckCircle, Trophy, Clock, X, ChevronDown, ChevronUp,
-  Sparkles, PartyPopper, Share2
+  Sparkles, PartyPopper, Share2, Upload, Loader2, Navigation
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
+import { useToast } from '@/components/Toast';
+import { useAuth } from '@/contexts/AuthContext';
+
+interface VerificationData {
+  correct_answer?: string;
+  case_sensitive?: boolean;
+  location?: { lat: number; lng: number; radius?: number };
+  qrCode?: string;
+}
 
 interface Challenge {
   id: string;
@@ -17,7 +26,7 @@ interface Challenge {
   description: string;
   points: number;
   verification_type: 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
-  verification_data?: any;
+  verification_data?: VerificationData;
   hint?: string;
   order_index: number;
 }
@@ -32,6 +41,8 @@ interface Hunt {
 export default function PlayHuntPage() {
   const params = useParams();
   const router = useRouter();
+  const { showToast } = useToast();
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -44,14 +55,62 @@ export default function PlayHuntPage() {
   const [answerFeedback, setAnswerFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [showCompletion, setShowCompletion] = useState(false);
   const [showChallengeList, setShowChallengeList] = useState(false);
-  
-  const timerRef = useRef<NodeJS.Timeout>();
+
+  // Participant tracking
+  const [participantId, setParticipantId] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
+
+  // Photo verification state
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // GPS verification state
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  // Join hunt and create participant
+  const joinHunt = useCallback(async (huntId: string) => {
+    if (!token || participantId) return;
+
+    setIsJoining(true);
+    try {
+      const res = await fetch(`/api/hunts/${huntId}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setParticipantId(data.id);
+        // If participant already exists (rejoining), load their progress
+        if (data.score > 0) {
+          setScore(data.score);
+        }
+      } else if (res.status === 400 && data.error?.includes('already joined')) {
+        // User already joined - get their participant record
+        setParticipantId(data.participant_id || data.id);
+      } else {
+        showToast(data.error || 'Failed to join hunt', 'error');
+      }
+    } catch {
+      showToast('Failed to join hunt', 'error');
+    } finally {
+      setIsJoining(false);
+    }
+  }, [token, participantId, showToast]);
 
   useEffect(() => {
     if (params.id) {
       fetchHunt(params.id as string);
     }
-    
+
     // Start timer
     timerRef.current = setInterval(() => {
       setTimeElapsed(prev => prev + 1);
@@ -62,14 +121,21 @@ export default function PlayHuntPage() {
     };
   }, [params.id]);
 
+  // Join hunt when authenticated and hunt is loaded
+  useEffect(() => {
+    if (hunt && isAuthenticated && token && !participantId && !isJoining) {
+      joinHunt(hunt.id);
+    }
+  }, [hunt, isAuthenticated, token, participantId, isJoining, joinHunt]);
+
   const fetchHunt = async (id: string) => {
     try {
       const res = await fetch(`/api/hunts/${id}`);
       if (!res.ok) throw new Error('Hunt not found');
       const data = await res.json();
       setHunt(data);
-    } catch (error) {
-      console.error('Failed to fetch hunt:', error);
+    } catch {
+      showToast('Failed to load hunt', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -85,12 +151,71 @@ export default function PlayHuntPage() {
   const totalPoints = hunt?.challenges.reduce((sum, c) => sum + c.points, 0) || 0;
   const progress = hunt ? (completedChallenges.size / hunt.challenges.length) * 100 : 0;
 
-  const completeChallenge = (challengeId: string, points: number) => {
+  // Submit challenge completion to backend
+  const submitChallenge = useCallback(async (
+    challengeId: string,
+    submissionType: string,
+    submissionData: Record<string, unknown>
+  ): Promise<{ success: boolean; points?: number }> => {
+    if (!participantId || !token) {
+      // If not authenticated, allow local-only play
+      return { success: true };
+    }
+
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          participant_id: participantId,
+          challenge_id: challengeId,
+          submission_type: submissionType,
+          submission_data: submissionData,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        return { success: true, points: data.points_awarded };
+      } else if (res.ok && !data.verified) {
+        showToast(data.reason || 'Incorrect answer', 'error');
+        return { success: false };
+      } else {
+        showToast(data.error || 'Submission failed', 'error');
+        return { success: false };
+      }
+    } catch {
+      showToast('Failed to submit challenge', 'error');
+      return { success: false };
+    }
+  }, [participantId, token, showToast]);
+
+  const completeChallenge = async (
+    challengeId: string,
+    points: number,
+    submissionType?: string,
+    submissionData?: Record<string, unknown>
+  ) => {
     if (completedChallenges.has(challengeId)) return;
-    
+
+    // Submit to backend if authenticated
+    if (participantId && token && submissionType) {
+      const result = await submitChallenge(challengeId, submissionType, submissionData || {});
+      if (!result.success) {
+        return; // Don't mark as complete if submission failed
+      }
+      // Use server-awarded points if available
+      if (result.points !== undefined) {
+        points = result.points;
+      }
+    }
+
     setCompletedChallenges(prev => new Set([...prev, challengeId]));
     setScore(prev => prev + points);
-    
+
     // Check if hunt is complete
     if (hunt && completedChallenges.size + 1 >= hunt.challenges.length) {
       setTimeout(() => setShowCompletion(true), 500);
@@ -104,29 +229,160 @@ export default function PlayHuntPage() {
     }
   };
 
-  const handleTextAnswer = () => {
-    if (!currentChallenge?.verification_data?.correct_answer) return;
-    
-    const correct = currentChallenge.verification_data.case_sensitive
-      ? textAnswer === currentChallenge.verification_data.correct_answer
-      : textAnswer.toLowerCase() === currentChallenge.verification_data.correct_answer.toLowerCase();
-    
-    setAnswerFeedback(correct ? 'correct' : 'incorrect');
-    
-    if (correct) {
-      completeChallenge(currentChallenge.id, currentChallenge.points);
-    }
-    
+  const handleTextAnswer = async () => {
+    if (!currentChallenge) return;
+
+    // Submit to server for verification
+    await completeChallenge(
+      currentChallenge.id,
+      currentChallenge.points,
+      'text_answer',
+      { answer: textAnswer }
+    );
+
+    setAnswerFeedback('correct'); // Will only reach here if successful
     setTimeout(() => {
       setAnswerFeedback(null);
       setTextAnswer('');
     }, 2000);
   };
 
-  const handleManualComplete = () => {
+  const handleManualComplete = async () => {
     if (currentChallenge) {
-      completeChallenge(currentChallenge.id, currentChallenge.points);
+      await completeChallenge(
+        currentChallenge.id,
+        currentChallenge.points,
+        'manual',
+        {}
+      );
     }
+  };
+
+  // Photo verification handlers
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Photo must be less than 10MB', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePhotoSubmit = async () => {
+    if (!photoPreview || !currentChallenge) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      // Submit photo as base64 data (in production, upload to storage first)
+      await completeChallenge(
+        currentChallenge.id,
+        currentChallenge.points,
+        'photo',
+        { photoData: photoPreview }
+      );
+
+      showToast('Photo verified!', 'success');
+      setPhotoPreview(null);
+    } catch {
+      showToast('Failed to verify photo', 'error');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // GPS verification handlers
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    // Haversine formula to calculate distance between two points
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+  };
+
+  const handleGPSVerification = () => {
+    if (!currentChallenge) return;
+
+    setIsCheckingLocation(true);
+    setLocationError(null);
+
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      setIsCheckingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const userLat = position.coords.latitude;
+        const userLng = position.coords.longitude;
+        setUserLocation({ lat: userLat, lng: userLng });
+
+        // Submit to backend for verification
+        await completeChallenge(
+          currentChallenge.id,
+          currentChallenge.points,
+          'gps',
+          { latitude: userLat, longitude: userLng }
+        );
+
+        showToast('Location verified!', 'success');
+        setIsCheckingLocation(false);
+      },
+      (error) => {
+        setIsCheckingLocation(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Location permission denied. Please enable location access.');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Location information unavailable.');
+            break;
+          case error.TIMEOUT:
+            setLocationError('Location request timed out.');
+            break;
+          default:
+            setLocationError('An error occurred getting your location.');
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  // QR code verification - simplified for web (manual input)
+  const [qrInput, setQrInput] = useState('');
+
+  const handleQRVerification = async () => {
+    if (!currentChallenge || !qrInput.trim()) return;
+
+    // Submit to backend for verification
+    await completeChallenge(
+      currentChallenge.id,
+      currentChallenge.points,
+      'qr_code',
+      { code: qrInput.trim() }
+    );
+
+    showToast('QR code verified!', 'success');
+    setQrInput('');
   };
 
   const getVerificationIcon = (type: string) => {
@@ -269,20 +525,141 @@ export default function PlayHuntPage() {
                 </div>
               )}
 
-              {/* Photo/GPS/QR - Web simulation */}
-              {['photo', 'gps', 'qr_code'].includes(currentChallenge.verification_type) && !isCompleted && (
-                <div className="text-center">
-                  <div className="bg-[#21262D] rounded-xl p-8 mb-4">
-                    <Icon className="w-12 h-12 text-[#8B949E] mx-auto mb-4" />
+              {/* Photo Verification */}
+              {currentChallenge.verification_type === 'photo' && !isCompleted && (
+                <div className="space-y-4">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoSelect}
+                    className="hidden"
+                  />
+
+                  {!photoPreview ? (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Camera className="w-5 h-5" />
+                        Take Photo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          if (fileInputRef.current) {
+                            fileInputRef.current.removeAttribute('capture');
+                            fileInputRef.current.click();
+                          }
+                        }}
+                      >
+                        <Upload className="w-5 h-5" />
+                        Upload Photo
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="relative rounded-xl overflow-hidden">
+                        <img
+                          src={photoPreview}
+                          alt="Preview"
+                          className="w-full max-h-64 object-cover"
+                        />
+                        <button
+                          onClick={() => setPhotoPreview(null)}
+                          className="absolute top-2 right-2 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+                        >
+                          <X className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                      <Button
+                        onClick={handlePhotoSubmit}
+                        className="w-full"
+                        disabled={isUploadingPhoto}
+                      >
+                        {isUploadingPhoto ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-5 h-5" />
+                            Submit Photo
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* GPS Verification */}
+              {currentChallenge.verification_type === 'gps' && !isCompleted && (
+                <div className="space-y-4">
+                  <Button
+                    onClick={handleGPSVerification}
+                    className="w-full"
+                    disabled={isCheckingLocation}
+                  >
+                    {isCheckingLocation ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Checking Location...
+                      </>
+                    ) : (
+                      <>
+                        <Navigation className="w-5 h-5" />
+                        Verify My Location
+                      </>
+                    )}
+                  </Button>
+
+                  {locationError && (
+                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+                      <p className="text-red-400 text-sm">{locationError}</p>
+                    </div>
+                  )}
+
+                  {userLocation && !locationError && (
+                    <div className="p-4 rounded-xl bg-[#21262D] border border-[#30363D]">
+                      <p className="text-[#8B949E] text-sm">
+                        Your location: {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* QR Code Verification */}
+              {currentChallenge.verification_type === 'qr_code' && !isCompleted && (
+                <div className="space-y-4">
+                  <div className="bg-[#21262D] rounded-xl p-6 text-center">
+                    <QrCode className="w-12 h-12 text-[#8B949E] mx-auto mb-4" />
                     <p className="text-[#8B949E] mb-4">
-                      {currentChallenge.verification_type === 'photo' && 'Photo verification works best on mobile'}
-                      {currentChallenge.verification_type === 'gps' && 'GPS verification works best on mobile'}
-                      {currentChallenge.verification_type === 'qr_code' && 'QR scanning works best on mobile'}
+                      Find and scan the QR code, then enter the code below
                     </p>
-                    <Button variant="outline" onClick={handleManualComplete}>
-                      Mark as Complete (Demo)
-                    </Button>
                   </div>
+                  <input
+                    type="text"
+                    value={qrInput}
+                    onChange={(e) => setQrInput(e.target.value)}
+                    placeholder="Enter the code from the QR..."
+                    className="w-full px-4 py-3 rounded-xl bg-[#21262D] border border-[#30363D] text-white placeholder-[#8B949E] focus:outline-none focus:border-[#FF6B35]"
+                    onKeyDown={(e) => e.key === 'Enter' && handleQRVerification()}
+                  />
+                  <Button
+                    onClick={handleQRVerification}
+                    className="w-full"
+                    disabled={!qrInput.trim()}
+                  >
+                    <CheckCircle className="w-5 h-5" />
+                    Verify Code
+                  </Button>
                 </div>
               )}
 

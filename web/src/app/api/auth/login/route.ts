@@ -1,75 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
-import { SignJWT } from 'jose';
-import { v4 as uuidv4 } from 'uuid';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'scavengers-secret-key-change-in-production'
-);
-
-// Simple password hashing (in production, use bcrypt)
-function hashPassword(password: string): string {
-  const crypto = require('crypto');
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+import bcrypt from 'bcryptjs';
+import { createToken, sanitizeEmail } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
-    
+    const body = await request.json();
+    const email = sanitizeEmail(body.email || '');
+    const password = body.password || '';
+
     if (!email || !password) {
       return NextResponse.json(
         { error: 'Email and password required' },
         { status: 400 }
       );
     }
-    
+
     // Find user
     const result = await sql`
       SELECT id, email, display_name, avatar_url, password_hash, created_at
       FROM users
-      WHERE email = ${email.toLowerCase()}
+      WHERE email = ${email}
     `;
-    
+
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
-    
-    const user = result.rows[0];
-    
-    // Verify password
-    const passwordHash = hashPassword(password);
-    if (passwordHash !== user.password_hash) {
+
+    const user = result.rows[0] as {
+      id: string;
+      email: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      password_hash: string;
+      created_at: string;
+    };
+
+    // Verify password with bcrypt
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
-    
+
     // Generate JWT
-    const token = await new SignJWT({ 
-      userId: user.id,
-      email: user.email 
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('7d')
-      .sign(JWT_SECRET);
-    
+    const token = await createToken({ id: user.id, email: user.email });
+
     // Return user (without password)
     const { password_hash, ...userWithoutPassword } = user;
-    
+
     return NextResponse.json({
       user: userWithoutPassword,
       token,
     });
   } catch (error) {
-    console.error('Login error:', error);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Login error:', error);
+    }
     return NextResponse.json(
-      { error: 'Login failed' },
+      { error: 'Login failed. Please try again.' },
       { status: 500 }
     );
   }

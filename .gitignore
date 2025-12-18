@@ -47,6 +47,7 @@ coverage/
 build/
 android/app/build/
 ios/build/
+.next/
 
 # Temporary files
 *.log

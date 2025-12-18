@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Map, Clock, Users, Trophy, MoreVertical, Edit, Trash2, Play, Share2 } from 'lucide-react';
+import { Plus, Map, Clock, Users, Trophy, MoreVertical, Trash2, Play, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { CreateHuntModal } from '@/components/CreateHuntModal';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/Toast';
 
 interface Hunt {
   id: string;
@@ -20,54 +22,99 @@ interface Hunt {
 }
 
 export default function MyHuntsPage() {
+  const { token } = useAuth();
+  const { showToast } = useToast();
   const [hunts, setHunts] = useState<Hunt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'completed'>('all');
 
-  useEffect(() => {
-    fetchHunts();
-  }, []);
-
-  const fetchHunts = async () => {
+  const fetchHunts = useCallback(async () => {
+    setError(null);
     try {
-      const res = await fetch('/api/hunts');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const res = await fetch('/api/hunts', { headers });
+      if (!res.ok) {
+        throw new Error('Failed to fetch hunts');
+      }
       const data = await res.json();
       setHunts(data.hunts || []);
-    } catch (error) {
-      console.error('Failed to fetch hunts:', error);
+    } catch {
+      setError('Failed to load hunts. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchHunts();
+  }, [fetchHunts]);
 
   const deleteHunt = async (id: string) => {
     if (!confirm('Are you sure you want to delete this hunt?')) return;
-    
+
+    // Store original hunts for rollback
+    const originalHunts = hunts;
+
     try {
-      await fetch(`/api/hunts/${id}`, { method: 'DELETE' });
+      const headers: HeadersInit = { };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`/api/hunts/${id}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete');
+      }
+
+      // Remove from state after successful deletion
       setHunts(hunts.filter(h => h.id !== id));
-    } catch (error) {
-      console.error('Failed to delete hunt:', error);
+      showToast('Hunt deleted successfully', 'success');
+    } catch (err) {
+      // Rollback on failure
+      setHunts(originalHunts);
+      showToast(err instanceof Error ? err.message : 'Failed to delete hunt', 'error');
     }
   };
 
   const duplicateHunt = async (hunt: Hunt) => {
+    if (!token) {
+      showToast('Please log in to duplicate hunts', 'error');
+      return;
+    }
+
     try {
       const res = await fetch('/api/hunts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           ...hunt,
           title: `${hunt.title} (Copy)`,
           status: 'draft',
         }),
       });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to duplicate');
+      }
       const newHunt = await res.json();
       setHunts([newHunt, ...hunts]);
-    } catch (error) {
-      console.error('Failed to duplicate hunt:', error);
+      showToast('Hunt duplicated successfully', 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to duplicate hunt', 'error');
     }
   };
 
@@ -137,6 +184,21 @@ export default function MyHuntsPage() {
               <div key={i} className="animate-pulse bg-[#161B22] rounded-2xl p-6 h-64" />
             ))}
           </div>
+        ) : error ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-16"
+          >
+            <div className="w-16 h-16 bg-red-400/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Map className="w-8 h-8 text-red-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">Something went wrong</h3>
+            <p className="text-[#8B949E] mb-6">{error}</p>
+            <Button onClick={fetchHunts}>
+              Try Again
+            </Button>
+          </motion.div>
         ) : filteredHunts.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -190,13 +252,6 @@ export default function MyHuntsPage() {
                           >
                             <Play className="w-4 h-4" />
                             View Hunt
-                          </Link>
-                          <Link
-                            href={`/hunt/${hunt.id}/edit`}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-[#30363D] transition-colors text-white"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Edit
                           </Link>
                           <button
                             onClick={() => duplicateHunt(hunt)}
@@ -252,15 +307,14 @@ export default function MyHuntsPage() {
       </div>
 
       {/* Create Modal */}
-      {showCreateModal && (
-        <CreateHuntModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={(hunt) => {
-            setHunts([hunt, ...hunts]);
-            setShowCreateModal(false);
-          }}
-        />
-      )}
+      <CreateHuntModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={(hunt) => {
+          setHunts([hunt, ...hunts]);
+          setShowCreateModal(false);
+        }}
+      />
     </main>
   );
 }
