@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { sql } from '@/lib/db';
 import { requireAuth, sanitizeString } from '@/lib/auth';
 
 // GET /api/hunts/[id] - Get hunt by ID
