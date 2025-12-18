@@ -84,10 +84,26 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ user, token }, { status: 201 });
   } catch (error) {
-    // Log error without exposing details
+    // Log error details for debugging (visible in Vercel logs)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+
+    console.error('Registration error:', {
+      message: errorMessage,
+      stack: errorStack,
+      hasPostgresUrl: !!process.env.POSTGRES_URL,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      nodeEnv: process.env.NODE_ENV,
+    });
+
+    // Return more specific error in non-production
     if (process.env.NODE_ENV !== 'production') {
-      console.error('Registration error:', error);
+      return NextResponse.json(
+        { error: `Registration failed: ${errorMessage}` },
+        { status: 500 }
+      );
     }
+
     return NextResponse.json(
       { error: 'Registration failed. Please try again.' },
       { status: 500 }
