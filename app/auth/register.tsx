@@ -37,8 +37,23 @@ export default function RegisterScreen() {
       return;
     }
     
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert('Error', 'Password must contain an uppercase letter');
+      return;
+    }
+
+    if (!/[a-z]/.test(password)) {
+      Alert.alert('Error', 'Password must contain a lowercase letter');
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      Alert.alert('Error', 'Password must contain a number');
       return;
     }
     
@@ -157,7 +172,7 @@ export default function RegisterScreen() {
             </View>
 
             <Text style={styles.passwordHint}>
-              Password must be at least 6 characters
+              Password: 8+ chars, uppercase, lowercase, number
             </Text>
 
             <Button

@@ -14,9 +14,11 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   error: string | null;
-  
+
   // Actions
+  initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, displayName?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -33,7 +35,33 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: false,
       isAuthenticated: false,
+      isInitialized: false,
       error: null,
+
+      initialize: async () => {
+        try {
+          const token = await AsyncStorage.getItem('auth_token');
+          if (token) {
+            // Verify token is still valid
+            const res = await fetch(`${API_BASE}/auth/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (res.ok) {
+              const user = await res.json();
+              set({ user, isAuthenticated: true, isInitialized: true });
+              return;
+            } else {
+              // Token invalid, clear it
+              await AsyncStorage.removeItem('auth_token');
+            }
+          }
+          set({ isInitialized: true });
+        } catch (error) {
+          // Network error - still mark as initialized
+          set({ isInitialized: true });
+        }
+      },
 
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null });
