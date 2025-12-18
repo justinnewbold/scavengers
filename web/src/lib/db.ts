@@ -10,8 +10,15 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
+    // Get connection string and remove Vercel-specific parameters
+    let connectionString = process.env.POSTGRES_URL || '';
+
+    // Remove supa=base-pooler.x parameter (Vercel-specific, not needed for pg)
+    connectionString = connectionString.replace(/[&?]supa=base-pooler\.x/g, '');
+
     pool = new Pool({
-      connectionString: process.env.POSTGRES_URL,
+      connectionString,
+      // SSL configuration for Supabase
       ssl: {
         rejectUnauthorized: false,
       },
