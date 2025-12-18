@@ -1,5 +1,5 @@
--- Scavengers Database Schema v3 for Vercel Postgres
--- Run this in your Vercel Postgres dashboard
+-- Scavengers Database Schema v3 for Supabase
+-- Run this in Supabase SQL Editor: Dashboard → SQL Editor → New Query
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
