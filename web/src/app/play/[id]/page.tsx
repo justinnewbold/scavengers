@@ -8,7 +8,6 @@ import {
   CheckCircle, Trophy, Clock, X, ChevronDown, ChevronUp,
   Sparkles, PartyPopper, Share2, Upload, Loader2, Navigation
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,7 +49,6 @@ export default function PlayHuntPage() {
   const [score, setScore] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showHint, setShowHint] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [textAnswer, setTextAnswer] = useState('');
   const [answerFeedback, setAnswerFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -235,18 +233,25 @@ export default function PlayHuntPage() {
     if (!currentChallenge) return;
 
     // Submit to server for verification
-    await completeChallenge(
+    const success = await completeChallenge(
       currentChallenge.id,
       currentChallenge.points,
       'text_answer',
       { answer: textAnswer }
     );
 
-    setAnswerFeedback('correct'); // Will only reach here if successful
-    setTimeout(() => {
-      setAnswerFeedback(null);
-      setTextAnswer('');
-    }, 2000);
+    if (success) {
+      setAnswerFeedback('correct');
+      setTimeout(() => {
+        setAnswerFeedback(null);
+        setTextAnswer('');
+      }, 2000);
+    } else {
+      setAnswerFeedback('incorrect');
+      setTimeout(() => {
+        setAnswerFeedback(null);
+      }, 2000);
+    }
   };
 
   const handleManualComplete = async () => {
@@ -301,23 +306,7 @@ export default function PlayHuntPage() {
     }
   };
 
-  // GPS verification handlers
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    // Haversine formula to calculate distance between two points
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
-  };
-
+  // GPS verification handler
   const handleGPSVerification = () => {
     if (!currentChallenge) return;
 
@@ -855,7 +844,22 @@ export default function PlayHuntPage() {
                 <Button variant="outline" onClick={() => router.push('/hunts')} className="flex-1">
                   Back to Hunts
                 </Button>
-                <Button className="flex-1">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const shareText = `I completed "${hunt.title}" with ${score} points in ${formatTime(timeElapsed)}!`;
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'Scavengers Hunt Complete!',
+                        text: shareText,
+                        url: window.location.origin + `/hunt/${hunt.id}`,
+                      }).catch(() => {});
+                    } else {
+                      navigator.clipboard.writeText(shareText + ` ${window.location.origin}/hunt/${hunt.id}`);
+                      showToast('Results copied to clipboard!', 'success');
+                    }
+                  }}
+                >
                   <Share2 className="w-4 h-4" />
                   Share Results
                 </Button>

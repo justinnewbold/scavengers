@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Map, Clock, Users, Trophy, MoreVertical, Trash2, Play, Share2 } from 'lucide-react';
 import Link from 'next/link';
@@ -30,6 +30,21 @@ export default function MyHuntsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'completed'>('all');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenu(null);
+      }
+    }
+
+    if (activeMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [activeMenu]);
 
   const fetchHunts = useCallback(async () => {
     setError(null);
@@ -236,14 +251,14 @@ export default function MyHuntsPage() {
                     </div>
                     
                     {/* Menu */}
-                    <div className="relative">
+                    <div className="relative" ref={activeMenu === hunt.id ? menuRef : undefined}>
                       <button
                         onClick={() => setActiveMenu(activeMenu === hunt.id ? null : hunt.id)}
                         className="p-1 rounded-lg hover:bg-[#21262D] transition-colors"
                       >
                         <MoreVertical className="w-5 h-5 text-[#8B949E]" />
                       </button>
-                      
+
                       {activeMenu === hunt.id && (
                         <div className="absolute right-0 top-8 w-48 bg-[#21262D] rounded-xl border border-[#30363D] shadow-xl z-10 overflow-hidden">
                           <Link
