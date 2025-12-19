@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Play, Share2, Trophy, Map, Clock, Users,
+  ArrowLeft, Play, Share2, Trophy, Map, Clock,
   Camera, MapPin, QrCode, MessageSquare, CheckCircle, Lock,
   Copy, Check
 } from 'lucide-react';
@@ -284,11 +284,15 @@ export default function HuntDetailPage() {
 
       {/* Join Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowJoinModal(false)}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-[#161B22] rounded-2xl border border-[#30363D] p-8 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-white mb-4">Start Hunt</h2>
             <p className="text-[#8B949E] mb-6">
