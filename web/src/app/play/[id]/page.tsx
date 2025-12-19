@@ -198,14 +198,14 @@ export default function PlayHuntPage() {
     points: number,
     submissionType?: string,
     submissionData?: Record<string, unknown>
-  ) => {
-    if (completedChallenges.has(challengeId)) return;
+  ): Promise<boolean> => {
+    if (completedChallenges.has(challengeId)) return true;
 
     // Submit to backend if authenticated
     if (participantId && token && submissionType) {
       const result = await submitChallenge(challengeId, submissionType, submissionData || {});
       if (!result.success) {
-        return; // Don't mark as complete if submission failed
+        return false; // Don't mark as complete if submission failed
       }
       // Use server-awarded points if available
       if (result.points !== undefined) {
@@ -227,6 +227,8 @@ export default function PlayHuntPage() {
         }
       }, 1000);
     }
+
+    return true;
   };
 
   const handleTextAnswer = async () => {
@@ -281,15 +283,17 @@ export default function PlayHuntPage() {
     setIsUploadingPhoto(true);
     try {
       // Submit photo as base64 data (in production, upload to storage first)
-      await completeChallenge(
+      const success = await completeChallenge(
         currentChallenge.id,
         currentChallenge.points,
         'photo',
         { photoData: photoPreview }
       );
 
-      showToast('Photo verified!', 'success');
-      setPhotoPreview(null);
+      if (success) {
+        showToast('Photo verified!', 'success');
+        setPhotoPreview(null);
+      }
     } catch {
       showToast('Failed to verify photo', 'error');
     } finally {
@@ -333,14 +337,16 @@ export default function PlayHuntPage() {
         setUserLocation({ lat: userLat, lng: userLng });
 
         // Submit to backend for verification
-        await completeChallenge(
+        const success = await completeChallenge(
           currentChallenge.id,
           currentChallenge.points,
           'gps',
           { latitude: userLat, longitude: userLng }
         );
 
-        showToast('Location verified!', 'success');
+        if (success) {
+          showToast('Location verified!', 'success');
+        }
         setIsCheckingLocation(false);
       },
       (error) => {
@@ -374,15 +380,17 @@ export default function PlayHuntPage() {
     if (!currentChallenge || !qrInput.trim()) return;
 
     // Submit to backend for verification
-    await completeChallenge(
+    const success = await completeChallenge(
       currentChallenge.id,
       currentChallenge.points,
       'qr_code',
       { code: qrInput.trim() }
     );
 
-    showToast('QR code verified!', 'success');
-    setQrInput('');
+    if (success) {
+      showToast('QR code verified!', 'success');
+      setQrInput('');
+    }
   };
 
   const getVerificationIcon = (type: string) => {
