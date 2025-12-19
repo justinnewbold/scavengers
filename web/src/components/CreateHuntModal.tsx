@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, MapPin, Clock, Target, Zap } from 'lucide-react';
+import { X, Sparkles, MapPin, Clock, Target, Zap, LogIn } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,6 +16,21 @@ interface Hunt {
   is_public: boolean;
   challenges?: { id: string; points: number }[];
   created_at: string;
+}
+
+interface GeneratedContent {
+  hunt: {
+    title: string;
+    description: string;
+    difficulty: string;
+    location?: string;
+  };
+  challenges: Array<{
+    title: string;
+    description: string;
+    points: number;
+    type?: string;
+  }>;
 }
 
 interface CreateHuntModalProps {
@@ -41,6 +57,7 @@ const difficulties = [
 ];
 
 export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHuntModalProps) {
+  const router = useRouter();
   const { token } = useAuth();
   const [step, setStep] = useState(1);
   const [theme, setTheme] = useState('');
@@ -49,19 +66,16 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
   const [challengeCount, setChallengeCount] = useState(8);
   const [duration, setDuration] = useState(60);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
 
   const handleGenerate = async () => {
-    if (!token) {
-      setError('Please log in to create a hunt');
-      return;
-    }
-
     setIsGenerating(true);
     setError('');
 
     try {
-      // First, generate AI content
+      // Generate AI content (works without auth)
       const aiRes = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,8 +94,32 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
       }
 
       const aiData = await aiRes.json();
+      setGeneratedContent(aiData);
 
-      // Create the hunt via API with auth token
+      // If user is logged in, save immediately
+      if (token) {
+        await saveHunt(aiData);
+      } else {
+        // Show step 4 - login prompt with preview
+        setStep(4);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate hunt. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const saveHunt = async (content: GeneratedContent) => {
+    if (!token) {
+      setError('Please log in to save your hunt');
+      return;
+    }
+
+    setIsSaving(true);
+    setError('');
+
+    try {
       const huntRes = await fetch('/api/hunts', {
         method: 'POST',
         headers: {
@@ -89,13 +127,13 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          title: aiData.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
-          description: aiData.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
+          title: content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
+          description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
           difficulty,
           is_public: true,
           status: 'active',
           location: location || undefined,
-          challenges: aiData.challenges?.map((c: { title: string; description: string; points: number; type?: string }, i: number) => ({
+          challenges: content.challenges?.map((c, i) => ({
             title: c.title,
             description: c.description,
             points: c.points || 10,
@@ -107,7 +145,7 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
 
       if (!huntRes.ok) {
         const errorData = await huntRes.json();
-        throw new Error(errorData.error || 'Failed to create hunt');
+        throw new Error(errorData.error || 'Failed to save hunt');
       }
 
       const hunt = await huntRes.json();
@@ -115,13 +153,26 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
       if (onCreated) {
         onCreated(hunt);
       }
-      onClose();
-      setStep(1);
+      resetAndClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate hunt. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to save hunt. Please try again.');
     } finally {
-      setIsGenerating(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleLoginAndSave = () => {
+    // Store the generated content in sessionStorage so we can save after login
+    if (generatedContent) {
+      sessionStorage.setItem('pendingHunt', JSON.stringify({
+        content: generatedContent,
+        theme,
+        difficulty,
+        location,
+      }));
+    }
+    resetAndClose();
+    router.push('/login?redirect=/create&saveHunt=true');
   };
 
   const resetAndClose = () => {
@@ -132,6 +183,7 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
     setChallengeCount(8);
     setDuration(60);
     setError('');
+    setGeneratedContent(null);
     onClose();
   };
 
@@ -166,7 +218,9 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                 </div>
                 <div>
                   <h2 className="font-display text-2xl text-white tracking-wide">AI Quick Create</h2>
-                  <p className="text-sm text-[#8B949E]">Step {step} of 3</p>
+                  <p className="text-sm text-[#8B949E]">
+                    {step === 4 ? 'Save Your Hunt' : `Step ${step} of 3`}
+                  </p>
                 </div>
               </div>
               <button
@@ -181,7 +235,7 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
             <div className="h-1 bg-[#21262D]">
               <motion.div
                 initial={{ width: '33%' }}
-                animate={{ width: `${(step / 3) * 100}%` }}
+                animate={{ width: step === 4 ? '100%' : `${(step / 3) * 100}%` }}
                 className="h-full bg-gradient-to-r from-[#FF6B35] to-[#FFE66D]"
               />
             </div>
@@ -356,6 +410,64 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                     )}
                   </motion.div>
                 )}
+
+                {/* Step 4: Login prompt with preview (only shown if not logged in) */}
+                {step === 4 && generatedContent && (
+                  <motion.div
+                    key="step4"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#FF6B35] to-[#FFE66D] flex items-center justify-center">
+                        <Sparkles className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-semibold text-white mb-2">Hunt Generated!</h3>
+                      <p className="text-[#8B949E]">Sign up or log in to save your hunt</p>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="p-4 rounded-xl bg-[#21262D]/50 border border-[#30363D] mb-6">
+                      <h4 className="font-semibold text-white text-lg mb-1">{generatedContent.hunt?.title}</h4>
+                      <p className="text-sm text-[#8B949E] mb-3">{generatedContent.hunt?.description}</p>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <span className="px-2 py-1 rounded bg-[#1A535C]/30 text-[#FFE66D]">
+                          {generatedContent.challenges?.length || 0} challenges
+                        </span>
+                        <span className="px-2 py-1 rounded bg-[#1A535C]/30 text-[#FFE66D]">
+                          {difficulty}
+                        </span>
+                        {location && (
+                          <span className="px-2 py-1 rounded bg-[#1A535C]/30 text-[#FFE66D]">
+                            {location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Challenge preview */}
+                    <div className="space-y-2 max-h-40 overflow-y-auto mb-4">
+                      {generatedContent.challenges?.slice(0, 3).map((c, i) => (
+                        <div key={i} className="p-3 rounded-lg bg-[#161B22] border border-[#30363D]">
+                          <div className="flex justify-between items-start">
+                            <span className="text-sm text-white font-medium">{c.title}</span>
+                            <span className="text-xs text-[#FF6B35]">{c.points} pts</span>
+                          </div>
+                        </div>
+                      ))}
+                      {(generatedContent.challenges?.length || 0) > 3 && (
+                        <p className="text-xs text-[#8B949E] text-center">
+                          + {(generatedContent.challenges?.length || 0) - 3} more challenges
+                        </p>
+                      )}
+                    </div>
+
+                    {error && (
+                      <p className="mt-4 text-red-400 text-sm">{error}</p>
+                    )}
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
 
@@ -363,11 +475,20 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
             <div className="sticky bottom-0 bg-[#161B22]/95 backdrop-blur-sm border-t border-[#30363D] px-6 py-4 flex justify-between">
               <Button
                 variant="ghost"
-                onClick={() => step > 1 ? setStep(step - 1) : resetAndClose()}
+                onClick={() => {
+                  if (step === 4) {
+                    setStep(3);
+                    setGeneratedContent(null);
+                  } else if (step > 1) {
+                    setStep(step - 1);
+                  } else {
+                    resetAndClose();
+                  }
+                }}
               >
                 {step > 1 ? 'Back' : 'Cancel'}
               </Button>
-              
+
               {step < 3 ? (
                 <Button
                   variant="primary"
@@ -376,7 +497,7 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                 >
                   Continue
                 </Button>
-              ) : (
+              ) : step === 3 ? (
                 <Button
                   variant="primary"
                   onClick={handleGenerate}
@@ -385,6 +506,16 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                 >
                   <Zap className="w-4 h-4" />
                   Generate Hunt
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleLoginAndSave}
+                  isLoading={isSaving}
+                  disabled={isSaving}
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign Up / Log In to Save
                 </Button>
               )}
             </div>

@@ -86,7 +86,7 @@ export function Hero({ onCreateClick }: HeroProps) {
           </Button>
         </motion.div>
 
-        {/* Stats */}
+        {/* Features highlights */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -94,9 +94,9 @@ export function Hero({ onCreateClick }: HeroProps) {
           className="flex items-center justify-center gap-8 mt-16"
         >
           {[
-            { value: '10K+', label: 'Hunts Created' },
-            { value: '50K+', label: 'Players' },
-            { value: '4.9★', label: 'Rating' },
+            { value: 'Free', label: 'No Credit Card' },
+            { value: 'AI', label: 'Instant Creation' },
+            { value: 'Fun', label: 'For All Ages' },
           ].map((stat) => (
             <div key={stat.label} className="text-center">
               <div className="font-display text-3xl md:text-4xl text-white">{stat.value}</div>
