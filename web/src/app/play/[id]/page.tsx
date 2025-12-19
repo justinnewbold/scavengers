@@ -41,7 +41,7 @@ export default function PlayHuntPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
-  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { token, isAuthenticated } = useAuth();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -146,7 +146,6 @@ export default function PlayHuntPage() {
   };
 
   const currentChallenge = hunt?.challenges[currentIndex];
-  const totalPoints = hunt?.challenges.reduce((sum, c) => sum + c.points, 0) || 0;
   const progress = hunt ? (completedChallenges.size / hunt.challenges.length) * 100 : 0;
 
   // Submit challenge completion to backend
@@ -823,7 +822,7 @@ export default function PlayHuntPage() {
               </motion.div>
               
               <h2 className="text-3xl font-bold text-white mb-2">Hunt Complete!</h2>
-              <p className="text-[#8B949E] mb-6">You've conquered all the challenges!</p>
+              <p className="text-[#8B949E] mb-6">You&apos;ve conquered all the challenges!</p>
               
               <div className="bg-[#21262D] rounded-xl p-6 mb-6">
                 <div className="text-4xl font-bold text-[#FF6B35] mb-2">{score}</div>

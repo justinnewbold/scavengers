@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Map, Clock, Users, Trophy, MoreVertical, Trash2, Play, Share2 } from 'lucide-react';
+import { Plus, Map, Trophy, MoreVertical, Trash2, Play, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
