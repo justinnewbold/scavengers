@@ -83,14 +83,17 @@ function LoginContent() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && !authLoading && token) {
-      // Check for pending hunt to save
-      const saveHunt = searchParams.get('saveHunt');
-      if (saveHunt === 'true') {
-        savePendingHunt(token);
+    async function handleAuthRedirect() {
+      if (isAuthenticated && !authLoading && token) {
+        // Check for pending hunt to save - wait for it to complete before redirect
+        const saveHunt = searchParams.get('saveHunt');
+        if (saveHunt === 'true') {
+          await savePendingHunt(token);
+        }
+        router.push('/');
       }
-      router.push('/');
     }
+    handleAuthRedirect();
   }, [isAuthenticated, authLoading, router, searchParams, token, savePendingHunt]);
 
   const validateForm = () => {
