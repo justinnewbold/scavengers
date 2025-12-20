@@ -5,7 +5,7 @@ export interface Hunt {
   difficulty: 'easy' | 'medium' | 'hard';
   estimatedTime: number; // in minutes
   challengeCount: number;
-  participantCount: number;
+  participantCount?: number;
   imageUrl?: string;
   location?: string;
   isPublic: boolean;

@@ -8,7 +8,6 @@ import {
   CheckCircle, Trophy, Clock, X, ChevronDown, ChevronUp,
   Sparkles, PartyPopper, Share2, Upload, Loader2, Navigation
 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { Button } from '@/components/Button';
 import { useToast } from '@/components/Toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,7 +41,7 @@ export default function PlayHuntPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
-  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { token, isAuthenticated } = useAuth();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -50,7 +49,6 @@ export default function PlayHuntPage() {
   const [score, setScore] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showHint, setShowHint] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [textAnswer, setTextAnswer] = useState('');
   const [answerFeedback, setAnswerFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [showCompletion, setShowCompletion] = useState(false);
@@ -148,7 +146,6 @@ export default function PlayHuntPage() {
   };
 
   const currentChallenge = hunt?.challenges[currentIndex];
-  const totalPoints = hunt?.challenges.reduce((sum, c) => sum + c.points, 0) || 0;
   const progress = hunt ? (completedChallenges.size / hunt.challenges.length) * 100 : 0;
 
   // Submit challenge completion to backend
@@ -198,14 +195,14 @@ export default function PlayHuntPage() {
     points: number,
     submissionType?: string,
     submissionData?: Record<string, unknown>
-  ) => {
-    if (completedChallenges.has(challengeId)) return;
+  ): Promise<boolean> => {
+    if (completedChallenges.has(challengeId)) return true;
 
     // Submit to backend if authenticated
     if (participantId && token && submissionType) {
       const result = await submitChallenge(challengeId, submissionType, submissionData || {});
       if (!result.success) {
-        return; // Don't mark as complete if submission failed
+        return false; // Don't mark as complete if submission failed
       }
       // Use server-awarded points if available
       if (result.points !== undefined) {
@@ -227,24 +224,33 @@ export default function PlayHuntPage() {
         }
       }, 1000);
     }
+
+    return true;
   };
 
   const handleTextAnswer = async () => {
     if (!currentChallenge) return;
 
     // Submit to server for verification
-    await completeChallenge(
+    const success = await completeChallenge(
       currentChallenge.id,
       currentChallenge.points,
       'text_answer',
       { answer: textAnswer }
     );
 
-    setAnswerFeedback('correct'); // Will only reach here if successful
-    setTimeout(() => {
-      setAnswerFeedback(null);
-      setTextAnswer('');
-    }, 2000);
+    if (success) {
+      setAnswerFeedback('correct');
+      setTimeout(() => {
+        setAnswerFeedback(null);
+        setTextAnswer('');
+      }, 2000);
+    } else {
+      setAnswerFeedback('incorrect');
+      setTimeout(() => {
+        setAnswerFeedback(null);
+      }, 2000);
+    }
   };
 
   const handleManualComplete = async () => {
@@ -281,15 +287,17 @@ export default function PlayHuntPage() {
     setIsUploadingPhoto(true);
     try {
       // Submit photo as base64 data (in production, upload to storage first)
-      await completeChallenge(
+      const success = await completeChallenge(
         currentChallenge.id,
         currentChallenge.points,
         'photo',
         { photoData: photoPreview }
       );
 
-      showToast('Photo verified!', 'success');
-      setPhotoPreview(null);
+      if (success) {
+        showToast('Photo verified!', 'success');
+        setPhotoPreview(null);
+      }
     } catch {
       showToast('Failed to verify photo', 'error');
     } finally {
@@ -297,23 +305,7 @@ export default function PlayHuntPage() {
     }
   };
 
-  // GPS verification handlers
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    // Haversine formula to calculate distance between two points
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c; // Distance in meters
-  };
-
+  // GPS verification handler
   const handleGPSVerification = () => {
     if (!currentChallenge) return;
 
@@ -333,14 +325,16 @@ export default function PlayHuntPage() {
         setUserLocation({ lat: userLat, lng: userLng });
 
         // Submit to backend for verification
-        await completeChallenge(
+        const success = await completeChallenge(
           currentChallenge.id,
           currentChallenge.points,
           'gps',
           { latitude: userLat, longitude: userLng }
         );
 
-        showToast('Location verified!', 'success');
+        if (success) {
+          showToast('Location verified!', 'success');
+        }
         setIsCheckingLocation(false);
       },
       (error) => {
@@ -374,15 +368,17 @@ export default function PlayHuntPage() {
     if (!currentChallenge || !qrInput.trim()) return;
 
     // Submit to backend for verification
-    await completeChallenge(
+    const success = await completeChallenge(
       currentChallenge.id,
       currentChallenge.points,
       'qr_code',
       { code: qrInput.trim() }
     );
 
-    showToast('QR code verified!', 'success');
-    setQrInput('');
+    if (success) {
+      showToast('QR code verified!', 'success');
+      setQrInput('');
+    }
   };
 
   const getVerificationIcon = (type: string) => {
@@ -826,7 +822,7 @@ export default function PlayHuntPage() {
               </motion.div>
               
               <h2 className="text-3xl font-bold text-white mb-2">Hunt Complete!</h2>
-              <p className="text-[#8B949E] mb-6">You've conquered all the challenges!</p>
+              <p className="text-[#8B949E] mb-6">You&apos;ve conquered all the challenges!</p>
               
               <div className="bg-[#21262D] rounded-xl p-6 mb-6">
                 <div className="text-4xl font-bold text-[#FF6B35] mb-2">{score}</div>
@@ -847,7 +843,22 @@ export default function PlayHuntPage() {
                 <Button variant="outline" onClick={() => router.push('/hunts')} className="flex-1">
                   Back to Hunts
                 </Button>
-                <Button className="flex-1">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const shareText = `I completed "${hunt.title}" with ${score} points in ${formatTime(timeElapsed)}!`;
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'Scavengers Hunt Complete!',
+                        text: shareText,
+                        url: window.location.origin + `/hunt/${hunt.id}`,
+                      }).catch(() => {});
+                    } else {
+                      navigator.clipboard.writeText(shareText + ` ${window.location.origin}/hunt/${hunt.id}`);
+                      showToast('Results copied to clipboard!', 'success');
+                    }
+                  }}
+                >
                   <Share2 className="w-4 h-4" />
                   Share Results
                 </Button>

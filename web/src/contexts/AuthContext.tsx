@@ -67,12 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userData = await res.json();
         setUser(userData);
         localStorage.setItem(USER_KEY, JSON.stringify(userData));
-      } else {
-        // Token invalid, clear auth state
+      } else if (res.status === 401) {
+        // Only logout on clear 401 Unauthorized (expired/invalid token)
         logout();
       }
+      // For other errors (500, network issues), keep user logged in
+      // They can still use cached user data
     } catch {
-      // Token verification failed - keep existing state
+      // Network error - keep existing state, user stays logged in
+      // This prevents logout on temporary network issues
     } finally {
       setIsLoading(false);
     }

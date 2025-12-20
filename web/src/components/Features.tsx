@@ -7,7 +7,6 @@ import {
   MapPin,
   Users,
   Wifi,
-  Zap,
   DollarSign
 } from 'lucide-react';
 

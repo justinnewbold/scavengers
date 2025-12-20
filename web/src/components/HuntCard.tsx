@@ -2,7 +2,7 @@
 
 import { Hunt } from '@/types';
 import { formatDuration, getDifficultyColor } from '@/lib/utils';
-import { MapPin, Clock, Users, Trophy } from 'lucide-react';
+import { MapPin, Clock, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface HuntCardProps {
@@ -71,12 +71,6 @@ export function HuntCard({ hunt, onClick, featured = false }: HuntCardProps) {
           <div className="flex items-center gap-1.5 text-[#8B949E]">
             <Trophy size={14} />
             <span>{hunt.challengeCount} challenges</span>
-          </div>
-
-          {/* Participants */}
-          <div className="flex items-center gap-1.5 text-[#8B949E]">
-            <Users size={14} />
-            <span>{hunt.participantCount.toLocaleString()}</span>
           </div>
         </div>
 

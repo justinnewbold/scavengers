@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Navbar, Hero, Features, HuntCard, CreateHuntModal } from '@/components';
 import { useHuntStore } from '@/stores/huntStore';
@@ -9,14 +10,51 @@ import { demoHunts } from '@/lib/ai';
 import { Hunt } from '@/types';
 
 export default function Home() {
+  const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { hunts, setHunts } = useHuntStore();
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch public hunts from API, fallback to demo hunts
   useEffect(() => {
-    if (hunts.length === 0) {
-      setHunts(demoHunts as Hunt[]);
+    async function fetchPublicHunts() {
+      try {
+        const res = await fetch('/api/hunts?public=true&limit=6');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hunts && data.hunts.length > 0) {
+            // Transform API hunts to match Hunt type
+            const apiHunts = data.hunts.map((h: Record<string, unknown>) => ({
+              id: h.id,
+              title: h.title,
+              description: h.description,
+              difficulty: h.difficulty,
+              estimatedTime: h.duration_minutes || 60,
+              challengeCount: Array.isArray(h.challenges) ? h.challenges.length : 0,
+              location: h.location,
+              isPublic: h.is_public,
+              createdAt: h.created_at,
+              createdBy: 'Community',
+              tags: [h.difficulty as string, 'scavenger-hunt'],
+            }));
+            setHunts(apiHunts as Hunt[]);
+          } else {
+            // Use demo hunts if no public hunts available
+            setHunts(demoHunts as Hunt[]);
+          }
+        } else {
+          setHunts(demoHunts as Hunt[]);
+        }
+      } catch {
+        // Fallback to demo hunts on error
+        setHunts(demoHunts as Hunt[]);
+      } finally {
+        setIsLoading(false);
+      }
     }
-  }, [hunts.length, setHunts]);
+
+    fetchPublicHunts();
+  }, [setHunts]);
 
   return (
     <main className="min-h-screen bg-[#0D1117]">
@@ -45,17 +83,28 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {hunts.map((hunt, index) => (
-              <motion.div
-                key={hunt.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <HuntCard hunt={hunt} featured={index === 0} />
-              </motion.div>
-            ))}
+            {isLoading ? (
+              // Loading skeleton
+              [1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse bg-[#161B22] rounded-2xl h-64" />
+              ))
+            ) : (
+              hunts.map((hunt, index) => (
+                <motion.div
+                  key={hunt.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <HuntCard
+                    hunt={hunt}
+                    featured={index === 0}
+                    onClick={() => router.push(`/hunt/${hunt.id}`)}
+                  />
+                </motion.div>
+              ))
+            )}
           </div>
 
           {hunts.length === 0 && (
@@ -104,7 +153,7 @@ export default function Home() {
             <Link href="/create" className="hover:text-white transition-colors">Create</Link>
           </div>
           <p className="text-[#484F58] text-sm">
-            © 2024 Scavengers. Made for humans.
+            © {new Date().getFullYear()} Scavengers. Made for humans.
           </p>
         </div>
       </footer>

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Play, Share2, Trophy, Map, Clock, Users,
+  ArrowLeft, Play, Trophy, Map, Clock,
   Camera, MapPin, QrCode, MessageSquare, CheckCircle, Lock,
   Copy, Check
 } from 'lucide-react';
@@ -35,7 +35,6 @@ interface Hunt {
 
 export default function HuntDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -121,7 +120,7 @@ export default function HuntDetailPage() {
         <div className="max-w-4xl mx-auto px-4 pt-24 pb-16 text-center">
           <Map className="w-16 h-16 text-[#30363D] mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">Hunt Not Found</h1>
-          <p className="text-[#8B949E] mb-6">This hunt doesn't exist or has been removed.</p>
+          <p className="text-[#8B949E] mb-6">This hunt doesn&apos;t exist or has been removed.</p>
           <Link href="/hunts">
             <Button variant="outline">Back to My Hunts</Button>
           </Link>
@@ -284,15 +283,19 @@ export default function HuntDetailPage() {
 
       {/* Join Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowJoinModal(false)}
+        >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-[#161B22] rounded-2xl border border-[#30363D] p-8 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-2xl font-bold text-white mb-4">Start Hunt</h2>
             <p className="text-[#8B949E] mb-6">
-              You're about to start "{hunt.title}". Ready to begin your adventure?
+              You&apos;re about to start &quot;{hunt.title}&quot;. Ready to begin your adventure?
             </p>
             
             <div className="bg-[#21262D] rounded-xl p-4 mb-6">

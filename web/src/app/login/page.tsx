@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Eye, EyeOff, Loader2, Map } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Loader2, Map, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,9 +11,10 @@ import { useToast } from '@/components/Toast';
 
 type AuthMode = 'login' | 'signup';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
-  const { login, register, isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { login, register, isAuthenticated, isLoading: authLoading, token } = useAuth();
   const { showToast } = useToast();
 
   const [mode, setMode] = useState<AuthMode>('login');
@@ -23,13 +24,77 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; displayName?: string }>({});
+  const [hasPendingHunt, setHasPendingHunt] = useState(false);
+
+  // Check if user has a pending hunt to save
+  useEffect(() => {
+    const saveHunt = searchParams.get('saveHunt');
+    if (saveHunt === 'true') {
+      const pending = sessionStorage.getItem('pendingHunt');
+      if (pending) {
+        setHasPendingHunt(true);
+        setMode('signup'); // Default to signup for new users
+      }
+    }
+  }, [searchParams]);
+
+  // Save pending hunt after authentication
+  const savePendingHunt = useCallback(async (authToken: string) => {
+    const pendingData = sessionStorage.getItem('pendingHunt');
+    if (!pendingData) return;
+
+    try {
+      const { content, theme, difficulty, location } = JSON.parse(pendingData);
+
+      const huntRes = await fetch('/api/hunts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          title: content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
+          description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
+          difficulty,
+          is_public: true,
+          status: 'active',
+          location: location || undefined,
+          challenges: content.challenges?.map((c: { title: string; description: string; points: number; type?: string }, i: number) => ({
+            title: c.title,
+            description: c.description,
+            points: c.points || 10,
+            verification_type: c.type === 'gps' ? 'gps' : c.type === 'text' ? 'text_answer' : 'photo',
+            order_index: i,
+          })) || [],
+        }),
+      });
+
+      if (huntRes.ok) {
+        showToast('Hunt saved successfully!', 'success');
+      } else {
+        showToast('Hunt created but failed to save. Try creating again.', 'error');
+      }
+    } catch {
+      showToast('Failed to save pending hunt', 'error');
+    } finally {
+      sessionStorage.removeItem('pendingHunt');
+    }
+  }, [showToast]);
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      router.push('/');
+    async function handleAuthRedirect() {
+      if (isAuthenticated && !authLoading && token) {
+        // Check for pending hunt to save - wait for it to complete before redirect
+        const saveHunt = searchParams.get('saveHunt');
+        if (saveHunt === 'true') {
+          await savePendingHunt(token);
+        }
+        router.push('/');
+      }
     }
-  }, [isAuthenticated, authLoading, router]);
+    handleAuthRedirect();
+  }, [isAuthenticated, authLoading, router, searchParams, token, savePendingHunt]);
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -78,7 +143,7 @@ export default function LoginPage() {
         const result = await login(email, password);
         if (result.success) {
           showToast('Welcome back!', 'success');
-          router.push('/');
+          // Note: The useEffect will handle saving pending hunt and redirect
         } else {
           showToast(result.error || 'Login failed', 'error');
         }
@@ -86,7 +151,7 @@ export default function LoginPage() {
         const result = await register(email, password, displayName);
         if (result.success) {
           showToast('Account created successfully!', 'success');
-          router.push('/');
+          // Note: The useEffect will handle saving pending hunt and redirect
         } else {
           showToast(result.error || 'Registration failed', 'error');
         }
@@ -127,6 +192,19 @@ export default function LoginPage() {
 
         {/* Auth Card */}
         <div className="bg-[#161B22] rounded-2xl border border-[#30363D] p-8">
+          {/* Pending Hunt Banner */}
+          {hasPendingHunt && (
+            <div className="mb-6 p-4 rounded-xl bg-[#FF6B35]/10 border border-[#FF6B35]/30">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-[#FF6B35]" />
+                <div>
+                  <p className="text-white font-medium">Your hunt is ready!</p>
+                  <p className="text-sm text-[#8B949E]">Sign up or log in to save it</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Mode Toggle */}
           <div className="flex gap-2 p-1 bg-[#21262D] rounded-xl mb-6">
             <button
@@ -295,5 +373,19 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0D1117] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 text-[#FF6B35] animate-spin" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

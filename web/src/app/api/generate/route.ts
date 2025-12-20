@@ -3,17 +3,23 @@ import { generateHuntWithAI } from '@/lib/ai';
 import { sanitizeString } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
+  // Parse body once at the start and save for fallback
+  let rawBody: { theme?: string; difficulty?: string; challengeCount?: number; duration?: number; location?: string } = {};
   try {
-    const body = await request.json();
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
 
+  try {
     // Validate and sanitize inputs
-    const theme = sanitizeString(body.theme || '', 100);
-    const location = body.location ? sanitizeString(body.location, 255) : undefined;
-    const difficulty = ['easy', 'medium', 'hard'].includes(body.difficulty)
-      ? body.difficulty
+    const theme = sanitizeString(rawBody.theme || '', 100);
+    const location = rawBody.location ? sanitizeString(rawBody.location, 255) : undefined;
+    const difficulty: 'easy' | 'medium' | 'hard' = ['easy', 'medium', 'hard'].includes(rawBody.difficulty || '')
+      ? (rawBody.difficulty as 'easy' | 'medium' | 'hard')
       : 'medium';
-    const challengeCount = Math.min(20, Math.max(1, parseInt(body.challengeCount, 10) || 5));
-    const duration = Math.min(480, Math.max(10, parseInt(body.duration, 10) || 60));
+    const challengeCount = Math.min(20, Math.max(1, parseInt(String(rawBody.challengeCount), 10) || 5));
+    const duration = Math.min(480, Math.max(10, parseInt(String(rawBody.duration), 10) || 60));
 
     if (!theme || theme.length < 2) {
       return NextResponse.json(
@@ -25,26 +31,20 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      // Return mock data if no API key
+      // Return mock data if no API key - use the helper function for better challenges
+      const themedChallenges = generateThemedChallenges(theme, difficulty, challengeCount);
       return NextResponse.json({
         hunt: {
           title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
-          description: `An exciting ${difficulty} difficulty scavenger hunt with ${challengeCount} challenges in ${location || 'your area'}. Perfect for ${duration} minutes of adventure!`,
+          description: `An exciting ${difficulty} scavenger hunt with ${challengeCount} challenges${location ? ` in ${location}` : ''}. Explore, discover, and have fun!`,
           difficulty,
           estimatedTime: duration,
           challengeCount,
           isPublic: true,
-          tags: [theme, difficulty, 'ai-generated'],
+          tags: [theme, difficulty, 'scavenger-hunt'],
           location: location || 'Flexible Location',
         },
-        challenges: Array.from({ length: challengeCount }, (_, i) => ({
-          title: `Challenge ${i + 1}`,
-          description: `Find and photograph something related to ${theme}`,
-          points: difficulty === 'easy' ? 10 : difficulty === 'medium' ? 25 : 40,
-          type: ['photo', 'gps', 'text_answer'][i % 3],
-          hint: 'Look around carefully!',
-          order: i + 1,
-        })),
+        challenges: themedChallenges,
       });
     }
 
@@ -64,20 +64,12 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // Return mock data fallback - this ensures hunt creation still works
-    // even when the AI API is unavailable or the API key is invalid
-    let body: { theme?: string; difficulty?: string; challengeCount?: number; duration?: number; location?: string } = {};
-    try {
-      body = await request.clone().json();
-    } catch {
-      // If we can't parse the body, use defaults
-    }
-
-    const theme = body.theme || 'adventure';
-    const difficulty = body.difficulty || 'medium';
-    const challengeCount = body.challengeCount || 5;
-    const duration = body.duration || 60;
-    const location = body.location;
+    // Use the saved rawBody for fallback
+    const theme = rawBody.theme || 'adventure';
+    const difficulty = rawBody.difficulty || 'medium';
+    const challengeCount = rawBody.challengeCount || 5;
+    const duration = rawBody.duration || 60;
+    const location = rawBody.location;
 
     // Generate themed challenges based on the theme
     const themedChallenges = generateThemedChallenges(theme, difficulty, challengeCount);
