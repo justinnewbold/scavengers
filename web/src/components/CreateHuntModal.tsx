@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, MapPin, Clock, Target, Zap, LogIn } from 'lucide-react';
+import { X, Sparkles, MapPin, Clock, Target, Zap, LogIn, CheckCircle2, Mountain, Search, Leaf, Building2, Landmark, Palette, UtensilsCrossed, Trophy } from 'lucide-react';
 import { Button } from './Button';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -40,20 +40,20 @@ interface CreateHuntModalProps {
 }
 
 const themes = [
-  { id: 'adventure', label: 'Adventure', emoji: '🏔️' },
-  { id: 'mystery', label: 'Mystery', emoji: '🔍' },
-  { id: 'nature', label: 'Nature', emoji: '🌿' },
-  { id: 'urban', label: 'Urban', emoji: '🏙️' },
-  { id: 'history', label: 'History', emoji: '🏛️' },
-  { id: 'art', label: 'Art & Culture', emoji: '🎨' },
-  { id: 'food', label: 'Food & Drink', emoji: '🍕' },
-  { id: 'sports', label: 'Sports', emoji: '⚽' },
+  { id: 'adventure', label: 'Adventure', icon: Mountain, gradient: 'from-orange-500 to-red-500' },
+  { id: 'mystery', label: 'Mystery', icon: Search, gradient: 'from-purple-500 to-indigo-500' },
+  { id: 'nature', label: 'Nature', icon: Leaf, gradient: 'from-green-500 to-emerald-500' },
+  { id: 'urban', label: 'Urban', icon: Building2, gradient: 'from-slate-500 to-zinc-600' },
+  { id: 'history', label: 'History', icon: Landmark, gradient: 'from-amber-500 to-yellow-600' },
+  { id: 'art', label: 'Art & Culture', icon: Palette, gradient: 'from-pink-500 to-rose-500' },
+  { id: 'food', label: 'Food & Drink', icon: UtensilsCrossed, gradient: 'from-red-500 to-orange-500' },
+  { id: 'sports', label: 'Sports', icon: Trophy, gradient: 'from-blue-500 to-cyan-500' },
 ];
 
 const difficulties = [
-  { id: 'easy', label: 'Easy', description: 'Perfect for beginners', color: 'text-green-400 border-green-400/30' },
-  { id: 'medium', label: 'Medium', description: 'A balanced challenge', color: 'text-yellow-400 border-yellow-400/30' },
-  { id: 'hard', label: 'Hard', description: 'For experienced hunters', color: 'text-red-400 border-red-400/30' },
+  { id: 'easy', label: 'Easy', description: 'Perfect for beginners', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10', borderColor: 'border-emerald-500/30', activeColor: 'bg-emerald-500' },
+  { id: 'medium', label: 'Medium', description: 'A balanced challenge', color: 'text-amber-400', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500/30', activeColor: 'bg-amber-500' },
+  { id: 'hard', label: 'Hard', description: 'For experienced hunters', color: 'text-rose-400', bgColor: 'bg-rose-500/10', borderColor: 'border-rose-500/30', activeColor: 'bg-rose-500' },
 ];
 
 export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHuntModalProps) {
@@ -253,27 +253,45 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                   >
                     <h3 className="text-xl font-semibold text-white mb-2">Choose a Theme</h3>
                     <p className="text-[#8B949E] mb-6">What kind of adventure are you looking for?</p>
-                    
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {themes.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => setTheme(t.id)}
-                          className={`p-4 rounded-xl border-2 transition-all duration-200 text-center
-                            ${theme === t.id
-                              ? 'border-[#FF6B35] bg-[#FF6B35]/10 text-white'
-                              : 'border-[#30363D] hover:border-[#484F58] text-[#8B949E]'
-                            }`}
-                        >
-                          <span className="text-2xl block mb-1">{t.emoji}</span>
-                          <span className="text-sm font-medium">{t.label}</span>
-                        </button>
-                      ))}
+                      {themes.map((t) => {
+                        const Icon = t.icon;
+                        const isSelected = theme === t.id;
+                        return (
+                          <motion.button
+                            key={t.id}
+                            onClick={() => setTheme(t.id)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`relative p-4 rounded-xl border-2 transition-all duration-300 text-center overflow-hidden group
+                              ${isSelected
+                                ? 'border-white/50 bg-gradient-to-br ' + t.gradient + ' text-white shadow-lg'
+                                : 'border-[#30363D] hover:border-[#484F58] text-[#8B949E] hover:text-white bg-[#21262D]'
+                              }`}
+                          >
+                            <div className={`w-10 h-10 mx-auto mb-2 rounded-lg flex items-center justify-center transition-all duration-300
+                              ${isSelected ? 'bg-white/20' : 'bg-gradient-to-br ' + t.gradient + ' opacity-70 group-hover:opacity-100'}`}>
+                              <Icon className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="text-sm font-medium block">{t.label}</span>
+                            {isSelected && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute top-2 right-2"
+                              >
+                                <CheckCircle2 className="w-4 h-4 text-white" />
+                              </motion.div>
+                            )}
+                          </motion.button>
+                        );
+                      })}
                     </div>
 
                     <div className="mt-6">
-                      <label className="block text-sm text-[#8B949E] mb-2">
-                        <MapPin className="inline w-4 h-4 mr-1" />
+                      <label className="flex items-center gap-2 text-sm text-[#8B949E] mb-2">
+                        <MapPin className="w-4 h-4" />
                         Location (Optional)
                       </label>
                       <input
@@ -281,8 +299,9 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                         value={location}
                         onChange={(e) => setLocation(e.target.value)}
                         placeholder="e.g., Central Park, Downtown, My Neighborhood"
-                        className="w-full px-4 py-3 rounded-xl bg-[#21262D] border border-[#30363D] 
-                                 text-white placeholder-[#484F58] focus:border-[#FF6B35] focus:outline-none"
+                        className="w-full px-4 py-3 rounded-xl bg-[#21262D] border border-[#30363D]
+                                 text-white placeholder-[#484F58] focus:border-[#FF6B35] focus:outline-none
+                                 focus:ring-2 focus:ring-[#FF6B35]/20 transition-all duration-200"
                       />
                     </div>
                   </motion.div>
@@ -298,35 +317,47 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                   >
                     <h3 className="text-xl font-semibold text-white mb-2">Set the Challenge Level</h3>
                     <p className="text-[#8B949E] mb-6">How challenging should this hunt be?</p>
-                    
+
                     <div className="space-y-3">
-                      {difficulties.map((d) => (
-                        <button
-                          key={d.id}
-                          onClick={() => setDifficulty(d.id as 'easy' | 'medium' | 'hard')}
-                          className={`w-full p-4 rounded-xl border-2 transition-all duration-200 text-left
-                            ${difficulty === d.id
-                              ? `${d.color} bg-opacity-10`
-                              : 'border-[#30363D] hover:border-[#484F58]'
-                            }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className={`font-semibold ${difficulty === d.id ? d.color.split(' ')[0] : 'text-white'}`}>
-                                {d.label}
-                              </span>
-                              <p className="text-sm text-[#8B949E] mt-1">{d.description}</p>
-                            </div>
-                            {difficulty === d.id && (
-                              <div className="w-6 h-6 rounded-full bg-current flex items-center justify-center">
-                                <svg className="w-4 h-4 text-[#0D1117]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
+                      {difficulties.map((d) => {
+                        const isSelected = difficulty === d.id;
+                        return (
+                          <motion.button
+                            key={d.id}
+                            onClick={() => setDifficulty(d.id as 'easy' | 'medium' | 'hard')}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                            className={`w-full p-5 rounded-xl border-2 transition-all duration-300 text-left
+                              ${isSelected
+                                ? `${d.borderColor} ${d.bgColor} shadow-lg`
+                                : 'border-[#30363D] hover:border-[#484F58] bg-[#21262D]'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300
+                                  ${isSelected ? d.activeColor : 'bg-[#30363D]'}`}>
+                                  <Target className={`w-6 h-6 ${isSelected ? 'text-white' : d.color}`} />
+                                </div>
+                                <div>
+                                  <span className={`font-semibold text-lg ${isSelected ? d.color : 'text-white'}`}>
+                                    {d.label}
+                                  </span>
+                                  <p className="text-sm text-[#8B949E] mt-0.5">{d.description}</p>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                              {isSelected && (
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                >
+                                  <CheckCircle2 className={`w-6 h-6 ${d.color}`} />
+                                </motion.div>
+                              )}
+                            </div>
+                          </motion.button>
+                        );
+                      })}
                     </div>
                   </motion.div>
                 )}
@@ -341,38 +372,49 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                   >
                     <h3 className="text-xl font-semibold text-white mb-2">Final Details</h3>
                     <p className="text-[#8B949E] mb-6">Customize the length of your hunt</p>
-                    
-                    <div className="space-y-6">
+
+                    <div className="space-y-8">
                       {/* Challenge Count */}
-                      <div>
-                        <label className="flex items-center gap-2 text-sm text-[#8B949E] mb-3">
-                          <Target className="w-4 h-4" />
-                          Number of Challenges: <span className="text-[#FF6B35] font-semibold">{challengeCount}</span>
-                        </label>
+                      <div className="p-4 rounded-xl bg-[#21262D] border border-[#30363D]">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="flex items-center gap-2 text-sm text-[#8B949E]">
+                            <div className="w-8 h-8 rounded-lg bg-[#FF6B35]/20 flex items-center justify-center">
+                              <Target className="w-4 h-4 text-[#FF6B35]" />
+                            </div>
+                            Number of Challenges
+                          </label>
+                          <span className="text-2xl font-bold text-[#FF6B35]">{challengeCount}</span>
+                        </div>
                         <input
                           type="range"
                           min="3"
                           max="20"
                           value={challengeCount}
                           onChange={(e) => setChallengeCount(parseInt(e.target.value))}
-                          className="w-full h-2 rounded-full bg-[#21262D] appearance-none cursor-pointer
-                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 
-                                   [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full 
-                                   [&::-webkit-slider-thumb]:bg-[#FF6B35] [&::-webkit-slider-thumb]:cursor-pointer
-                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FF6B35]/30"
+                          className="w-full h-2 rounded-full bg-[#30363D] appearance-none cursor-pointer
+                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6
+                                   [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full
+                                   [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-[#FF6B35] [&::-webkit-slider-thumb]:to-[#FF8B5C]
+                                   [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20
+                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FF6B35]/40"
                         />
-                        <div className="flex justify-between text-xs text-[#484F58] mt-1">
-                          <span>3</span>
-                          <span>20</span>
+                        <div className="flex justify-between text-xs text-[#484F58] mt-2">
+                          <span>3 challenges</span>
+                          <span>20 challenges</span>
                         </div>
                       </div>
 
                       {/* Duration */}
-                      <div>
-                        <label className="flex items-center gap-2 text-sm text-[#8B949E] mb-3">
-                          <Clock className="w-4 h-4" />
-                          Estimated Duration: <span className="text-[#FFE66D] font-semibold">{duration} minutes</span>
-                        </label>
+                      <div className="p-4 rounded-xl bg-[#21262D] border border-[#30363D]">
+                        <div className="flex items-center justify-between mb-4">
+                          <label className="flex items-center gap-2 text-sm text-[#8B949E]">
+                            <div className="w-8 h-8 rounded-lg bg-[#FFE66D]/20 flex items-center justify-center">
+                              <Clock className="w-4 h-4 text-[#FFE66D]" />
+                            </div>
+                            Estimated Duration
+                          </label>
+                          <span className="text-2xl font-bold text-[#FFE66D]">{duration} min</span>
+                        </div>
                         <input
                           type="range"
                           min="15"
@@ -380,33 +422,60 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
                           step="15"
                           value={duration}
                           onChange={(e) => setDuration(parseInt(e.target.value))}
-                          className="w-full h-2 rounded-full bg-[#21262D] appearance-none cursor-pointer
-                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 
-                                   [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full 
-                                   [&::-webkit-slider-thumb]:bg-[#FFE66D] [&::-webkit-slider-thumb]:cursor-pointer
-                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FFE66D]/30"
+                          className="w-full h-2 rounded-full bg-[#30363D] appearance-none cursor-pointer
+                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6
+                                   [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:rounded-full
+                                   [&::-webkit-slider-thumb]:bg-gradient-to-br [&::-webkit-slider-thumb]:from-[#FFE66D] [&::-webkit-slider-thumb]:to-[#FFD93D]
+                                   [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white/20
+                                   [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[#FFE66D]/40"
                         />
-                        <div className="flex justify-between text-xs text-[#484F58] mt-1">
-                          <span>15 min</span>
+                        <div className="flex justify-between text-xs text-[#484F58] mt-2">
+                          <span>15 minutes</span>
                           <span>3 hours</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Summary */}
-                    <div className="mt-6 p-4 rounded-xl bg-[#21262D]/50 border border-[#30363D]">
-                      <h4 className="text-sm font-medium text-[#8B949E] mb-2">Your Hunt Summary</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-[#484F58]">Theme:</span> <span className="text-white capitalize">{theme}</span></div>
-                        <div><span className="text-[#484F58]">Difficulty:</span> <span className="text-white capitalize">{difficulty}</span></div>
-                        <div><span className="text-[#484F58]">Challenges:</span> <span className="text-white">{challengeCount}</span></div>
-                        <div><span className="text-[#484F58]">Duration:</span> <span className="text-white">{duration} min</span></div>
-                        {location && <div className="col-span-2"><span className="text-[#484F58]">Location:</span> <span className="text-white">{location}</span></div>}
+                    <div className="mt-6 p-5 rounded-xl bg-gradient-to-br from-[#21262D] to-[#161B22] border border-[#30363D]">
+                      <h4 className="text-sm font-medium text-[#8B949E] mb-4 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[#FF6B35]" />
+                        Your Hunt Summary
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-3 rounded-lg bg-[#0D1117]/50">
+                          <span className="text-xs text-[#484F58] block mb-1">Theme</span>
+                          <span className="text-white font-medium capitalize">{theme}</span>
+                        </div>
+                        <div className="p-3 rounded-lg bg-[#0D1117]/50">
+                          <span className="text-xs text-[#484F58] block mb-1">Difficulty</span>
+                          <span className="text-white font-medium capitalize">{difficulty}</span>
+                        </div>
+                        <div className="p-3 rounded-lg bg-[#0D1117]/50">
+                          <span className="text-xs text-[#484F58] block mb-1">Challenges</span>
+                          <span className="text-white font-medium">{challengeCount}</span>
+                        </div>
+                        <div className="p-3 rounded-lg bg-[#0D1117]/50">
+                          <span className="text-xs text-[#484F58] block mb-1">Duration</span>
+                          <span className="text-white font-medium">{duration} min</span>
+                        </div>
+                        {location && (
+                          <div className="col-span-2 p-3 rounded-lg bg-[#0D1117]/50">
+                            <span className="text-xs text-[#484F58] block mb-1">Location</span>
+                            <span className="text-white font-medium">{location}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {error && (
-                      <p className="mt-4 text-red-400 text-sm">{error}</p>
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30"
+                      >
+                        <p className="text-red-400 text-sm">{error}</p>
+                      </motion.div>
                     )}
                   </motion.div>
                 )}
