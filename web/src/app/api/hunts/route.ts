@@ -160,25 +160,33 @@ export async function POST(request: NextRequest) {
 
     // Insert challenges if provided
     const challenges = body.challenges || [];
-    if (challenges.length > 0) {
-      for (let i = 0; i < Math.min(challenges.length, 50); i++) {
-        const c = challenges[i];
-        const challengeTitle = sanitizeString(c.title || '', 255);
-        const challengeDesc = sanitizeString(c.description || '', 1000);
-        const points = Math.min(1000, Math.max(1, parseInt(c.points, 10) || 10));
+    // Filter out null/undefined challenges
+    const validChallenges = challenges.filter(
+      (c: unknown): c is Record<string, unknown> => c != null && typeof c === 'object'
+    );
+
+    if (validChallenges.length > 0) {
+      let insertedCount = 0;
+      for (let i = 0; i < Math.min(validChallenges.length, 50); i++) {
+        const c = validChallenges[i];
+        const challengeTitle = sanitizeString(String(c.title || ''), 255);
+        const challengeDesc = sanitizeString(String(c.description || ''), 1000);
+        const pointsValue = typeof c.points === 'number' ? c.points : parseInt(String(c.points), 10);
+        const points = Math.min(1000, Math.max(1, isNaN(pointsValue) ? 10 : pointsValue));
         const verificationType = ['photo', 'gps', 'qr_code', 'text_answer', 'manual'].includes(
-          c.verification_type
+          String(c.verification_type)
         )
-          ? c.verification_type
+          ? String(c.verification_type)
           : 'manual';
-        const hint = c.hint ? sanitizeString(c.hint, 500) : null;
+        const hint = c.hint ? sanitizeString(String(c.hint), 500) : null;
 
         if (!challengeTitle) continue;
 
         await sql`
           INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index, created_at)
-          VALUES (${hunt.id}, ${challengeTitle}, ${challengeDesc}, ${points}, ${verificationType}, ${JSON.stringify(c.verification_data || {})}, ${hint}, ${i}, NOW())
+          VALUES (${hunt.id}, ${challengeTitle}, ${challengeDesc}, ${points}, ${verificationType}, ${JSON.stringify(c.verification_data || {})}, ${hint}, ${insertedCount}, NOW())
         `;
+        insertedCount++;
       }
 
       // Fetch challenges
