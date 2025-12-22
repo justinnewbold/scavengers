@@ -14,8 +14,18 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    // Get connection string - prefer POSTGRES_URL, fallback to POSTGRES_URL_NON_POOLING from Supabase integration
+    // Get connection string - try multiple sources
     let connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || '';
+
+    // If no connection string, try building from individual env vars
+    if (!connectionString && process.env.POSTGRES_HOST && process.env.POSTGRES_PASSWORD) {
+      const host = process.env.POSTGRES_HOST;
+      const user = process.env.POSTGRES_USER || 'postgres';
+      const password = process.env.POSTGRES_PASSWORD;
+      const database = process.env.POSTGRES_DATABASE || 'postgres';
+      connectionString = `postgresql://${user}:${password}@${host}:5432/${database}`;
+      console.log('Built connection string from individual env vars');
+    }
 
     // Remove Vercel-specific parameters that pg doesn't understand
     connectionString = connectionString.replace(/[&?]supa=base-pooler\.x/g, '');
