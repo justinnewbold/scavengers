@@ -38,6 +38,29 @@ function LoginContent() {
     }
   }, [searchParams]);
 
+  // Helper function to map AI type to verification type
+  const mapTypeToVerificationType = (aiType?: string): 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual' => {
+    if (!aiType) return 'photo';
+    const type = aiType.toLowerCase();
+    switch (type) {
+      case 'gps':
+      case 'location':
+        return 'gps';
+      case 'text':
+      case 'text_answer':
+        return 'text_answer';
+      case 'qr':
+      case 'qr_code':
+        return 'qr_code';
+      case 'manual':
+        return 'manual';
+      case 'photo':
+      case 'image':
+      default:
+        return 'photo';
+    }
+  };
+
   // Save pending hunt after authentication
   const savePendingHunt = useCallback(async (authToken: string) => {
     const pendingData = sessionStorage.getItem('pendingHunt');
@@ -45,6 +68,18 @@ function LoginContent() {
 
     try {
       const { content, theme, difficulty, location } = JSON.parse(pendingData);
+
+      // Filter out null/undefined challenges and ensure required fields exist
+      const validChallenges = (content.challenges || [])
+        .filter((c: { title?: string } | null | undefined) => c != null && typeof c.title === 'string' && c.title.trim().length > 0)
+        .map((c: { title: string; description?: string; points?: number; type?: string; hint?: string }, i: number) => ({
+          title: c.title.trim(),
+          description: c.description || '',
+          points: c.points || 10,
+          verification_type: mapTypeToVerificationType(c.type),
+          hint: c.hint || undefined,
+          order_index: i,
+        }));
 
       const huntRes = await fetch('/api/hunts', {
         method: 'POST',
@@ -59,20 +94,15 @@ function LoginContent() {
           is_public: true,
           status: 'active',
           location: location || undefined,
-          challenges: content.challenges?.map((c: { title: string; description: string; points: number; type?: string }, i: number) => ({
-            title: c.title,
-            description: c.description,
-            points: c.points || 10,
-            verification_type: c.type === 'gps' ? 'gps' : c.type === 'text' ? 'text_answer' : 'photo',
-            order_index: i,
-          })) || [],
+          challenges: validChallenges,
         }),
       });
 
       if (huntRes.ok) {
         showToast('Hunt saved successfully!', 'success');
       } else {
-        showToast('Hunt created but failed to save. Try creating again.', 'error');
+        const errorData = await huntRes.json();
+        showToast(errorData.error || 'Hunt created but failed to save. Try creating again.', 'error');
       }
     } catch {
       showToast('Failed to save pending hunt', 'error');

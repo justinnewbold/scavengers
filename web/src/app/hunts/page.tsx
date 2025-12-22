@@ -17,7 +17,7 @@ interface Hunt {
   difficulty: 'easy' | 'medium' | 'hard';
   status: 'draft' | 'active' | 'completed' | 'archived';
   is_public: boolean;
-  challenges?: { id: string; points: number }[];
+  challenges?: { id: string; title?: string; points: number }[];
   created_at: string;
 }
 
@@ -109,6 +109,7 @@ export default function MyHuntsPage() {
     }
 
     try {
+      // Only send the fields needed for creating a new hunt (exclude id, created_at, etc.)
       const res = await fetch('/api/hunts', {
         method: 'POST',
         headers: {
@@ -116,17 +117,26 @@ export default function MyHuntsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...hunt,
           title: `${hunt.title} (Copy)`,
+          description: hunt.description,
+          difficulty: hunt.difficulty,
+          is_public: hunt.is_public,
           status: 'draft',
+          challenges: hunt.challenges?.map((c, i) => ({
+            title: c.title || 'Challenge',
+            points: c.points || 10,
+            order_index: i,
+          })) || [],
         }),
       });
+
+      const responseData = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to duplicate');
+        throw new Error(responseData.error || 'Failed to duplicate');
       }
-      const newHunt = await res.json();
-      setHunts([newHunt, ...hunts]);
+
+      setHunts([responseData, ...hunts]);
       showToast('Hunt duplicated successfully', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to duplicate hunt', 'error');

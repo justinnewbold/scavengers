@@ -43,8 +43,9 @@ export async function POST(
     const userId = user ? user.id : `anon_${uuidv4().slice(0, 8)}`;
 
     // Check if user already joined (prevent duplicates)
+    // Include score so front-end can restore progress
     const existingResult = await sql`
-      SELECT id, status FROM participants
+      SELECT id, status, score FROM participants
       WHERE hunt_id = ${id} AND user_id = ${userId}
     `;
 

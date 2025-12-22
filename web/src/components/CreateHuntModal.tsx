@@ -30,6 +30,7 @@ interface GeneratedContent {
     description: string;
     points: number;
     type?: string;
+    hint?: string;
   }>;
 }
 
@@ -110,6 +111,29 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
     }
   };
 
+  // Helper function to map AI type to verification type
+  const mapTypeToVerificationType = (aiType?: string): 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual' => {
+    if (!aiType) return 'photo';
+    const type = aiType.toLowerCase();
+    switch (type) {
+      case 'gps':
+      case 'location':
+        return 'gps';
+      case 'text':
+      case 'text_answer':
+        return 'text_answer';
+      case 'qr':
+      case 'qr_code':
+        return 'qr_code';
+      case 'manual':
+        return 'manual';
+      case 'photo':
+      case 'image':
+      default:
+        return 'photo';
+    }
+  };
+
   const saveHunt = async (content: GeneratedContent) => {
     if (!token) {
       setError('Please log in to save your hunt');
@@ -120,42 +144,73 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
     setError('');
 
     try {
+      // Validate content structure
+      if (!content || typeof content !== 'object') {
+        throw new Error('Invalid hunt content generated');
+      }
+
+      // Get the title with fallback
+      const huntTitle = content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`;
+      if (!huntTitle || huntTitle.trim().length < 3) {
+        throw new Error('Hunt title must be at least 3 characters');
+      }
+
+      // Filter out null/undefined challenges and ensure required fields exist
+      const validChallenges = (content.challenges || [])
+        .filter((c): c is NonNullable<typeof c> => c != null && typeof c.title === 'string' && c.title.trim().length > 0)
+        .map((c, i) => ({
+          title: c.title.trim(),
+          description: c.description || '',
+          points: typeof c.points === 'number' && c.points > 0 ? c.points : 10,
+          verification_type: mapTypeToVerificationType(c.type),
+          hint: c.hint || undefined,
+          order_index: i,
+        }));
+
+      if (validChallenges.length === 0) {
+        throw new Error('No valid challenges were generated. Please try again.');
+      }
+
+      const requestBody = {
+        title: huntTitle.trim(),
+        description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
+        difficulty,
+        is_public: true,
+        status: 'active',
+        location: location || undefined,
+        challenges: validChallenges,
+      };
+
       const huntRes = await fetch('/api/hunts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
-          description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
-          difficulty,
-          is_public: true,
-          status: 'active',
-          location: location || undefined,
-          challenges: content.challenges?.map((c, i) => ({
-            title: c.title,
-            description: c.description,
-            points: c.points || 10,
-            verification_type: c.type === 'gps' ? 'gps' : c.type === 'text' ? 'text_answer' : 'photo',
-            order_index: i,
-          })) || [],
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!huntRes.ok) {
-        const errorData = await huntRes.json();
-        throw new Error(errorData.error || 'Failed to save hunt');
+      let responseData;
+      try {
+        responseData = await huntRes.json();
+      } catch {
+        throw new Error(`Server error (${huntRes.status}): Invalid response`);
       }
 
-      const hunt = await huntRes.json();
+      if (!huntRes.ok) {
+        throw new Error(responseData.error || `Failed to save hunt (${huntRes.status})`);
+      }
+
+      const hunt = responseData;
 
       if (onCreated) {
         onCreated(hunt);
       }
       resetAndClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save hunt. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save hunt. Please try again.';
+      setError(errorMessage);
+      console.error('Hunt save error:', err);
     } finally {
       setIsSaving(false);
     }
