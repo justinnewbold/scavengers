@@ -167,6 +167,8 @@ export async function POST(request: NextRequest) {
 
     if (validChallenges.length > 0) {
       let insertedCount = 0;
+      const insertErrors: string[] = [];
+
       for (let i = 0; i < Math.min(validChallenges.length, 50); i++) {
         const c = validChallenges[i];
         const challengeTitle = sanitizeString(String(c.title || ''), 255);
@@ -182,11 +184,27 @@ export async function POST(request: NextRequest) {
 
         if (!challengeTitle) continue;
 
-        await sql`
-          INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index, created_at)
-          VALUES (${hunt.id}, ${challengeTitle}, ${challengeDesc}, ${points}, ${verificationType}, ${JSON.stringify(c.verification_data || {})}, ${hint}, ${insertedCount}, NOW())
-        `;
-        insertedCount++;
+        try {
+          // Ensure verification_data is a valid JSON string for JSONB column
+          const verificationData = c.verification_data && typeof c.verification_data === 'object'
+            ? JSON.stringify(c.verification_data)
+            : '{}';
+
+          await sql`
+            INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index, created_at)
+            VALUES (${hunt.id}, ${challengeTitle}, ${challengeDesc}, ${points}, ${verificationType}, ${verificationData}::jsonb, ${hint}, ${insertedCount}, NOW())
+          `;
+          insertedCount++;
+        } catch (challengeError) {
+          const errMsg = challengeError instanceof Error ? challengeError.message : 'Unknown error';
+          insertErrors.push(`Challenge ${i + 1}: ${errMsg}`);
+          console.error(`Failed to insert challenge ${i + 1}:`, challengeError);
+        }
+      }
+
+      // If all challenges failed, report the error but keep the hunt
+      if (insertedCount === 0 && insertErrors.length > 0) {
+        console.error('All challenges failed to insert:', insertErrors);
       }
 
       // Fetch challenges

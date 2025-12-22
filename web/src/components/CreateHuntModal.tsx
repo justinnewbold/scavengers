@@ -144,17 +144,42 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
     setError('');
 
     try {
+      // Validate content structure
+      if (!content || typeof content !== 'object') {
+        throw new Error('Invalid hunt content generated');
+      }
+
+      // Get the title with fallback
+      const huntTitle = content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`;
+      if (!huntTitle || huntTitle.trim().length < 3) {
+        throw new Error('Hunt title must be at least 3 characters');
+      }
+
       // Filter out null/undefined challenges and ensure required fields exist
       const validChallenges = (content.challenges || [])
         .filter((c): c is NonNullable<typeof c> => c != null && typeof c.title === 'string' && c.title.trim().length > 0)
         .map((c, i) => ({
           title: c.title.trim(),
           description: c.description || '',
-          points: c.points || 10,
+          points: typeof c.points === 'number' && c.points > 0 ? c.points : 10,
           verification_type: mapTypeToVerificationType(c.type),
           hint: c.hint || undefined,
           order_index: i,
         }));
+
+      if (validChallenges.length === 0) {
+        throw new Error('No valid challenges were generated. Please try again.');
+      }
+
+      const requestBody = {
+        title: huntTitle.trim(),
+        description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
+        difficulty,
+        is_public: true,
+        status: 'active',
+        location: location || undefined,
+        challenges: validChallenges,
+      };
 
       const huntRes = await fetch('/api/hunts', {
         method: 'POST',
@@ -162,21 +187,18 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: content.hunt?.title || `${theme.charAt(0).toUpperCase() + theme.slice(1)} Explorer`,
-          description: content.hunt?.description || `An exciting ${difficulty} scavenger hunt`,
-          difficulty,
-          is_public: true,
-          status: 'active',
-          location: location || undefined,
-          challenges: validChallenges,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      const responseData = await huntRes.json();
+      let responseData;
+      try {
+        responseData = await huntRes.json();
+      } catch {
+        throw new Error(`Server error (${huntRes.status}): Invalid response`);
+      }
 
       if (!huntRes.ok) {
-        throw new Error(responseData.error || 'Failed to save hunt');
+        throw new Error(responseData.error || `Failed to save hunt (${huntRes.status})`);
       }
 
       const hunt = responseData;
@@ -186,7 +208,9 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
       }
       resetAndClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save hunt. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save hunt. Please try again.';
+      setError(errorMessage);
+      console.error('Hunt save error:', err);
     } finally {
       setIsSaving(false);
     }
