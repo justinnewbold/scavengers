@@ -14,8 +14,8 @@ let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    // Get connection string
-    let connectionString = process.env.POSTGRES_URL || '';
+    // Get connection string - prefer POSTGRES_URL, fallback to POSTGRES_URL_NON_POOLING from Supabase integration
+    let connectionString = process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || '';
 
     // Remove Vercel-specific parameters that pg doesn't understand
     connectionString = connectionString.replace(/[&?]supa=base-pooler\.x/g, '');

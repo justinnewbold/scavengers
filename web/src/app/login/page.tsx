@@ -99,7 +99,10 @@ function LoginContent() {
       });
 
       if (huntRes.ok) {
+        const savedHunt = await huntRes.json();
         showToast('Hunt saved successfully!', 'success');
+        // Return the hunt ID so we can redirect to it
+        return savedHunt.id;
       } else {
         const errorData = await huntRes.json();
         showToast(errorData.error || 'Hunt created but failed to save. Try creating again.', 'error');
@@ -109,6 +112,7 @@ function LoginContent() {
     } finally {
       sessionStorage.removeItem('pendingHunt');
     }
+    return null;
   }, [showToast]);
 
   // Redirect if already authenticated
@@ -118,9 +122,15 @@ function LoginContent() {
         // Check for pending hunt to save - wait for it to complete before redirect
         const saveHunt = searchParams.get('saveHunt');
         if (saveHunt === 'true') {
-          await savePendingHunt(token);
+          const savedHuntId = await savePendingHunt(token);
+          if (savedHuntId) {
+            router.push(`/hunt/${savedHuntId}`);
+            return;
+          }
         }
-        router.push('/');
+        // Default redirect based on where they came from
+        const redirect = searchParams.get('redirect');
+        router.push(redirect && redirect !== '/hunt/preview' ? redirect : '/hunts');
       }
     }
     handleAuthRedirect();
