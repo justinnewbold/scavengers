@@ -101,8 +101,15 @@ export function CreateHuntModal({ isOpen = false, onClose, onCreated }: CreateHu
       if (token) {
         await saveHunt(aiData);
       } else {
-        // Show step 4 - login prompt with preview
-        setStep(4);
+        // Store the generated content and redirect to full preview page
+        sessionStorage.setItem('pendingHunt', JSON.stringify({
+          content: aiData,
+          theme,
+          difficulty,
+          location,
+        }));
+        resetAndClose();
+        router.push('/hunt/preview');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate hunt. Please try again.');
