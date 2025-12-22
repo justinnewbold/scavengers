@@ -21,10 +21,15 @@ function getPool(): Pool {
     if (!connectionString && process.env.POSTGRES_HOST && process.env.POSTGRES_PASSWORD) {
       const host = process.env.POSTGRES_HOST;
       const user = process.env.POSTGRES_USER || 'postgres';
-      const password = process.env.POSTGRES_PASSWORD;
+      const password = encodeURIComponent(process.env.POSTGRES_PASSWORD);
       const database = process.env.POSTGRES_DATABASE || 'postgres';
+      // Use port 5432 for direct connection
       connectionString = `postgresql://${user}:${password}@${host}:5432/${database}`;
       console.log('Built connection string from individual env vars');
+    }
+
+    if (!connectionString) {
+      throw new Error('No database connection string available. Set POSTGRES_URL or individual POSTGRES_* env vars.');
     }
 
     // Remove Vercel-specific parameters that pg doesn't understand
@@ -72,8 +77,17 @@ export async function sql<T extends QueryResultRow = QueryResultRow>(
     }
   });
 
-  const result = await getPool().query<T>(text, params);
-  return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+  try {
+    const result = await getPool().query<T>(text, params);
+    return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+  } catch (error) {
+    // Log detailed error for debugging
+    console.error('SQL Query Error:', {
+      query: text.substring(0, 200),
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 }
 
 /**
