@@ -97,7 +97,7 @@ export default function CreateHuntPage() {
 
   const generateWithAI = async () => {
     if (!aiTheme.trim()) return;
-    
+
     setIsGenerating(true);
     try {
       const res = await fetch('/api/generate', {
@@ -110,36 +110,49 @@ export default function CreateHuntPage() {
           duration: 60,
         }),
       });
-      
+
       const data = await res.json();
-      
-      if (data.hunt?.title || data.title) {
-        setTitle(data.hunt?.title || data.title);
-        setDescription(data.hunt?.description || data.description || '');
-        const generatedChallenges = data.challenges || [];
 
-        // Map AI type values to backend verification types
-        const mapAiTypeToVerificationType = (aiType?: string): VerificationType => {
-          if (!aiType) return 'manual';
-          switch (aiType.toLowerCase()) {
-            case 'text':
-            case 'text_answer':
-              return 'text_answer';
-            case 'photo':
-            case 'image':
-              return 'photo';
-            case 'gps':
-            case 'location':
-              return 'gps';
-            case 'qr':
-            case 'qr_code':
-              return 'qr_code';
-            default:
-              return 'manual';
-          }
-        };
+      if (!res.ok) {
+        showToast(data.error || 'Failed to generate hunt. Please try again.', 'error');
+        return;
+      }
 
-        setChallenges(generatedChallenges.map((c: GeneratedChallenge, i: number) => ({
+      const huntTitle = data.hunt?.title || data.title;
+      if (!huntTitle) {
+        showToast('AI generation returned invalid data. Please try again.', 'error');
+        return;
+      }
+
+      setTitle(huntTitle);
+      setDescription(data.hunt?.description || data.description || '');
+      const generatedChallenges = data.challenges || [];
+
+      // Map AI type values to backend verification types
+      const mapAiTypeToVerificationType = (aiType?: string): VerificationType => {
+        if (!aiType) return 'manual';
+        switch (aiType.toLowerCase()) {
+          case 'text':
+          case 'text_answer':
+            return 'text_answer';
+          case 'photo':
+          case 'image':
+            return 'photo';
+          case 'gps':
+          case 'location':
+            return 'gps';
+          case 'qr':
+          case 'qr_code':
+            return 'qr_code';
+          default:
+            return 'manual';
+        }
+      };
+
+      // Filter out null/undefined challenges
+      setChallenges(generatedChallenges
+        .filter((c: GeneratedChallenge | null | undefined) => c != null && c.title)
+        .map((c: GeneratedChallenge, i: number) => ({
           id: `temp-${Date.now()}-${i}`,
           title: c.title || '',
           description: c.description || '',
@@ -147,10 +160,9 @@ export default function CreateHuntPage() {
           verification_type: mapAiTypeToVerificationType(c.verification_type || c.type),
           hint: c.hint || '',
         })));
-        setStep('challenges');
-      }
+      setStep('challenges');
     } catch {
-      showToast('Failed to generate hunt. Please try again.');
+      showToast('Failed to generate hunt. Please try again.', 'error');
     } finally {
       setIsGenerating(false);
     }
