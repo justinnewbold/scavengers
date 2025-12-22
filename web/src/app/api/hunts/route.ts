@@ -156,6 +156,13 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `;
 
+    if (!huntResult.rows || huntResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to create hunt: No rows returned from database' },
+        { status: 500 }
+      );
+    }
+
     const hunt = huntResult.rows[0];
 
     // Insert challenges if provided
@@ -227,16 +234,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // Return more specific error in non-production
-    if (process.env.NODE_ENV !== 'production') {
-      return NextResponse.json(
-        { error: `Failed to create hunt: ${errorMessage}` },
-        { status: 500 }
-      );
-    }
-
+    // Always return specific error message for debugging
     return NextResponse.json(
-      { error: 'Failed to create hunt. Please try again.' },
+      { error: `Failed to create hunt: ${errorMessage}` },
       { status: 500 }
     );
   }
