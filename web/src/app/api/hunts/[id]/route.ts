@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { requireAuth, sanitizeString } from '@/lib/auth';
+import { requireAuth, sanitizeString, isValidUUID } from '@/lib/auth';
 
 // GET /api/hunts/[id] - Get hunt by ID
 export async function GET(
@@ -9,6 +9,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Validate UUID format to prevent database errors
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid hunt ID format' },
+        { status: 400 }
+      );
+    }
 
     // Note: verification_data is intentionally NOT returned to prevent cheating
     // It contains correct answers, GPS coordinates, and QR codes
@@ -68,6 +76,14 @@ export async function PATCH(
     }
 
     const { id } = await params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid hunt ID format' },
+        { status: 400 }
+      );
+    }
 
     // Check ownership
     const huntCheck = await sql`
@@ -140,6 +156,14 @@ export async function DELETE(
     }
 
     const { id } = await params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid hunt ID format' },
+        { status: 400 }
+      );
+    }
 
     // Check ownership
     const huntCheck = await sql`

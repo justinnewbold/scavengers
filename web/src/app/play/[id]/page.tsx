@@ -119,6 +119,14 @@ export default function PlayHuntPage() {
     };
   }, [params.id]);
 
+  // Stop timer when hunt is complete
+  useEffect(() => {
+    if (showCompletion && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
+  }, [showCompletion]);
+
   // Join hunt when authenticated and hunt is loaded
   useEffect(() => {
     if (hunt && isAuthenticated && token && !participantId && !isJoining) {

@@ -14,19 +14,24 @@ export interface Hunt {
   tags: string[];
 }
 
+export type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
+
 export interface Challenge {
   id: string;
   huntId: string;
   title: string;
   description: string;
   points: number;
-  type: 'photo' | 'gps' | 'qr' | 'text' | 'video';
+  type?: 'photo' | 'gps' | 'qr' | 'text' | 'video'; // Legacy - use verification_type
+  verification_type?: VerificationType; // Preferred field name
   hint?: string;
   order: number;
   verificationData?: {
     location?: { lat: number; lng: number; radius: number };
     qrCode?: string;
     keywords?: string[];
+    correct_answer?: string;
+    case_sensitive?: boolean;
   };
 }
 

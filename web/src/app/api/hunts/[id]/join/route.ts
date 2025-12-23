@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { optionalAuth } from '@/lib/auth';
+import { optionalAuth, isValidUUID } from '@/lib/auth';
 
 // POST /api/hunts/[id]/join - Join a hunt
 export async function POST(
@@ -10,6 +10,14 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+
+    // Validate UUID format
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid hunt ID format' },
+        { status: 400 }
+      );
+    }
 
     // Check hunt exists and is active
     const huntResult = await sql`

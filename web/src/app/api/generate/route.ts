@@ -107,13 +107,14 @@ function generateThemedChallenges(theme: string, difficulty: string, count: numb
   };
 
   const ideas = themeIdeas[theme] || themeIdeas.adventure;
-  const types = ['photo', 'photo', 'photo', 'text', 'gps'];
+  const types: Array<'photo' | 'gps' | 'text_answer' | 'manual'> = ['photo', 'photo', 'photo', 'text_answer', 'gps'];
 
   return Array.from({ length: count }, (_, i) => ({
     title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Challenge ${i + 1}`,
     description: `Find and document: ${ideas[i % ideas.length]}`,
     points: basePoints + (i * 5),
     type: types[i % types.length],
+    verification_type: types[i % types.length], // Frontend expects verification_type
     hint: 'Look carefully in your surroundings!',
     order: i + 1,
   }));
