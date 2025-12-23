@@ -1,13 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, isValidUUID } from '@/lib/auth';
 
 interface VerificationData {
   correct_answer?: string;
   case_sensitive?: boolean;
   location?: { lat: number; lng: number; radius?: number };
   qrCode?: string;
+}
+
+// Maximum photo size: 5MB (base64 encoded = ~6.67MB)
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const MAX_BASE64_SIZE = Math.ceil(MAX_PHOTO_SIZE * 1.37); // base64 overhead
+
+// Valid image MIME types
+const VALID_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+/**
+ * Validate photo submission data
+ */
+function validatePhotoSubmission(submissionData: Record<string, unknown>): { valid: boolean; error?: string } {
+  const photoData = submissionData.photoData as string | undefined;
+  const photoUrl = submissionData.photoUrl as string | undefined;
+
+  // Either photoData or photoUrl must be provided
+  if (!photoData && !photoUrl) {
+    return { valid: false, error: 'No photo provided' };
+  }
+
+  // If photoUrl is provided, validate it's a valid URL
+  if (photoUrl) {
+    try {
+      new URL(photoUrl);
+    } catch {
+      return { valid: false, error: 'Invalid photo URL format' };
+    }
+  }
+
+  // If photoData is provided (base64), validate it
+  if (photoData) {
+    // Check size
+    if (photoData.length > MAX_BASE64_SIZE) {
+      return { valid: false, error: `Photo too large. Maximum size is ${MAX_PHOTO_SIZE / (1024 * 1024)}MB` };
+    }
+
+    // Check format (should be a data URL)
+    if (!photoData.startsWith('data:image/')) {
+      return { valid: false, error: 'Invalid photo format. Must be a data URL' };
+    }
+
+    // Extract MIME type
+    const mimeMatch = photoData.match(/^data:(image\/[a-z]+);base64,/);
+    if (!mimeMatch) {
+      return { valid: false, error: 'Invalid photo data URL format' };
+    }
+
+    const mimeType = mimeMatch[1];
+    if (!VALID_IMAGE_TYPES.includes(mimeType)) {
+      return { valid: false, error: `Invalid image type. Allowed: ${VALID_IMAGE_TYPES.join(', ')}` };
+    }
+  }
+
+  return { valid: true };
 }
 
 // Calculate distance between two GPS coordinates using Haversine formula
@@ -85,11 +140,12 @@ function verifySubmission(
     }
 
     case 'photo': {
-      // For photos, we accept any submission since we can't verify content
-      // In production, you'd integrate with an image moderation service
-      if (!submissionData.photoUrl && !submissionData.photoData) {
-        return { verified: false, reason: 'No photo provided' };
+      // Validate photo data (size, format, MIME type)
+      const photoValidation = validatePhotoSubmission(submissionData);
+      if (!photoValidation.valid) {
+        return { verified: false, reason: photoValidation.error };
       }
+      // Photo passes validation - auto-approve (in production, integrate with moderation service)
       return { verified: true };
     }
 
@@ -118,6 +174,14 @@ export async function POST(request: NextRequest) {
     if (!participant_id || !challenge_id || !submission_type) {
       return NextResponse.json(
         { error: 'Missing required fields: participant_id, challenge_id, submission_type' },
+        { status: 400 }
+      );
+    }
+
+    // Validate UUID formats
+    if (!isValidUUID(participant_id) || !isValidUUID(challenge_id)) {
+      return NextResponse.json(
+        { error: 'Invalid participant_id or challenge_id format' },
         { status: 400 }
       );
     }

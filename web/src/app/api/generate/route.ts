@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateHuntWithAI } from '@/lib/ai';
 import { sanitizeString } from '@/lib/auth';
+import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
+  // Check rate limit for AI generation
+  const clientIP = getClientIP(request);
+  const rateLimitResult = checkRateLimit(clientIP, rateLimiters.aiGenerate);
+
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
+
   // Parse body once at the start and save for fallback
   let rawBody: { theme?: string; difficulty?: string; challengeCount?: number; duration?: number; location?: string } = {};
   try {
