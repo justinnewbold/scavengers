@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
 
@@ -28,17 +28,36 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Cleanup all timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      timeoutsRef.current.clear();
+    };
+  }, []);
 
   const showToast = useCallback((message: string, type: ToastType = 'error') => {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, type }]);
 
-    setTimeout(() => {
+    // Store timeout reference for cleanup
+    const timeout = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      timeoutsRef.current.delete(id);
     }, 4000);
+
+    timeoutsRef.current.set(id, timeout);
   }, []);
 
   const removeToast = useCallback((id: string) => {
+    // Clear the timeout when manually removing
+    const timeout = timeoutsRef.current.get(id);
+    if (timeout) {
+      clearTimeout(timeout);
+      timeoutsRef.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 

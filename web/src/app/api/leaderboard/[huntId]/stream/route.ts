@@ -83,10 +83,14 @@ function startPolling(huntId: string) {
   pollingIntervals.set(huntId, interval);
 
   // Send initial data immediately
-  fetchLeaderboard(huntId).then((leaderboard) => {
-    lastLeaderboardData.set(huntId, JSON.stringify(leaderboard));
-    broadcastToHunt(huntId, { type: 'update', data: leaderboard });
-  });
+  fetchLeaderboard(huntId)
+    .then((leaderboard) => {
+      lastLeaderboardData.set(huntId, JSON.stringify(leaderboard));
+      broadcastToHunt(huntId, { type: 'update', data: leaderboard });
+    })
+    .catch((error) => {
+      console.error(`Error fetching initial leaderboard for hunt ${huntId}:`, error);
+    });
 }
 
 function stopPolling(huntId: string) {
@@ -151,9 +155,13 @@ async function fetchLeaderboard(huntId: string) {
 // Utility function to trigger an update (can be called from other routes)
 export function triggerLeaderboardUpdate(huntId: string) {
   if (connections.has(huntId)) {
-    fetchLeaderboard(huntId).then((leaderboard) => {
-      lastLeaderboardData.set(huntId, JSON.stringify(leaderboard));
-      broadcastToHunt(huntId, { type: 'update', data: leaderboard });
-    });
+    fetchLeaderboard(huntId)
+      .then((leaderboard) => {
+        lastLeaderboardData.set(huntId, JSON.stringify(leaderboard));
+        broadcastToHunt(huntId, { type: 'update', data: leaderboard });
+      })
+      .catch((error) => {
+        console.error(`Error triggering leaderboard update for hunt ${huntId}:`, error);
+      });
   }
 }
