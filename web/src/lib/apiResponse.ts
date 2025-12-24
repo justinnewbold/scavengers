@@ -63,13 +63,18 @@ export function successResponse<T>(
   status: number = 200,
   pagination?: { page: number; limit: number; total?: number; hasMore: boolean }
 ): NextResponse<ApiResponse<T>> {
+  const meta: ApiResponse<T>['meta'] = {
+    timestamp: new Date().toISOString(),
+  };
+
+  if (pagination) {
+    meta.pagination = pagination;
+  }
+
   const response: ApiResponse<T> = {
     success: true,
     data,
-    meta: {
-      timestamp: new Date().toISOString(),
-      ...(pagination && { pagination }),
-    },
+    meta,
   };
 
   return NextResponse.json(response, { status });
@@ -84,13 +89,18 @@ export function errorResponse(
   status: number = 400,
   details?: unknown
 ): NextResponse<ApiResponse> {
+  const error: NonNullable<ApiResponse['error']> = {
+    code,
+    message,
+  };
+
+  if (details !== undefined) {
+    error.details = details;
+  }
+
   const response: ApiResponse = {
     success: false,
-    error: {
-      code,
-      message,
-      ...(details && { details }),
-    },
+    error,
     meta: {
       timestamp: new Date().toISOString(),
     },
