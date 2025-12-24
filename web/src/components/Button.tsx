@@ -13,17 +13,21 @@ interface ButtonProps {
   children?: ReactNode;
   onClick?: () => void;
   type?: 'button' | 'submit' | 'reset';
+  'aria-label'?: string;
+  'aria-describedby'?: string;
 }
 
-export function Button({ 
-  className, 
-  variant = 'primary', 
-  size = 'md', 
-  isLoading, 
-  children, 
-  disabled, 
+export function Button({
+  className,
+  variant = 'primary',
+  size = 'md',
+  isLoading,
+  children,
+  disabled,
   onClick,
   type = 'button',
+  'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }: ButtonProps) {
   const baseStyles = `
     relative inline-flex items-center justify-center font-medium
@@ -70,6 +74,10 @@ export function Button({
       className={cn(baseStyles, variants[variant], sizes[size], className)}
       disabled={disabled || isLoading}
       onClick={onClick}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-busy={isLoading}
+      aria-disabled={disabled || isLoading}
     >
       {isLoading && (
         <svg
@@ -77,6 +85,8 @@ export function Button({
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
+          aria-hidden="true"
+          role="presentation"
         >
           <circle
             className="opacity-25"
@@ -93,6 +103,7 @@ export function Button({
           />
         </svg>
       )}
+      {isLoading && <span className="sr-only">Loading...</span>}
       {children}
     </motion.button>
   );
