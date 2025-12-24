@@ -9,9 +9,18 @@ import {
   sanitizeEmail,
   sanitizeString,
 } from '@/lib/auth';
+import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit (stricter for registration)
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(clientIP, rateLimiters.register);
+
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const body = await request.json();
     const email = sanitizeEmail(body.email || '');
     const password = body.password || '';

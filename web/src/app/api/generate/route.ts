@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateHuntWithAI } from '@/lib/ai';
 import { sanitizeString } from '@/lib/auth';
+import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
 
 export async function POST(request: NextRequest) {
+  // Check rate limit for AI generation
+  const clientIP = getClientIP(request);
+  const rateLimitResult = checkRateLimit(clientIP, rateLimiters.aiGenerate);
+
+  if (!rateLimitResult.success) {
+    return rateLimitResponse(rateLimitResult);
+  }
+
   // Parse body once at the start and save for fallback
   let rawBody: { theme?: string; difficulty?: string; challengeCount?: number; duration?: number; location?: string } = {};
   try {
@@ -107,13 +116,14 @@ function generateThemedChallenges(theme: string, difficulty: string, count: numb
   };
 
   const ideas = themeIdeas[theme] || themeIdeas.adventure;
-  const types = ['photo', 'photo', 'photo', 'text', 'gps'];
+  const types: Array<'photo' | 'gps' | 'text_answer' | 'manual'> = ['photo', 'photo', 'photo', 'text_answer', 'gps'];
 
   return Array.from({ length: count }, (_, i) => ({
     title: `${theme.charAt(0).toUpperCase() + theme.slice(1)} Challenge ${i + 1}`,
     description: `Find and document: ${ideas[i % ideas.length]}`,
     points: basePoints + (i * 5),
     type: types[i % types.length],
+    verification_type: types[i % types.length], // Frontend expects verification_type
     hint: 'Look carefully in your surroundings!',
     order: i + 1,
   }));

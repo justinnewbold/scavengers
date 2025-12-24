@@ -32,10 +32,17 @@ export async function GET() {
   // Check database connection
   try {
     const result = await sql`SELECT NOW() as time, current_database() as db`;
-    checks.database_connection = {
-      status: 'ok',
-      message: `Connected to ${result.rows[0].db} at ${result.rows[0].time}`,
-    };
+    if (result.rows.length > 0) {
+      checks.database_connection = {
+        status: 'ok',
+        message: `Connected to ${result.rows[0].db} at ${result.rows[0].time}`,
+      };
+    } else {
+      checks.database_connection = {
+        status: 'warning',
+        message: 'Connected but query returned no rows',
+      };
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     checks.database_connection = {
@@ -80,9 +87,10 @@ export async function GET() {
   // Check user count
   try {
     const result = await sql`SELECT COUNT(*) as count FROM users`;
+    const count = result.rows.length > 0 ? result.rows[0].count : 0;
     checks.users_table = {
       status: 'ok',
-      message: `${result.rows[0].count} users registered`,
+      message: `${count} users registered`,
     };
   } catch (error) {
     checks.users_table = {

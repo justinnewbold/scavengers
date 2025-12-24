@@ -119,6 +119,14 @@ export default function PlayHuntPage() {
     };
   }, [params.id]);
 
+  // Stop timer when hunt is complete
+  useEffect(() => {
+    if (showCompletion && timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
+  }, [showCompletion]);
+
   // Join hunt when authenticated and hunt is loaded
   useEffect(() => {
     if (hunt && isAuthenticated && token && !participantId && !isJoining) {
@@ -845,17 +853,35 @@ export default function PlayHuntPage() {
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={() => {
+                  onClick={async () => {
                     const shareText = `I completed "${hunt.title}" with ${score} points in ${formatTime(timeElapsed)}!`;
+                    const shareUrl = `${window.location.origin}/hunt/${hunt.id}`;
+
                     if (navigator.share) {
-                      navigator.share({
-                        title: 'Scavengers Hunt Complete!',
-                        text: shareText,
-                        url: window.location.origin + `/hunt/${hunt.id}`,
-                      }).catch(() => {});
+                      try {
+                        await navigator.share({
+                          title: 'Scavengers Hunt Complete!',
+                          text: shareText,
+                          url: shareUrl,
+                        });
+                      } catch (error) {
+                        // User cancelled or share failed - fall back to clipboard
+                        if ((error as Error).name !== 'AbortError') {
+                          try {
+                            await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+                            showToast('Results copied to clipboard!', 'success');
+                          } catch {
+                            showToast('Could not share results', 'error');
+                          }
+                        }
+                      }
                     } else {
-                      navigator.clipboard.writeText(shareText + ` ${window.location.origin}/hunt/${hunt.id}`);
-                      showToast('Results copied to clipboard!', 'success');
+                      try {
+                        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+                        showToast('Results copied to clipboard!', 'success');
+                      } catch {
+                        showToast('Could not copy to clipboard', 'error');
+                      }
                     }
                   }}
                 >

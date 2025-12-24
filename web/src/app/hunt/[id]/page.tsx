@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -39,6 +39,16 @@ export default function HuntDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (params.id) {
@@ -59,11 +69,28 @@ export default function HuntDetailPage() {
     }
   };
 
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/hunt/${hunt?.id}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const copyShareLink = useCallback(async () => {
+    if (!hunt?.id) return;
+
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/hunt/${hunt.id}`);
+      setCopied(true);
+
+      // Clear any existing timeout
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      // Fallback: show the URL in an alert
+      alert(`Share this link: ${window.location.origin}/hunt/${hunt.id}`);
+    }
+  }, [hunt?.id]);
 
   const getVerificationIcon = (type: string) => {
     switch (type) {
