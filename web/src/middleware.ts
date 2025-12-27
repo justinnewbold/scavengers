@@ -12,9 +12,10 @@ export function middleware(request: NextRequest) {
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-inline/eval in dev
-    "style-src 'self' 'unsafe-inline'", // Tailwind/styled-jsx uses inline styles
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Tailwind/styled-jsx uses inline styles + Google Fonts
+    "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://generativelanguage.googleapis.com wss:", // API connections
     "frame-ancestors 'none'",
     "base-uri 'self'",
