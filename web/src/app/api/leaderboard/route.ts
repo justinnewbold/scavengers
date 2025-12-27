@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { isValidUUID } from '@/lib/auth';
 
 // GET /api/leaderboard - Get leaderboard for a hunt
 export async function GET(request: NextRequest) {
@@ -13,6 +14,14 @@ export async function GET(request: NextRequest) {
     if (!huntId) {
       return NextResponse.json(
         { error: 'hunt_id required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate UUID format to prevent SQL injection
+    if (!isValidUUID(huntId)) {
+      return NextResponse.json(
+        { error: 'Invalid hunt_id format' },
         { status: 400 }
       );
     }

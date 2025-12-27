@@ -46,9 +46,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      // Verify token is still valid
-      verifyToken(storedToken);
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        // Verify token is still valid
+        verifyToken(storedToken);
+      } catch {
+        // Invalid JSON in localStorage, clear and logout
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+        setIsLoading(false);
+      }
     } else {
       setIsLoading(false);
     }

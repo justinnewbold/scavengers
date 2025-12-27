@@ -161,13 +161,29 @@ For ${request.difficulty} difficulty:
   }
   
   private parseHuntResponse(text: string): AIGeneratedHunt {
-    // Extract JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error('Failed to parse hunt response');
+    // Extract JSON from response by finding balanced braces
+    const jsonStart = text.indexOf('{');
+    if (jsonStart === -1) {
+      throw new Error('Failed to parse hunt response: no JSON found');
     }
-    
-    const parsed = JSON.parse(jsonMatch[0]);
+
+    let braceCount = 0;
+    let jsonEnd = -1;
+    for (let i = jsonStart; i < text.length; i++) {
+      if (text[i] === '{') braceCount++;
+      else if (text[i] === '}') braceCount--;
+      if (braceCount === 0) {
+        jsonEnd = i + 1;
+        break;
+      }
+    }
+
+    if (jsonEnd === -1) {
+      throw new Error('Failed to parse hunt response: unbalanced braces');
+    }
+
+    const jsonString = text.slice(jsonStart, jsonEnd);
+    const parsed = JSON.parse(jsonString);
     
     // Validate and normalize the response
     return {

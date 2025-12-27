@@ -142,10 +142,18 @@ export default function PlayScreen() {
             {
               text: 'Submit',
               onPress: (answer) => {
+                const userAnswer = answer?.trim() || '';
+                const correctAnswer = challenge.verification_data?.correct_answer || '';
+
+                if (!userAnswer) {
+                  Alert.alert('Empty Answer', 'Please enter an answer');
+                  return;
+                }
+
                 const correct = challenge.verification_data?.case_sensitive
-                  ? answer === challenge.verification_data?.correct_answer
-                  : answer?.toLowerCase() === challenge.verification_data?.correct_answer?.toLowerCase();
-                
+                  ? userAnswer === correctAnswer
+                  : userAnswer.toLowerCase() === correctAnswer.toLowerCase();
+
                 if (correct) {
                   handleChallengeComplete(challenge, true);
                 } else {

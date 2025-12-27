@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth, isValidUUID } from '@/lib/auth';
+import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
 
 interface VerificationData {
   correct_answer?: string;
@@ -161,6 +162,14 @@ function verifySubmission(
 // POST /api/submissions - Create submission
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(clientIP, rateLimiters.submissions);
+
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     // Require authentication
     const auth = await requireAuth(request);
     if ('error' in auth) {
