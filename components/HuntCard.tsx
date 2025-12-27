@@ -40,10 +40,10 @@ export function HuntCard({ hunt, onPress }: HuntCardProps) {
           <Text style={styles.statText}>{totalPoints} pts</Text>
         </View>
         
-        {hunt.time_limit_minutes && (
+        {hunt.duration_minutes && (
           <View style={styles.stat}>
             <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-            <Text style={styles.statText}>{hunt.time_limit_minutes}m</Text>
+            <Text style={styles.statText}>{hunt.duration_minutes}m</Text>
           </View>
         )}
       </View>
