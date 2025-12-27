@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { optionalAuth, requireAuth, sanitizeString } from '@/lib/auth';
+import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
 
 // GET /api/hunts - List hunts
 export async function GET(request: NextRequest) {
@@ -119,6 +120,14 @@ export async function GET(request: NextRequest) {
 // POST /api/hunts - Create hunt (requires auth)
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientIP = getClientIP(request);
+    const rateLimitResult = checkRateLimit(clientIP, rateLimiters.huntCreate);
+
+    if (!rateLimitResult.success) {
+      return rateLimitResponse(rateLimitResult);
+    }
+
     const auth = await requireAuth(request);
     if ('error' in auth) {
       return auth.error;

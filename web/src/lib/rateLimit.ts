@@ -133,6 +133,18 @@ export const rateLimiters = {
     maxRequests: 10,
     keyPrefix: 'ai',
   },
+  // Submissions: 30 per minute
+  submissions: {
+    windowMs: 60 * 1000,  // 1 minute
+    maxRequests: 30,
+    keyPrefix: 'submissions',
+  },
+  // Hunt creation: 5 per hour
+  huntCreate: {
+    windowMs: 60 * 60 * 1000,  // 1 hour
+    maxRequests: 5,
+    keyPrefix: 'hunt-create',
+  },
 };
 
 /**
