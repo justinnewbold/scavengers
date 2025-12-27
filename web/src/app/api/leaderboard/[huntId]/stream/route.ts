@@ -5,6 +5,10 @@ import { isValidUUID } from '@/lib/auth';
 // Store active connections per hunt
 const connections = new Map<string, Set<ReadableStreamDefaultController>>();
 
+// Limit to prevent unbounded memory growth
+const MAX_TRACKED_HUNTS = 100;
+const MAX_CONNECTIONS_PER_HUNT = 50;
+
 // Interval for polling database updates (in production, use database triggers or pub/sub)
 const POLL_INTERVAL = 3000; // 3 seconds
 
@@ -19,6 +23,22 @@ export async function GET(
     return new Response(
       JSON.stringify({ error: 'Invalid hunt ID format' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Check connection limits to prevent resource exhaustion
+  if (connections.size >= MAX_TRACKED_HUNTS && !connections.has(huntId)) {
+    return new Response(
+      JSON.stringify({ error: 'Too many active hunts being streamed' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const existingConnections = connections.get(huntId);
+  if (existingConnections && existingConnections.size >= MAX_CONNECTIONS_PER_HUNT) {
+    return new Response(
+      JSON.stringify({ error: 'Too many connections for this hunt' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
   }
 

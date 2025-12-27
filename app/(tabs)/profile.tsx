@@ -8,7 +8,7 @@ import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut } = useAuthStore();
+  const { user, logout } = useAuthStore();
   
   const handleSignOut = () => {
     Alert.alert(
@@ -16,7 +16,7 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
       ]
     );
   };

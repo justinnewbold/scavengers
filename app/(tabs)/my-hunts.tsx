@@ -15,7 +15,7 @@ import { Colors, Spacing, FontSizes } from '@/constants/theme';
 export default function MyHuntsScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { myHunts, isLoading, fetchMyHunts } = useHuntStore();
+  const { hunts: myHunts, isLoading, fetchHunts: fetchMyHunts } = useHuntStore();
   
   useEffect(() => {
     if (user) {

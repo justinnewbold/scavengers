@@ -95,7 +95,7 @@ export function Navbar({ onCreateClick }: NavbarProps) {
                 >
                   <div className="w-8 h-8 rounded-full bg-[#21262D] flex items-center justify-center">
                     {user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                      <img src={user.avatar_url} alt={`${user.display_name || 'User'} avatar`} className="w-8 h-8 rounded-full" />
                     ) : (
                       <User className="w-4 h-4 text-[#8B949E]" />
                     )}
@@ -156,7 +156,7 @@ export function Navbar({ onCreateClick }: NavbarProps) {
                 <div className="flex items-center gap-3 p-3 border-b border-[#30363D] mb-2">
                   <div className="w-10 h-10 rounded-full bg-[#21262D] flex items-center justify-center">
                     {user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="" className="w-10 h-10 rounded-full" />
+                      <img src={user.avatar_url} alt={`${user.display_name || 'User'} avatar`} className="w-10 h-10 rounded-full" />
                     ) : (
                       <User className="w-5 h-5 text-[#8B949E]" />
                     )}

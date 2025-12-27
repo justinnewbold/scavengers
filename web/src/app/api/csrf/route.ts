@@ -9,7 +9,7 @@ export async function GET() {
 
   // Also set in cookie for convenience
   response.cookies.set('csrf-token', token, {
-    httpOnly: false,
+    httpOnly: true, // Prevent XSS attacks from accessing the token
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 60 * 60, // 1 hour
