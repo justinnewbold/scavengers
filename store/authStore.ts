@@ -140,9 +140,9 @@ export const useAuthStore = create<AuthState>()(
           });
           
           if (!res.ok) throw new Error('Update failed');
-          
-          const updatedUser = await res.json();
-          set({ user: updatedUser, isLoading: false });
+
+          const data = await res.json();
+          set({ user: data.user, isLoading: false });
         } catch (error: any) {
           set({ error: error.message, isLoading: false });
         }
