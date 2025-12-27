@@ -38,9 +38,19 @@ export default function LocationScreen() {
   }, []);
 
   useEffect(() => {
+    let subscriptionCleanup: (() => void) | undefined;
+
     if (hasPermission) {
-      startLocationTracking();
+      startLocationTracking().then(cleanup => {
+        subscriptionCleanup = cleanup;
+      });
     }
+
+    return () => {
+      if (subscriptionCleanup) {
+        subscriptionCleanup();
+      }
+    };
   }, [hasPermission]);
 
   const requestPermission = async () => {
