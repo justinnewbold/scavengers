@@ -93,6 +93,12 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Features</Text>
 
+        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/gallery')}>
+          <Ionicons name="images-outline" size={22} color={Colors.primary} />
+          <Text style={styles.menuText}>Photo Gallery</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/achievements')}>
           <Ionicons name="trophy-outline" size={22} color={Colors.warning} />
           <Text style={styles.menuText}>Achievements</Text>

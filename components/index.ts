@@ -4,3 +4,5 @@ export { Input } from './Input';
 export { HuntCard } from './HuntCard';
 export { ErrorBoundary } from './ErrorBoundary';
 export { OfflineIndicator } from './OfflineIndicator';
+export { LiveLeaderboard } from './LiveLeaderboard';
+export { HintSystem } from './HintSystem';
