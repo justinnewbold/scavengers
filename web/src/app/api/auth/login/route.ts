@@ -68,9 +68,12 @@ export async function POST(request: NextRequest) {
       token,
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Login error:', error);
-    }
+    // Always log errors for debugging (visible in Vercel logs)
+    console.error('Login error:', {
+      message: error instanceof Error ? error.message : String(error),
+      hasPostgresUrl: !!process.env.POSTGRES_URL,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+    });
     return NextResponse.json(
       { error: 'Login failed. Please try again.' },
       { status: 500 }

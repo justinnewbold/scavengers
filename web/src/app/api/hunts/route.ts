@@ -107,9 +107,11 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Failed to fetch hunts:', error);
-    }
+    // Always log errors for debugging (visible in Vercel logs)
+    console.error('Failed to fetch hunts:', {
+      message: error instanceof Error ? error.message : String(error),
+      hasPostgresUrl: !!process.env.POSTGRES_URL,
+    });
     return NextResponse.json(
       { error: 'Failed to fetch hunts' },
       { status: 500 }
