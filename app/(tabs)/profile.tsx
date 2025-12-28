@@ -91,18 +91,40 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Features</Text>
+
+        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/achievements')}>
+          <Ionicons name="trophy-outline" size={22} color={Colors.warning} />
+          <Text style={styles.menuText}>Achievements</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+
+        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/teams')}>
+          <Ionicons name="people-outline" size={22} color={Colors.success} />
+          <Text style={styles.menuText}>Teams</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+
+        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/settings')}>
+          <Ionicons name="settings-outline" size={22} color={Colors.primary} />
+          <Text style={styles.menuText}>Settings</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
-        
+
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="help-circle-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>Help & Support</Text>
         </Card>
-        
+
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="document-text-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>Terms of Service</Text>
         </Card>
-        
+
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="shield-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>Privacy Policy</Text>
