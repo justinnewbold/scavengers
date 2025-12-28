@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card } from '@/components';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import type { Hunt, Challenge } from '@/types';
+import type { Hunt } from '@/types';
 
 export default function HuntDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

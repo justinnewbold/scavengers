@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Button } from '@/components';
+import { Button } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
