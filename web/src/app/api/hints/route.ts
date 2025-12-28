@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { calculateDistance, bearingToCompassDirection, formatDistance, calculateBearing } from '@/lib/geo';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,7 +45,8 @@ function generateHint(
       case 'location':
         if (location && userLocation) {
           const distance = calculateDistance(userLocation, location);
-          const direction = getDirection(userLocation, location);
+          const bearing = calculateBearing(userLocation, location);
+          const direction = bearingToCompassDirection(bearing);
           return `You're about ${formatDistance(distance)} away. Try heading ${direction}.`;
         }
         return hint || `Explore the area and look for landmarks mentioned in the description.`;
@@ -107,49 +109,6 @@ function generateHint(
   }
 
   return hint || 'No additional hints available.';
-}
-
-function calculateDistance(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
-): number {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (from.lat * Math.PI) / 180;
-  const φ2 = (to.lat * Math.PI) / 180;
-  const Δφ = ((to.lat - from.lat) * Math.PI) / 180;
-  const Δλ = ((to.lng - from.lng) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function formatDistance(meters: number): string {
-  if (meters < 100) return `${Math.round(meters)} meters`;
-  if (meters < 1000) return `${Math.round(meters / 10) * 10} meters`;
-  return `${(meters / 1000).toFixed(1)} km`;
-}
-
-function getDirection(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number }
-): string {
-  const dLat = to.lat - from.lat;
-  const dLng = to.lng - from.lng;
-
-  const angle = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-
-  if (angle >= -22.5 && angle < 22.5) return 'north';
-  if (angle >= 22.5 && angle < 67.5) return 'northeast';
-  if (angle >= 67.5 && angle < 112.5) return 'east';
-  if (angle >= 112.5 && angle < 157.5) return 'southeast';
-  if (angle >= 157.5 || angle < -157.5) return 'south';
-  if (angle >= -157.5 && angle < -112.5) return 'southwest';
-  if (angle >= -112.5 && angle < -67.5) return 'west';
-  return 'northwest';
 }
 
 function extractKeywords(text: string): string[] {

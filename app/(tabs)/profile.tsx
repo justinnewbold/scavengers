@@ -56,24 +56,6 @@ export default function ProfileScreen() {
         <Text style={styles.email}>{user.email}</Text>
       </View>
       
-      <Card variant="elevated" style={styles.subscriptionCard}>
-        <View style={styles.subscriptionHeader}>
-          <Text style={styles.subscriptionTitle}>Free Plan</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Active</Text>
-          </View>
-        </View>
-        <Text style={styles.subscriptionText}>
-          Up to {AppConfig.freeTier.maxParticipants} participants per hunt
-        </Text>
-        <Button
-          title={`Upgrade - $${AppConfig.premium.monthlyPrice}/mo`}
-          onPress={() => Alert.alert('Coming Soon', 'Premium subscriptions coming soon!')}
-          variant="outline"
-          size="sm"
-          style={styles.upgradeButton}
-        />
-      </Card>
       
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
@@ -172,13 +154,6 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 32, fontWeight: '700', color: Colors.text },
   name: { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.text },
   email: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: Spacing.xs },
-  subscriptionCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
-  subscriptionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  subscriptionTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text },
-  badge: { backgroundColor: Colors.success, paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: 100 },
-  badgeText: { color: Colors.text, fontSize: FontSizes.xs, fontWeight: '600' },
-  subscriptionText: { color: Colors.textSecondary, marginBottom: Spacing.md },
-  upgradeButton: { width: '100%' },
   statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
   statCard: { flex: 1, alignItems: 'center', padding: Spacing.md },
   statNumber: { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.primary },
