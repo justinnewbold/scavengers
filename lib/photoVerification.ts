@@ -72,7 +72,7 @@ function extractKeywords(text: string): string[] {
 /**
  * Local verification using keyword matching (fallback)
  */
-function localVerification(
+function _localVerification(
   detectedLabels: string[],
   requiredKeywords: string[]
 ): { verified: boolean; matchedLabels: string[]; confidence: number } {
@@ -244,7 +244,7 @@ export async function analyzeImageQuality(imageUri: string): Promise<{
     }
 
     return { quality, issues, suggestions };
-  } catch (error) {
+  } catch (_error) {
     return { quality: 'acceptable', issues: [], suggestions: [] };
   }
 }
