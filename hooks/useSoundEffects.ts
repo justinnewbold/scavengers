@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { triggerHaptic } from './useHaptics';
 
 const SOUND_ENABLED_KEY = 'sound_effects_enabled';
 
@@ -96,9 +97,6 @@ export function useSoundEffects() {
         await sound.playAsync();
       } else {
         // Use haptic feedback as fallback since we don't have actual audio files
-        // The haptic system provides tactile feedback
-        const { triggerHaptic } = await import('./useHaptics');
-
         switch (effect) {
           case 'success':
           case 'achievement':

@@ -189,10 +189,13 @@ export function useNotifications() {
     if (settingKey && !settings[settingKey]) return null;
 
     try {
-      const trigger = new Date(notification.scheduledFor);
+      const triggerDate = new Date(notification.scheduledFor);
 
       // Don't schedule if in the past
-      if (trigger.getTime() <= Date.now()) return null;
+      if (triggerDate.getTime() <= Date.now()) return null;
+
+      // Calculate seconds from now
+      const seconds = Math.floor((triggerDate.getTime() - Date.now()) / 1000);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -201,7 +204,7 @@ export function useNotifications() {
           data: notification.data || {},
           sound: true,
         },
-        trigger,
+        trigger: { seconds, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
       });
 
       const scheduled: ScheduledNotification = {

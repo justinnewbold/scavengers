@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import * as Linking from 'expo-linking';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { Share, Platform } from 'react-native';
 
@@ -214,7 +215,6 @@ export function useDeepLinks() {
   const copyLinkToClipboard = useCallback(async (data: DeepLinkData): Promise<boolean> => {
     const link = createDeepLink(data);
     try {
-      const Clipboard = await import('expo-clipboard');
       await Clipboard.setStringAsync(link);
       return true;
     } catch (error) {

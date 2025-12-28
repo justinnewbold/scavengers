@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 // Storage keys
 const KEYS = {
@@ -49,7 +49,7 @@ class OfflineStorage {
   }
 
   private initNetworkListener() {
-    NetInfo.addEventListener(state => {
+    NetInfo.addEventListener((state: NetInfoState) => {
       const wasOnline = this.isOnline;
       this.isOnline = state.isConnected ?? false;
 
