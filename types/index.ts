@@ -12,6 +12,8 @@ export interface HuntSettings {
   requirePhoto?: boolean;
   require_photo_verification?: boolean;
   requireLocation?: boolean;
+  allow_team_play?: boolean;
+  shuffle_challenges?: boolean;
 }
 
 export interface Hunt {
