@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       result = await sql`
         SELECT id, type, title, body, data, created_at
         FROM notifications
-        WHERE user_id = ${auth.userId} AND read_at IS NULL
+        WHERE user_id = ${auth.user.id} AND read_at IS NULL
         ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       result = await sql`
         SELECT id, type, title, body, data, read_at, created_at
         FROM notifications
-        WHERE user_id = ${auth.userId}
+        WHERE user_id = ${auth.user.id}
         ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const countResult = await sql`
       SELECT COUNT(*) as count
       FROM notifications
-      WHERE user_id = ${auth.userId} AND read_at IS NULL
+      WHERE user_id = ${auth.user.id} AND read_at IS NULL
     `;
 
     return NextResponse.json({
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
       await sql`
         UPDATE notifications
         SET read_at = NOW()
-        WHERE user_id = ${auth.userId} AND read_at IS NULL
+        WHERE user_id = ${auth.user.id} AND read_at IS NULL
       `;
     } else if (notificationIds && Array.isArray(notificationIds)) {
       const validIds = notificationIds.filter(id => isValidUUID(id));
@@ -77,7 +77,7 @@ export async function PATCH(request: NextRequest) {
         await sql`
           UPDATE notifications
           SET read_at = NOW()
-          WHERE user_id = ${auth.userId}
+          WHERE user_id = ${auth.user.id}
             AND id = ANY(${validIds}::uuid[])
             AND read_at IS NULL
         `;
