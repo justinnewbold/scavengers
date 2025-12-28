@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>()(
             }
           }
           set({ isInitialized: true });
-        } catch (error) {
+        } catch (_error) {
           // Network error - still mark as initialized
           set({ isInitialized: true });
         }
@@ -118,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await AsyncStorage.removeItem('auth_token');
           set({ user: null, isAuthenticated: false, isLoading: false });
-        } catch (error) {
+        } catch (_error) {
           set({ isLoading: false });
         }
       },
@@ -174,7 +174,7 @@ export const useAuthStore = create<AuthState>()(
             await AsyncStorage.removeItem('auth_token');
             set({ user: null, isAuthenticated: false, isLoading: false });
           }
-        } catch (error) {
+        } catch (_error) {
           set({ isLoading: false });
         }
       },

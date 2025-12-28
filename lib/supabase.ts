@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import type { Hunt, Challenge, Submission } from '@/types';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -200,6 +201,3 @@ export const db = {
     },
   },
 };
-
-// Type imports for database operations
-import type { Hunt, Challenge, Participant, Submission } from '@/types';
