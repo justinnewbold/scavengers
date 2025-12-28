@@ -162,14 +162,19 @@ export default function QRScannerScreen() {
                 'Type the code shown below the QR:',
                 [
                   { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Submit', 
+                  {
+                    text: 'Submit',
                     onPress: (code) => {
-                      if (code && expectedCode && code === expectedCode) {
+                      const trimmedCode = code?.trim() || '';
+                      if (!trimmedCode) {
+                        Alert.alert('Empty Code', 'Please enter a code');
+                        return;
+                      }
+                      if (expectedCode && trimmedCode === expectedCode) {
                         Alert.alert('✅ Correct!', 'Challenge complete!', [
                           { text: 'Continue', onPress: () => router.back() }
                         ]);
-                      } else if (code) {
+                      } else {
                         Alert.alert('❌ Incorrect', 'That code is not correct.');
                       }
                     }

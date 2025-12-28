@@ -126,10 +126,14 @@ export const useAuthStore = create<AuthState>()(
       updateProfile: async (updates: Partial<User>) => {
         const { user } = get();
         if (!user) return;
-        
+
         set({ isLoading: true, error: null });
         try {
           const token = await AsyncStorage.getItem('auth_token');
+          if (!token) {
+            throw new Error('Not authenticated');
+          }
+
           const res = await fetch(`${API_BASE}/auth/profile`, {
             method: 'PATCH',
             headers: {
@@ -138,7 +142,7 @@ export const useAuthStore = create<AuthState>()(
             },
             body: JSON.stringify(updates),
           });
-          
+
           if (!res.ok) throw new Error('Update failed');
 
           const data = await res.json();

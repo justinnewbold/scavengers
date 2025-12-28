@@ -90,15 +90,18 @@ function verifySubmission(
 ): { verified: boolean; reason?: string } {
   switch (submissionType) {
     case 'text_answer': {
-      const answer = submissionData.answer as string;
-      const correctAnswer = verificationData.correct_answer;
+      const answer = (submissionData.answer as string)?.trim() || '';
+      const correctAnswer = verificationData.correct_answer?.trim() || '';
       if (!correctAnswer) {
         return { verified: false, reason: 'No correct answer configured for this challenge' };
+      }
+      if (!answer) {
+        return { verified: false, reason: 'Answer cannot be empty' };
       }
       const caseSensitive = verificationData.case_sensitive ?? false;
       const isCorrect = caseSensitive
         ? answer === correctAnswer
-        : answer?.toLowerCase() === correctAnswer.toLowerCase();
+        : answer.toLowerCase() === correctAnswer.toLowerCase();
       return isCorrect
         ? { verified: true }
         : { verified: false, reason: 'Incorrect answer' };
@@ -108,6 +111,14 @@ function verifySubmission(
       const userLat = submissionData.latitude as number;
       const userLng = submissionData.longitude as number;
       const targetLocation = verificationData.location;
+
+      // Validate GPS coordinates
+      if (typeof userLat !== 'number' || typeof userLng !== 'number' ||
+          isNaN(userLat) || isNaN(userLng) ||
+          userLat < -90 || userLat > 90 ||
+          userLng < -180 || userLng > 180) {
+        return { verified: false, reason: 'Invalid GPS coordinates' };
+      }
 
       if (!targetLocation) {
         return { verified: false, reason: 'No GPS location configured for this challenge' };
