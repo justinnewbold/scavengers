@@ -1,10 +1,11 @@
+/* eslint-env serviceworker */
 // Scavengers Service Worker
 // Version: 2.0.0
 
-const CACHE_NAME = 'scavengers-v2';
+const _CACHE_NAME = 'scavengers-v2';
 const STATIC_CACHE = 'scavengers-static-v2';
 const DYNAMIC_CACHE = 'scavengers-dynamic-v2';
-const OFFLINE_CACHE = 'scavengers-offline-v2';
+const _OFFLINE_CACHE = 'scavengers-offline-v2';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -16,14 +17,14 @@ const STATIC_ASSETS = [
 ];
 
 // API routes to cache with network-first strategy
-const API_ROUTES = [
+const _API_ROUTES = [
   '/api/hunts',
   '/api/achievements',
   '/api/templates',
 ];
 
 // Offline fallback responses
-const OFFLINE_FALLBACKS = {
+const _OFFLINE_FALLBACKS = {
   '/api/hunts': { hunts: [], offline: true },
   '/api/achievements': { achievements: [], offline: true },
 };
