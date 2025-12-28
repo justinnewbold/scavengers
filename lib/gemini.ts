@@ -1,8 +1,7 @@
-import type { 
-  AIGenerationRequest, 
-  AIGeneratedHunt, 
-  AIGeneratedChallenge,
-  VerificationType 
+import type {
+  AIGenerationRequest,
+  AIGeneratedHunt,
+  VerificationType
 } from '@/types';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -100,12 +99,13 @@ Respond in JSON format only:
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     
     try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const jsonMatch = text?.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-    } catch {
+    } catch (error) {
       // Fall back to manual approval if parsing fails
+      console.warn('Failed to parse Gemini response, falling back to manual approval:', error);
     }
     
     return {

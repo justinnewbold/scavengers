@@ -32,7 +32,7 @@ const SOUND_FILES: Record<SoundEffect, string | null> = {
 };
 
 // Synthesized sound configurations (fallback when no audio files)
-const SYNTH_SOUNDS: Record<SoundEffect, { frequency: number; duration: number; type: 'beep' | 'chirp' | 'buzz' }> = {
+const _SYNTH_SOUNDS: Record<SoundEffect, { frequency: number; duration: number; type: 'beep' | 'chirp' | 'buzz' }> = {
   success: { frequency: 800, duration: 200, type: 'chirp' },
   achievement: { frequency: 1000, duration: 500, type: 'chirp' },
   levelUp: { frequency: 600, duration: 300, type: 'chirp' },

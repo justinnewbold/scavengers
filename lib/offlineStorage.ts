@@ -58,7 +58,9 @@ class OfflineStorage {
 
         // Auto-sync when coming back online
         if (this.isOnline) {
-          this.syncPendingSubmissions();
+          this.syncPendingSubmissions().catch((error) => {
+            console.error('Failed to sync pending submissions:', error);
+          });
         }
       }
     });

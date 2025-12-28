@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Hunt, Challenge, Participant, Submission, AIGenerationRequest } from '@/types';
+import type { Hunt, Participant, Submission, AIGenerationRequest } from '@/types';
 import { gemini } from '@/lib/gemini';
 
 // API base URL - points to your Vercel deployment

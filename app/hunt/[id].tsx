@@ -40,7 +40,7 @@ export default function HuntDetailScreen() {
     try {
       await joinHunt(hunt.id);
       router.push(`/play/${hunt.id}`);
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to join hunt. Please try again.');
     }
   };

@@ -13,6 +13,19 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    settings: {
+      "import/resolver": {
+        typescript: {
+          project: "./tsconfig.json",
+        },
+      },
+    },
+    rules: {
+      // Disable import/no-unresolved since TypeScript handles this
+      "import/no-unresolved": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

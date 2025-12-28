@@ -63,7 +63,7 @@ export default function MarketplaceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [selectedDifficulty, _setSelectedDifficulty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent'>('popular');
 
   useEffect(() => {

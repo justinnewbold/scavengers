@@ -96,7 +96,7 @@ export default function GalleryScreen() {
         },
         body: JSON.stringify({ photo_id: photo.id, is_favorite: newFavoriteStatus }),
       });
-    } catch (error) {
+    } catch (_error) {
       // Revert on error
       setPhotos(photos.map(p =>
         p.id === photo.id ? { ...p, is_favorite: !newFavoriteStatus } : p
@@ -122,7 +122,7 @@ export default function GalleryScreen() {
       ));
       setSelectedPhoto({ ...selectedPhoto, caption: captionText });
       setEditingCaption(false);
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to save caption');
     }
   };
@@ -175,7 +175,7 @@ export default function GalleryScreen() {
         setShareMode(false);
         setSelectedForShare([]);
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to create memory');
     }
   };

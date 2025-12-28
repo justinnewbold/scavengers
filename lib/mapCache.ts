@@ -54,8 +54,8 @@ function getTilesInBounds(
   maxLat: number,
   maxLng: number,
   zoom: number
-): Array<{ x: number; y: number; z: number }> {
-  const tiles: Array<{ x: number; y: number; z: number }> = [];
+): { x: number; y: number; z: number }[] {
+  const tiles: { x: number; y: number; z: number }[] = [];
 
   const min = latLngToTile(maxLat, minLng, zoom); // Note: max lat = min y
   const max = latLngToTile(minLat, maxLng, zoom);
@@ -216,7 +216,7 @@ export async function downloadAreaTiles(
   const maxLng = centerLng + lngDelta;
 
   // Get all tiles needed
-  const allTiles: Array<{ x: number; y: number; z: number }> = [];
+  const allTiles: { x: number; y: number; z: number }[] = [];
   for (const zoom of zoomLevels) {
     allTiles.push(...getTilesInBounds(minLat, minLng, maxLat, maxLng, zoom));
   }
@@ -345,7 +345,7 @@ export async function clearMapCache(): Promise<void> {
  * Download tiles for a specific hunt
  */
 export async function downloadHuntTiles(
-  challenges: Array<{ location?: { lat: number; lng: number } }>,
+  challenges: { location?: { lat: number; lng: number } }[],
   onProgress?: ProgressCallback
 ): Promise<{ success: number; failed: number; skipped: number }> {
   // Get all unique locations

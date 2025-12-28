@@ -4,7 +4,7 @@ import { Camera, CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import { calculateDistance, calculateBearing, type Coordinates } from '@/lib/geo';
+import { calculateDistance, calculateBearing } from '@/lib/geo';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface ARObject {

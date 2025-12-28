@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export interface LivePlayer {
   id: string;
@@ -40,7 +40,8 @@ class LiveHuntConnection {
   private establishConnection(): void {
     if (!this.huntId || !this.token) return;
 
-    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'wss://api.example.com/ws';
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || apiUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     this.ws = new WebSocket(`${wsUrl}/live/${this.huntId}?token=${this.token}`);
 
     this.ws.onopen = () => {
@@ -160,7 +161,7 @@ export const liveHuntConnection = new LiveHuntConnection();
 export function useLiveHunt(huntId: string, userId: string, token: string) {
   const [state, setState] = useState<LiveHuntState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [reactions, setReactions] = useState<{ id: string; emoji: string; name: string }[]>([]);
+  const [reactions, _setReactions] = useState<{ id: string; emoji: string; name: string }[]>([]);
 
   useEffect(() => {
     liveHuntConnection.connect(huntId, userId, token);
