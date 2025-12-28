@@ -141,7 +141,7 @@ export default function LocationScreen() {
           `You're ${Math.round(dist)}m away. Get within ${radiusNum}m of the target location.`
         );
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'Failed to get your location. Please try again.');
     } finally {
       setChecking(false);

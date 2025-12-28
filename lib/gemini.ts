@@ -1,8 +1,7 @@
-import type { 
-  AIGenerationRequest, 
-  AIGeneratedHunt, 
-  AIGeneratedChallenge,
-  VerificationType 
+import type {
+  AIGenerationRequest,
+  AIGeneratedHunt,
+  VerificationType
 } from '@/types';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';

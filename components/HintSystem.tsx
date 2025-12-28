@@ -80,7 +80,7 @@ export function HintSystem({ huntId, challengeIndex, userLocation, onHintReceive
               } else {
                 Alert.alert('Error', 'Failed to get hint. Please try again.');
               }
-            } catch (error) {
+            } catch (_error) {
               Alert.alert('Error', 'Network error. Please check your connection.');
             } finally {
               setLoading(false);

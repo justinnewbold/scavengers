@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Dimensions, Animated, Easing } from 'react-native';
-import { Colors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const CONFETTI_COUNT = 50;

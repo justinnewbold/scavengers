@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export interface LivePlayer {
   id: string;
@@ -161,7 +161,7 @@ export const liveHuntConnection = new LiveHuntConnection();
 export function useLiveHunt(huntId: string, userId: string, token: string) {
   const [state, setState] = useState<LiveHuntState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [reactions, setReactions] = useState<{ id: string; emoji: string; name: string }[]>([]);
+  const [reactions, _setReactions] = useState<{ id: string; emoji: string; name: string }[]>([]);
 
   useEffect(() => {
     liveHuntConnection.connect(huntId, userId, token);
