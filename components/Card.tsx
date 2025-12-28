@@ -6,24 +6,30 @@ interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'outlined';
   onPress?: () => void;
+  onTouchEnd?: () => void;
   style?: ViewStyle;
 }
 
-export function Card({ children, variant = 'default', onPress, style }: CardProps) {
+export function Card({ children, variant = 'default', onPress, onTouchEnd, style }: CardProps) {
   const cardStyles = [
     styles.base,
     styles[variant],
     style,
   ];
-  
-  if (onPress) {
+
+  if (onPress || onTouchEnd) {
     return (
-      <TouchableOpacity style={cardStyles} onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={cardStyles}
+        onPress={onPress}
+        onPressOut={onTouchEnd}
+        activeOpacity={0.8}
+      >
         {children}
       </TouchableOpacity>
     );
   }
-  
+
   return <View style={cardStyles}>{children}</View>;
 }
 

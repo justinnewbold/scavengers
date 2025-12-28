@@ -3,6 +3,17 @@ export type HuntStatus = 'draft' | 'active' | 'completed' | 'archived';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type VerificationType = 'photo' | 'gps' | 'qr_code' | 'text_answer' | 'manual';
 
+export interface HuntSettings {
+  allowSkip?: boolean;
+  showHints?: boolean;
+  allow_hints?: boolean;
+  points_for_hints?: number;
+  timeLimit?: number;
+  requirePhoto?: boolean;
+  require_photo_verification?: boolean;
+  requireLocation?: boolean;
+}
+
 export interface Hunt {
   id: string;
   title: string;
@@ -15,6 +26,7 @@ export interface Hunt {
   duration_minutes?: number;
   max_participants?: number;
   challenges?: Challenge[];
+  settings?: HuntSettings;
   created_at?: string;
   updated_at?: string;
 }
