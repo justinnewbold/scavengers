@@ -4,6 +4,8 @@ import { Camera, CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { calculateDistance, calculateBearing, type Coordinates } from '@/lib/geo';
+import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface ARObject {
   id: string;
@@ -79,37 +81,13 @@ export function ARChallenge({ objects, onCollect, onClose }: ARChallengeProps) {
     setNearbyObjects(nearby);
   }, [userLocation, objects]);
 
-  const calculateDistance = (from: { lat: number; lng: number }, to: { lat: number; lng: number }): number => {
-    const R = 6371e3;
-    const φ1 = (from.lat * Math.PI) / 180;
-    const φ2 = (to.lat * Math.PI) / 180;
-    const Δφ = ((to.lat - from.lat) * Math.PI) / 180;
-    const Δλ = ((to.lng - from.lng) * Math.PI) / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-  };
-
-  const calculateBearing = (from: { lat: number; lng: number }, to: { lat: number; lng: number }): number => {
-    const φ1 = (from.lat * Math.PI) / 180;
-    const φ2 = (to.lat * Math.PI) / 180;
-    const Δλ = ((to.lng - from.lng) * Math.PI) / 180;
-
-    const y = Math.sin(Δλ) * Math.cos(φ2);
-    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-    const θ = Math.atan2(y, x);
-
-    return ((θ * 180) / Math.PI + 360) % 360;
-  };
-
   const handleCollect = async (obj: ARObject & { distance: number }) => {
     if (obj.distance > COLLECTION_RADIUS) {
+      triggerHaptic('warning');
       return; // Too far to collect
     }
 
+    triggerHaptic('success');
     setCollecting(obj.id);
 
     // Animate collection
