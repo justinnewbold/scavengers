@@ -91,6 +91,16 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Discover</Text>
+
+        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/marketplace')}>
+          <Ionicons name="storefront-outline" size={22} color={Colors.primary} />
+          <Text style={styles.menuText}>Hunt Marketplace</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Features</Text>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/gallery')}>
