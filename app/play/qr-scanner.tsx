@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import { Button } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function QRScannerScreen() {
-  const { challengeId, expectedCode } = useLocalSearchParams<{
+  const { challengeId: _challengeId, expectedCode } = useLocalSearchParams<{
     challengeId: string;
     expectedCode?: string;
   }>();

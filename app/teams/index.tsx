@@ -17,14 +17,6 @@ interface Team {
   role?: 'owner' | 'admin' | 'member';
 }
 
-interface TeamMember {
-  id: string;
-  user_id: string;
-  display_name: string;
-  role: 'owner' | 'admin' | 'member';
-  joined_at: string;
-}
-
 export default function TeamsScreen() {
   const router = useRouter();
   const { t } = useI18n();

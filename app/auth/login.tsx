@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter, Link, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';

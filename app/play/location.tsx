@@ -15,7 +15,7 @@ import { Button, Card } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function LocationScreen() {
-  const { challengeId, targetLat, targetLng, radius } = useLocalSearchParams<{
+  const { challengeId: _challengeId, targetLat, targetLng, radius } = useLocalSearchParams<{
     challengeId: string;
     targetLat: string;
     targetLng: string;
