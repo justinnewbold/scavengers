@@ -24,7 +24,7 @@ export async function PATCH(
 
     // Verify ownership
     const huntCheck = await sql`
-      SELECT id FROM hunts WHERE id = ${huntId} AND creator_id = ${auth.userId}
+      SELECT id FROM hunts WHERE id = ${huntId} AND creator_id = ${auth.user.id}
     `;
 
     if (huntCheck.rows.length === 0) {

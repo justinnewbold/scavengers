@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
              (SELECT COUNT(*) FROM team_members WHERE team_id = t.id) as member_count
       FROM teams t
       JOIN team_members tm ON tm.team_id = t.id
-      WHERE tm.user_id = ${auth.userId}
+      WHERE tm.user_id = ${auth.user.id}
       ORDER BY t.created_at DESC
     `;
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Create team
     const teamResult = await sql`
       INSERT INTO teams (name, description, created_by)
-      VALUES (${name}, ${description || null}, ${auth.userId})
+      VALUES (${name}, ${description || null}, ${auth.user.id})
       RETURNING id, name, description, avatar_url, created_at
     `;
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     // Add creator as owner
     await sql`
       INSERT INTO team_members (team_id, user_id, role)
-      VALUES (${team.id}, ${auth.userId}, 'owner')
+      VALUES (${team.id}, ${auth.user.id}, 'owner')
     `;
 
     return NextResponse.json({

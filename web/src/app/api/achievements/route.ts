@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
+interface AchievementRow {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  requirement_type: string;
+  requirement_value: number;
+  points: number;
+  earned_at: string | null;
+  earned: boolean;
+}
+
 // GET /api/achievements - Get all achievements with user progress
 export async function GET(request: NextRequest) {
   try {
@@ -24,23 +37,23 @@ export async function GET(request: NextRequest) {
         ua.earned_at,
         CASE WHEN ua.id IS NOT NULL THEN true ELSE false END as earned
       FROM achievements a
-      LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = ${auth.userId}
+      LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = ${auth.user.id}
       ORDER BY a.category, a.points
     `;
 
     // Get user stats for progress calculation
     const statsResult = await sql`
       SELECT
-        (SELECT COUNT(*) FROM participants WHERE user_id = ${auth.userId} AND status = 'completed') as hunts_completed,
-        (SELECT COUNT(*) FROM submissions WHERE participant_id IN (SELECT id FROM participants WHERE user_id = ${auth.userId}) AND status = 'approved') as challenges_completed,
-        (SELECT COUNT(*) FROM hunts WHERE creator_id = ${auth.userId}) as hunts_created,
-        (SELECT COUNT(*) FROM team_members WHERE user_id = ${auth.userId}) as teams_joined
+        (SELECT COUNT(*) FROM participants WHERE user_id = ${auth.user.id} AND status = 'completed') as hunts_completed,
+        (SELECT COUNT(*) FROM submissions WHERE participant_id IN (SELECT id FROM participants WHERE user_id = ${auth.user.id}) AND status = 'approved') as challenges_completed,
+        (SELECT COUNT(*) FROM hunts WHERE creator_id = ${auth.user.id}) as hunts_created,
+        (SELECT COUNT(*) FROM team_members WHERE user_id = ${auth.user.id}) as teams_joined
     `;
 
     const stats = statsResult.rows[0] || {};
 
     // Calculate progress for each achievement
-    const achievements = result.rows.map(a => {
+    const achievements = (result.rows as AchievementRow[]).map(a => {
       let progress = 0;
       const current = parseInt(stats[a.requirement_type] || '0', 10);
 

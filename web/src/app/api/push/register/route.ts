@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Upsert the token
     await sql`
       INSERT INTO push_tokens (user_id, token, platform, last_used)
-      VALUES (${auth.userId}, ${token}, ${platform}, NOW())
+      VALUES (${auth.user.id}, ${token}, ${platform}, NOW())
       ON CONFLICT (user_id, token)
       DO UPDATE SET last_used = NOW(), platform = ${platform}
     `;
@@ -65,7 +65,7 @@ export async function DELETE(request: NextRequest) {
 
     await sql`
       DELETE FROM push_tokens
-      WHERE user_id = ${auth.userId} AND token = ${token}
+      WHERE user_id = ${auth.user.id} AND token = ${token}
     `;
 
     return NextResponse.json({ success: true });

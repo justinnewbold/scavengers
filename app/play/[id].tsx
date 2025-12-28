@@ -13,12 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card } from '@/components';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import type { Hunt, Challenge, Submission } from '@/types';
+import type { Hunt, Challenge } from '@/types';
 
 export default function PlayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getHuntById, submitChallenge, isLoading } = useHuntStore();
+  const { getHuntById } = useHuntStore();
   
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
@@ -179,7 +179,6 @@ export default function PlayScreen() {
   };
 
   const currentChallenge = hunt?.challenges?.[currentChallengeIndex];
-  const totalPoints = hunt?.challenges?.reduce((sum, c) => sum + c.points, 0) || 0;
 
   if (!hunt || !currentChallenge) {
     return (

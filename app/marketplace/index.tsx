@@ -13,10 +13,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Button } from '@/components';
+import { Card } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import { useAuthStore } from '@/store';
-
 interface MarketplaceHunt {
   id: string;
   title: string;
@@ -58,7 +56,6 @@ const THEME_ICONS: Record<string, string> = {
 
 export default function MarketplaceScreen() {
   const router = useRouter();
-  const { session } = useAuthStore();
   const [hunts, setHunts] = useState<MarketplaceHunt[]>([]);
   const [featured, setFeatured] = useState<MarketplaceHunt[]>([]);
   const [themes, setThemes] = useState<string[]>([]);

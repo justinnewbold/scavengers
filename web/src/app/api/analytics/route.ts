@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
       // Verify ownership
       const huntCheck = await sql`
-        SELECT id FROM hunts WHERE id = ${huntId} AND creator_id = ${auth.userId}
+        SELECT id FROM hunts WHERE id = ${huntId} AND creator_id = ${auth.user.id}
       `;
 
       if (huntCheck.rows.length === 0) {
@@ -82,10 +82,10 @@ export async function GET(request: NextRequest) {
     // Overall creator analytics
     const overallStats = await sql`
       SELECT
-        (SELECT COUNT(*) FROM hunts WHERE creator_id = ${auth.userId}) as total_hunts,
-        (SELECT COUNT(*) FROM participants WHERE hunt_id IN (SELECT id FROM hunts WHERE creator_id = ${auth.userId})) as total_participants,
-        (SELECT COUNT(*) FROM participants WHERE hunt_id IN (SELECT id FROM hunts WHERE creator_id = ${auth.userId}) AND status = 'completed') as total_completions,
-        (SELECT SUM(clone_count) FROM hunts WHERE creator_id = ${auth.userId}) as total_clones
+        (SELECT COUNT(*) FROM hunts WHERE creator_id = ${auth.user.id}) as total_hunts,
+        (SELECT COUNT(*) FROM participants WHERE hunt_id IN (SELECT id FROM hunts WHERE creator_id = ${auth.user.id})) as total_participants,
+        (SELECT COUNT(*) FROM participants WHERE hunt_id IN (SELECT id FROM hunts WHERE creator_id = ${auth.user.id}) AND status = 'completed') as total_completions,
+        (SELECT SUM(clone_count) FROM hunts WHERE creator_id = ${auth.user.id}) as total_clones
     `;
 
     // Hunts performance
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
         ROUND(AVG(p.score)::numeric, 1) as avg_score
       FROM hunts h
       LEFT JOIN participants p ON p.hunt_id = h.id
-      WHERE h.creator_id = ${auth.userId}
+      WHERE h.creator_id = ${auth.user.id}
       GROUP BY h.id, h.title, h.created_at
       ORDER BY h.created_at DESC
       LIMIT 10
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
         COUNT(*) as count
       FROM challenges c
       JOIN hunts h ON h.id = c.hunt_id
-      WHERE h.creator_id = ${auth.userId}
+      WHERE h.creator_id = ${auth.user.id}
       GROUP BY c.verification_type
     `;
 
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     await sql`
       INSERT INTO analytics_events (user_id, event_type, event_data, hunt_id)
       VALUES (
-        ${'error' in auth ? null : auth.userId},
+        ${'error' in auth ? null : auth.user.id},
         ${eventType},
         ${JSON.stringify(eventData || {})},
         ${huntId && isValidUUID(huntId) ? huntId : null}

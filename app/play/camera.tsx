@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
@@ -18,13 +17,13 @@ import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function CameraScreen() {
-  const { challengeId, challengeTitle, challengeDescription } = useLocalSearchParams<{
+  const { challengeId: _challengeId, challengeTitle, challengeDescription } = useLocalSearchParams<{
     challengeId: string;
     challengeTitle: string;
     challengeDescription: string;
   }>();
   const router = useRouter();
-  const { submitChallenge } = useHuntStore();
+  const { submitChallenge: _submitChallenge } = useHuntStore();
   
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
