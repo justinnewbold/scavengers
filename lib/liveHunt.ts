@@ -40,7 +40,8 @@ class LiveHuntConnection {
   private establishConnection(): void {
     if (!this.huntId || !this.token) return;
 
-    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || 'wss://api.example.com/ws';
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+    const wsUrl = process.env.EXPO_PUBLIC_WS_URL || apiUrl.replace('https://', 'wss://').replace('http://', 'ws://');
     this.ws = new WebSocket(`${wsUrl}/live/${this.huntId}?token=${this.token}`);
 
     this.ws.onopen = () => {

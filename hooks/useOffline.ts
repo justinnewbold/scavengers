@@ -8,7 +8,9 @@ export function useOffline() {
 
   useEffect(() => {
     // Check initial state
-    offlineStorage.checkConnection().then(setIsOnline);
+    offlineStorage.checkConnection()
+      .then(setIsOnline)
+      .catch(() => setIsOnline(false));
     loadPendingSubmissions();
 
     // Subscribe to connectivity changes
