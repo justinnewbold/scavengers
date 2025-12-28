@@ -8,3 +8,5 @@ export { LiveLeaderboard } from './LiveLeaderboard';
 export { HintSystem } from './HintSystem';
 export { ARChallenge } from './ARChallenge';
 export { VoiceNavButton } from './VoiceNavButton';
+export { Confetti } from './Confetti';
+export { AnimatedLeaderboard } from './AnimatedLeaderboard';
