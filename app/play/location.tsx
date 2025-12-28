@@ -29,9 +29,15 @@ export default function LocationScreen() {
   const [checking, setChecking] = useState(false);
   const [verified, setVerified] = useState(false);
 
+  // Validate and parse coordinates with NaN protection
   const targetLatNum = parseFloat(targetLat || '0');
   const targetLngNum = parseFloat(targetLng || '0');
   const radiusNum = parseFloat(radius || '50');
+
+  // Validate coordinates are valid numbers
+  const hasValidTarget = !isNaN(targetLatNum) && !isNaN(targetLngNum) &&
+    targetLatNum >= -90 && targetLatNum <= 90 &&
+    targetLngNum >= -180 && targetLngNum <= 180;
 
   useEffect(() => {
     requestPermission();
@@ -39,14 +45,21 @@ export default function LocationScreen() {
 
   useEffect(() => {
     let subscriptionCleanup: (() => void) | undefined;
+    let isMounted = true;
 
     if (hasPermission) {
       startLocationTracking().then(cleanup => {
-        subscriptionCleanup = cleanup;
+        if (isMounted && cleanup) {
+          subscriptionCleanup = cleanup;
+        } else if (cleanup) {
+          // Component unmounted before we got the cleanup function, call it now
+          cleanup();
+        }
       });
     }
 
     return () => {
+      isMounted = false;
       if (subscriptionCleanup) {
         subscriptionCleanup();
       }
@@ -167,6 +180,19 @@ export default function LocationScreen() {
           We need location access to verify GPS challenges
         </Text>
         <Button title="Grant Permission" onPress={requestPermission} />
+      </View>
+    );
+  }
+
+  if (!hasValidTarget) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Ionicons name="warning-outline" size={64} color={Colors.error} />
+        <Text style={styles.permissionTitle}>Invalid Location</Text>
+        <Text style={styles.permissionText}>
+          This challenge has invalid GPS coordinates
+        </Text>
+        <Button title="Go Back" onPress={() => router.back()} />
       </View>
     );
   }
