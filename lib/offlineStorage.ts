@@ -1,0 +1,280 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+
+// Storage keys
+const KEYS = {
+  CACHED_HUNTS: 'offline_hunts',
+  CACHED_USER_HUNTS: 'offline_user_hunts',
+  PENDING_SUBMISSIONS: 'pending_submissions',
+  LAST_SYNC: 'last_sync_time',
+  OFFLINE_MODE: 'offline_mode_enabled',
+};
+
+export interface CachedHunt {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: string;
+  challenges: CachedChallenge[];
+  cachedAt: number;
+}
+
+export interface CachedChallenge {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  verification_type: string;
+  verification_data?: Record<string, unknown>;
+  hint?: string;
+}
+
+export interface PendingSubmission {
+  id: string;
+  hunt_id: string;
+  challenge_id: string;
+  participant_id: string;
+  submission_type: string;
+  submission_data: Record<string, unknown>;
+  created_at: number;
+  retryCount: number;
+}
+
+class OfflineStorage {
+  private isOnline: boolean = true;
+  private listeners: Set<(online: boolean) => void> = new Set();
+
+  constructor() {
+    this.initNetworkListener();
+  }
+
+  private initNetworkListener() {
+    NetInfo.addEventListener(state => {
+      const wasOnline = this.isOnline;
+      this.isOnline = state.isConnected ?? false;
+
+      if (wasOnline !== this.isOnline) {
+        this.notifyListeners();
+
+        // Auto-sync when coming back online
+        if (this.isOnline) {
+          this.syncPendingSubmissions();
+        }
+      }
+    });
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => listener(this.isOnline));
+  }
+
+  onConnectivityChange(callback: (online: boolean) => void): () => void {
+    this.listeners.add(callback);
+    return () => this.listeners.delete(callback);
+  }
+
+  async checkConnection(): Promise<boolean> {
+    const state = await NetInfo.fetch();
+    this.isOnline = state.isConnected ?? false;
+    return this.isOnline;
+  }
+
+  getIsOnline(): boolean {
+    return this.isOnline;
+  }
+
+  // Cache hunts for offline access
+  async cacheHunts(hunts: CachedHunt[]): Promise<void> {
+    try {
+      const existing = await this.getCachedHunts();
+      const huntMap = new Map(existing.map(h => [h.id, h]));
+
+      // Update or add new hunts
+      for (const hunt of hunts) {
+        huntMap.set(hunt.id, { ...hunt, cachedAt: Date.now() });
+      }
+
+      await AsyncStorage.setItem(
+        KEYS.CACHED_HUNTS,
+        JSON.stringify(Array.from(huntMap.values()))
+      );
+    } catch (error) {
+      console.error('Failed to cache hunts:', error);
+    }
+  }
+
+  async getCachedHunts(): Promise<CachedHunt[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.CACHED_HUNTS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async getCachedHunt(huntId: string): Promise<CachedHunt | null> {
+    const hunts = await this.getCachedHunts();
+    return hunts.find(h => h.id === huntId) || null;
+  }
+
+  // Cache user's hunts separately
+  async cacheUserHunts(userId: string, hunts: CachedHunt[]): Promise<void> {
+    try {
+      const key = `${KEYS.CACHED_USER_HUNTS}_${userId}`;
+      await AsyncStorage.setItem(key, JSON.stringify(hunts.map(h => ({
+        ...h,
+        cachedAt: Date.now(),
+      }))));
+    } catch (error) {
+      console.error('Failed to cache user hunts:', error);
+    }
+  }
+
+  async getCachedUserHunts(userId: string): Promise<CachedHunt[]> {
+    try {
+      const key = `${KEYS.CACHED_USER_HUNTS}_${userId}`;
+      const data = await AsyncStorage.getItem(key);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Queue submissions when offline
+  async queueSubmission(submission: Omit<PendingSubmission, 'id' | 'created_at' | 'retryCount'>): Promise<string> {
+    const id = `pending_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const pendingSubmission: PendingSubmission = {
+      ...submission,
+      id,
+      created_at: Date.now(),
+      retryCount: 0,
+    };
+
+    try {
+      const pending = await this.getPendingSubmissions();
+      pending.push(pendingSubmission);
+      await AsyncStorage.setItem(KEYS.PENDING_SUBMISSIONS, JSON.stringify(pending));
+      return id;
+    } catch (error) {
+      console.error('Failed to queue submission:', error);
+      throw error;
+    }
+  }
+
+  async getPendingSubmissions(): Promise<PendingSubmission[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.PENDING_SUBMISSIONS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async removePendingSubmission(id: string): Promise<void> {
+    try {
+      const pending = await this.getPendingSubmissions();
+      const filtered = pending.filter(s => s.id !== id);
+      await AsyncStorage.setItem(KEYS.PENDING_SUBMISSIONS, JSON.stringify(filtered));
+    } catch (error) {
+      console.error('Failed to remove pending submission:', error);
+    }
+  }
+
+  async updatePendingSubmission(id: string, updates: Partial<PendingSubmission>): Promise<void> {
+    try {
+      const pending = await this.getPendingSubmissions();
+      const index = pending.findIndex(s => s.id === id);
+      if (index >= 0) {
+        pending[index] = { ...pending[index], ...updates };
+        await AsyncStorage.setItem(KEYS.PENDING_SUBMISSIONS, JSON.stringify(pending));
+      }
+    } catch (error) {
+      console.error('Failed to update pending submission:', error);
+    }
+  }
+
+  // Sync pending submissions when online
+  async syncPendingSubmissions(): Promise<{ synced: number; failed: number }> {
+    if (!this.isOnline) {
+      return { synced: 0, failed: 0 };
+    }
+
+    const pending = await this.getPendingSubmissions();
+    let synced = 0;
+    let failed = 0;
+
+    for (const submission of pending) {
+      try {
+        const response = await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api'}/submissions`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              participant_id: submission.participant_id,
+              challenge_id: submission.challenge_id,
+              submission_type: submission.submission_type,
+              submission_data: submission.submission_data,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          await this.removePendingSubmission(submission.id);
+          synced++;
+        } else if (submission.retryCount >= 3) {
+          // Max retries reached, remove from queue
+          await this.removePendingSubmission(submission.id);
+          failed++;
+        } else {
+          // Increment retry count
+          await this.updatePendingSubmission(submission.id, {
+            retryCount: submission.retryCount + 1,
+          });
+          failed++;
+        }
+      } catch {
+        if (submission.retryCount >= 3) {
+          await this.removePendingSubmission(submission.id);
+          failed++;
+        } else {
+          await this.updatePendingSubmission(submission.id, {
+            retryCount: submission.retryCount + 1,
+          });
+          failed++;
+        }
+      }
+    }
+
+    return { synced, failed };
+  }
+
+  // Clear old cached data (older than 7 days)
+  async clearStaleCache(): Promise<void> {
+    const STALE_THRESHOLD = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const now = Date.now();
+
+    try {
+      const hunts = await this.getCachedHunts();
+      const fresh = hunts.filter(h => now - h.cachedAt < STALE_THRESHOLD);
+      await AsyncStorage.setItem(KEYS.CACHED_HUNTS, JSON.stringify(fresh));
+    } catch (error) {
+      console.error('Failed to clear stale cache:', error);
+    }
+  }
+
+  // Clear all offline data
+  async clearAll(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        KEYS.CACHED_HUNTS,
+        KEYS.PENDING_SUBMISSIONS,
+        KEYS.LAST_SYNC,
+      ]);
+    } catch (error) {
+      console.error('Failed to clear offline storage:', error);
+    }
+  }
+}
+
+export const offlineStorage = new OfflineStorage();

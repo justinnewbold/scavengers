@@ -1,21 +1,32 @@
 // Scavengers Service Worker
-// Version: 1.0.0
+// Version: 2.0.0
 
-const CACHE_NAME = 'scavengers-v1';
-const STATIC_CACHE = 'scavengers-static-v1';
-const DYNAMIC_CACHE = 'scavengers-dynamic-v1';
+const CACHE_NAME = 'scavengers-v2';
+const STATIC_CACHE = 'scavengers-static-v2';
+const DYNAMIC_CACHE = 'scavengers-dynamic-v2';
+const OFFLINE_CACHE = 'scavengers-offline-v2';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
   '/offline.html',
+  '/favicon.ico',
+  '/icons/icon.svg',
 ];
 
 // API routes to cache with network-first strategy
 const API_ROUTES = [
   '/api/hunts',
+  '/api/achievements',
+  '/api/templates',
 ];
+
+// Offline fallback responses
+const OFFLINE_FALLBACKS = {
+  '/api/hunts': { hunts: [], offline: true },
+  '/api/achievements': { achievements: [], offline: true },
+};
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
@@ -216,7 +227,72 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncSubmissions() {
-  // Get pending submissions from IndexedDB and retry
   console.log('[SW] Syncing pending submissions...');
-  // Implementation would connect to IndexedDB and retry failed submissions
+
+  try {
+    // Open IndexedDB
+    const db = await openDB();
+    const tx = db.transaction('pending-submissions', 'readonly');
+    const store = tx.objectStore('pending-submissions');
+    const submissions = await store.getAll();
+
+    for (const submission of submissions) {
+      try {
+        const response = await fetch('/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submission.data),
+        });
+
+        if (response.ok) {
+          // Remove from pending
+          const deleteTx = db.transaction('pending-submissions', 'readwrite');
+          await deleteTx.objectStore('pending-submissions').delete(submission.id);
+        }
+      } catch (error) {
+        console.log('[SW] Failed to sync submission:', error);
+      }
+    }
+  } catch (error) {
+    console.log('[SW] Sync failed:', error);
+  }
+}
+
+// Simple IndexedDB wrapper
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('scavengers-offline', 1);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('pending-submissions')) {
+        db.createObjectStore('pending-submissions', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('cached-hunts')) {
+        db.createObjectStore('cached-hunts', { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+// Periodic background sync for updates
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'update-hunts') {
+    event.waitUntil(updateCachedHunts());
+  }
+});
+
+async function updateCachedHunts() {
+  try {
+    const response = await fetch('/api/hunts?public=true&limit=20');
+    if (response.ok) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put('/api/hunts?public=true&limit=20', response);
+    }
+  } catch (error) {
+    console.log('[SW] Failed to update cached hunts:', error);
+  }
 }
