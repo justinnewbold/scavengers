@@ -19,7 +19,7 @@ export default function RootLayout() {
       await SplashScreen.hideAsync();
     }
     setup();
-  }, []);
+  }, [initialize]);
   
   if (!isInitialized) {
     return <View style={styles.loading} />;

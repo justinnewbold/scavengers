@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,11 +31,7 @@ export default function TeamsScreen() {
   const [joinCode, setJoinCode] = useState('');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
-  const fetchTeams = async () => {
+  const fetchTeams = useCallback(async () => {
     if (!session?.access_token) return;
 
     try {
@@ -53,7 +49,11 @@ export default function TeamsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    fetchTeams();
+  }, [fetchTeams]);
 
   const handleCreateTeam = async () => {
     if (!newTeamName.trim() || !session?.access_token) return;

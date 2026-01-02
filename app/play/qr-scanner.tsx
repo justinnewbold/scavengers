@@ -40,7 +40,7 @@ export default function QRScannerScreen() {
     );
   }
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = ({ type: _type, data }: { type: string; data: string }) => {
     if (scanned) return;
     
     setScanned(true);

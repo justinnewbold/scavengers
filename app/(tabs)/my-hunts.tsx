@@ -21,7 +21,7 @@ export default function MyHuntsScreen() {
     if (user) {
       fetchMyHunts();
     }
-  }, [user]);
+  }, [user, fetchMyHunts]);
   
   if (!user) {
     return (

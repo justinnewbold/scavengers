@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,11 +33,7 @@ export function Leaderboard({ huntId, currentUserId }: LeaderboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchLeaderboard();
-  }, [huntId]);
-
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/leaderboard?hunt_id=${huntId}`);
       const data = await res.json();
@@ -48,7 +44,11 @@ export function Leaderboard({ huntId, currentUserId }: LeaderboardProps) {
       setIsLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [huntId]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [huntId, fetchLeaderboard]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -64,7 +64,7 @@ export function Leaderboard({ huntId, currentUserId }: LeaderboardProps) {
     }
   };
 
-  const renderEntry = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
+  const renderEntry = ({ item }: { item: LeaderboardEntry; index: number }) => {
     const rankStyle = getRankStyle(item.rank);
     const isCurrentUser = item.user_id === currentUserId;
 

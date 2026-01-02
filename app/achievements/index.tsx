@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,11 +44,7 @@ export default function AchievementsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAchievements();
-  }, []);
-
-  const fetchAchievements = async () => {
+  const fetchAchievements = useCallback(async () => {
     if (!session?.access_token) {
       setLoading(false);
       return;
@@ -69,7 +65,11 @@ export default function AchievementsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    fetchAchievements();
+  }, [fetchAchievements]);
 
   const filteredAchievements = selectedCategory
     ? achievements.filter((a) => a.category === selectedCategory)

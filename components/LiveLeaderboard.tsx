@@ -40,7 +40,7 @@ export function LiveLeaderboard({ players, currentUserId, totalChallenges }: Liv
         }).start();
       }
     });
-  }, [sortedPlayers]);
+  }, [sortedPlayers, animations]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {

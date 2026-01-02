@@ -18,7 +18,7 @@ export default function DiscoverScreen() {
   
   useEffect(() => {
     fetchPublicHunts();
-  }, []);
+  }, [fetchPublicHunts]);
   
   return (
     <ScrollView
