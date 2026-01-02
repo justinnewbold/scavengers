@@ -63,7 +63,7 @@ export function ARChallenge({ objects, onCollect, onClose }: ARChallengeProps) {
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   useEffect(() => {
     if (!userLocation) return;

@@ -17,27 +17,6 @@ export interface DeepLinkData {
 export function useDeepLinks() {
   const router = useRouter();
 
-  useEffect(() => {
-    // Handle initial URL (app was opened via deep link)
-    const handleInitialURL = async () => {
-      const initialURL = await Linking.getInitialURL();
-      if (initialURL) {
-        handleDeepLink(initialURL);
-      }
-    };
-
-    handleInitialURL();
-
-    // Listen for incoming deep links while app is open
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      handleDeepLink(url);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
   const parseDeepLink = useCallback((url: string): DeepLinkData | null => {
     try {
       const parsed = Linking.parse(url);
@@ -103,6 +82,27 @@ export function useDeepLinks() {
         console.log('Unknown deep link type:', data.type);
     }
   }, [router, parseDeepLink]);
+
+  useEffect(() => {
+    // Handle initial URL (app was opened via deep link)
+    const handleInitialURL = async () => {
+      const initialURL = await Linking.getInitialURL();
+      if (initialURL) {
+        handleDeepLink(initialURL);
+      }
+    };
+
+    handleInitialURL();
+
+    // Listen for incoming deep links while app is open
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [handleDeepLink]);
 
   const createDeepLink = useCallback((data: DeepLinkData): string => {
     const params = new URLSearchParams();

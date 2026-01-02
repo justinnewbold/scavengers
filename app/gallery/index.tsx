@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -45,11 +45,7 @@ export default function GalleryScreen() {
   const [selectedForShare, setSelectedForShare] = useState<string[]>([]);
   const [shareMode, setShareMode] = useState(false);
 
-  useEffect(() => {
-    fetchPhotos();
-  }, [showFavoritesOnly]);
-
-  const fetchPhotos = async () => {
+  const fetchPhotos = useCallback(async () => {
     if (!session?.access_token) return;
 
     try {
@@ -71,7 +67,11 @@ export default function GalleryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [session?.access_token, showFavoritesOnly]);
+
+  useEffect(() => {
+    fetchPhotos();
+  }, [showFavoritesOnly, fetchPhotos]);
 
   const toggleFavorite = async (photo: Photo) => {
     if (!session?.access_token) return;

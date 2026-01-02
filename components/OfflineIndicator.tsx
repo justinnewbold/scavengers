@@ -34,7 +34,7 @@ export function OfflineIndicator() {
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [isOnline, pendingCount]);
+  }, [isOnline, pendingCount, slideAnim]);
 
   if (isOnline && pendingCount === 0) {
     return null;

@@ -65,7 +65,10 @@ export function useSoundEffects() {
 
     // Cleanup sounds on unmount
     return () => {
-      soundRefs.current.forEach((sound) => {
+      // Copy ref to variable for cleanup (as per React best practices)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      const sounds = soundRefs.current;
+      sounds.forEach((sound) => {
         sound.unloadAsync().catch(() => {});
       });
     };

@@ -66,11 +66,7 @@ export default function MarketplaceScreen() {
   const [selectedDifficulty, _setSelectedDifficulty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent'>('popular');
 
-  useEffect(() => {
-    fetchMarketplace();
-  }, [selectedTheme, selectedDifficulty, sortBy]);
-
-  const fetchMarketplace = async () => {
+  const fetchMarketplace = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append('q', searchQuery);
@@ -94,12 +90,16 @@ export default function MarketplaceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [searchQuery, selectedTheme, selectedDifficulty, sortBy]);
+
+  useEffect(() => {
+    fetchMarketplace();
+  }, [selectedTheme, selectedDifficulty, sortBy, fetchMarketplace]);
 
   const handleSearch = useCallback(() => {
     setLoading(true);
     fetchMarketplace();
-  }, [searchQuery, selectedTheme, selectedDifficulty, sortBy]);
+  }, [fetchMarketplace]);
 
   const renderStars = (rating: number) => {
     const stars = [];

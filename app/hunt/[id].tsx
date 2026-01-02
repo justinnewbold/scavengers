@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,17 +22,17 @@ export default function HuntDetailScreen() {
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadHunt();
-  }, [id]);
-
-  const loadHunt = async () => {
+  const loadHunt = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     const huntData = await getHuntById(id);
     setHunt(huntData);
     setLoading(false);
-  };
+  }, [id, getHuntById]);
+
+  useEffect(() => {
+    loadHunt();
+  }, [id, loadHunt]);
 
   const handleJoinHunt = async () => {
     if (!hunt) return;

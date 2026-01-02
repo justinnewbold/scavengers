@@ -38,36 +38,6 @@ export function useVoiceNavigation(destination: Waypoint | null) {
   const watchRef = useRef<Location.LocationSubscription | null>(null);
   const lastAnnouncementRef = useRef<number>(0);
 
-  useEffect(() => {
-    loadPreference();
-    return () => {
-      stopNavigation();
-    };
-  }, []);
-
-  const loadPreference = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(VOICE_NAV_KEY);
-      if (stored === 'true') {
-        setState(prev => ({ ...prev, isEnabled: true }));
-      }
-    } catch {}
-  };
-
-  const toggleVoiceNav = useCallback(async () => {
-    const newState = !state.isEnabled;
-    setState(prev => ({ ...prev, isEnabled: newState }));
-    await AsyncStorage.setItem(VOICE_NAV_KEY, String(newState));
-
-    if (newState && destination) {
-      speak('Voice navigation enabled. I will guide you to your destination.');
-      startNavigation();
-    } else {
-      Speech.stop();
-      stopNavigation();
-    }
-  }, [state.isEnabled, destination]);
-
   const speak = useCallback((text: string, options?: { rate?: number }) => {
     setState(prev => ({ ...prev, isSpeaking: true }));
 
@@ -80,39 +50,12 @@ export function useVoiceNavigation(destination: Waypoint | null) {
     });
   }, []);
 
-  const shouldAnnounce = (distance: number, lastSpoken: number): boolean => {
-    // Announce when crossing thresholds
-    for (const threshold of DISTANCE_THRESHOLDS) {
-      if (distance <= threshold && lastSpoken > threshold) {
-        return true;
-      }
+  const stopNavigation = useCallback(() => {
+    if (watchRef.current) {
+      watchRef.current.remove();
+      watchRef.current = null;
     }
-
-    // Also announce every 100m for longer distances
-    if (distance > 500) {
-      const currentHundred = Math.floor(distance / 100);
-      const lastHundred = Math.floor(lastSpoken / 100);
-      return currentHundred !== lastHundred;
-    }
-
-    return false;
-  };
-
-  const generateAnnouncement = (distance: number, direction: string, destinationName: string): string => {
-    if (distance <= 10) {
-      return `You have arrived at ${destinationName}. Look around to complete this challenge.`;
-    }
-
-    if (distance <= 20) {
-      return `Almost there! ${destinationName} is just ${formatDistance(distance)} away.`;
-    }
-
-    if (distance <= 50) {
-      return `Getting close! Continue ${direction} for ${formatDistance(distance)}.`;
-    }
-
-    return `Head ${direction}. ${destinationName} is ${formatDistance(distance)} away.`;
-  };
+  }, []);
 
   const startNavigation = useCallback(async () => {
     if (!destination) return;
@@ -159,12 +102,69 @@ export function useVoiceNavigation(destination: Waypoint | null) {
     );
   }, [destination, state.isEnabled, speak]);
 
-  const stopNavigation = useCallback(() => {
-    if (watchRef.current) {
-      watchRef.current.remove();
-      watchRef.current = null;
+  useEffect(() => {
+    loadPreference();
+    return () => {
+      stopNavigation();
+    };
+  }, [stopNavigation]);
+
+  const loadPreference = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(VOICE_NAV_KEY);
+      if (stored === 'true') {
+        setState(prev => ({ ...prev, isEnabled: true }));
+      }
+    } catch {}
+  };
+
+  const toggleVoiceNav = useCallback(async () => {
+    const newState = !state.isEnabled;
+    setState(prev => ({ ...prev, isEnabled: newState }));
+    await AsyncStorage.setItem(VOICE_NAV_KEY, String(newState));
+
+    if (newState && destination) {
+      speak('Voice navigation enabled. I will guide you to your destination.');
+      startNavigation();
+    } else {
+      Speech.stop();
+      stopNavigation();
     }
-  }, []);
+  }, [state.isEnabled, destination, speak, startNavigation, stopNavigation]);
+
+  const shouldAnnounce = (distance: number, lastSpoken: number): boolean => {
+    // Announce when crossing thresholds
+    for (const threshold of DISTANCE_THRESHOLDS) {
+      if (distance <= threshold && lastSpoken > threshold) {
+        return true;
+      }
+    }
+
+    // Also announce every 100m for longer distances
+    if (distance > 500) {
+      const currentHundred = Math.floor(distance / 100);
+      const lastHundred = Math.floor(lastSpoken / 100);
+      return currentHundred !== lastHundred;
+    }
+
+    return false;
+  };
+
+  const generateAnnouncement = (distance: number, direction: string, destinationName: string): string => {
+    if (distance <= 10) {
+      return `You have arrived at ${destinationName}. Look around to complete this challenge.`;
+    }
+
+    if (distance <= 20) {
+      return `Almost there! ${destinationName} is just ${formatDistance(distance)} away.`;
+    }
+
+    if (distance <= 50) {
+      return `Getting close! Continue ${direction} for ${formatDistance(distance)}.`;
+    }
+
+    return `Head ${direction}. ${destinationName} is ${formatDistance(distance)} away.`;
+  };
 
   const announceCurrentPosition = useCallback(() => {
     if (!destination || state.currentDistance === 0) {

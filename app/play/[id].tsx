@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,9 +29,15 @@ export default function PlayScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
 
+  const loadHunt = useCallback(async () => {
+    if (!id) return;
+    const huntData = await getHuntById(id);
+    setHunt(huntData);
+  }, [id, getHuntById]);
+
   useEffect(() => {
     loadHunt();
-  }, [id]);
+  }, [id, loadHunt]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -48,13 +54,7 @@ export default function PlayScreen() {
       toValue: progress,
       useNativeDriver: false,
     }).start();
-  }, [completedChallenges.size, hunt?.challenges?.length]);
-
-  const loadHunt = async () => {
-    if (!id) return;
-    const huntData = await getHuntById(id);
-    setHunt(huntData);
-  };
+  }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
