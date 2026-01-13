@@ -57,8 +57,11 @@ export async function sendPushNotification(
       return { success: true }; // No tokens to send to
     }
 
+    // Type the tokens array
+    const tokens = result.rows as { token: string; platform: string }[];
+
     // Build messages for each token
-    const messages: ExpoPushMessage[] = result.rows
+    const messages: ExpoPushMessage[] = tokens
       .filter(row => row.token && isValidExpoPushToken(row.token))
       .map(row => ({
         to: row.token,
@@ -105,7 +108,7 @@ export async function sendPushNotification(
     }
 
     // Handle failed tickets and potentially remove invalid tokens
-    await handlePushTickets(userId, result.rows, tickets);
+    await handlePushTickets(userId, tokens, tickets);
 
     return { success: true, tickets };
   } catch (error) {
