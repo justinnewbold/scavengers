@@ -7,6 +7,8 @@ import {
   Alert,
   Animated,
   Vibration,
+  Share,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -97,8 +99,53 @@ export default function PlayScreen() {
   };
 
   const shareResults = async () => {
-    // TODO: Implement share
-    Alert.alert('Share', 'Sharing results coming soon!');
+    if (!hunt) return;
+
+    const challengeCount = hunt.challenges?.length || 0;
+    const completedCount = completedChallenges.size;
+    const percentComplete = challengeCount > 0
+      ? Math.round((completedCount / challengeCount) * 100)
+      : 0;
+
+    // Build share message
+    const title = `I completed "${hunt.title}" on Scavengers!`;
+    const message = [
+      `🎯 ${title}`,
+      '',
+      `📊 Results:`,
+      `   🏆 Score: ${score} points`,
+      `   ✅ Challenges: ${completedCount}/${challengeCount} (${percentComplete}%)`,
+      `   ⏱️ Time: ${formatTime(timeElapsed)}`,
+      '',
+      `Think you can beat my score? Download Scavengers and try this hunt!`,
+      '',
+      `#Scavengers #ScavengerHunt`
+    ].join('\n');
+
+    try {
+      const result = await Share.share(
+        Platform.OS === 'ios'
+          ? { message, title }
+          : { message, title },
+        {
+          dialogTitle: 'Share your hunt results',
+          subject: title,
+        }
+      );
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          console.log('Shared with activity type:', result.activityType);
+        } else {
+          console.log('Shared successfully');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      console.error('Error sharing results:', error);
+      Alert.alert('Error', 'Failed to share results. Please try again.');
+    }
   };
 
   const handleVerification = (challenge: Challenge) => {

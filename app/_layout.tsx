@@ -6,13 +6,17 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuthStore } from '@/store';
 import { Colors } from '@/constants/theme';
 import { ErrorBoundary, OfflineIndicator } from '@/components';
+import { initSentry, setUser } from '@/lib/sentry';
+
+// Initialize Sentry as early as possible
+initSentry();
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const { initialize, isInitialized } = useAuthStore();
-  
+  const { initialize, isInitialized, user } = useAuthStore();
+
   useEffect(() => {
     async function setup() {
       await initialize();
@@ -20,6 +24,15 @@ export default function RootLayout() {
     }
     setup();
   }, []);
+
+  // Update Sentry user context when user changes
+  useEffect(() => {
+    if (user) {
+      setUser({ id: user.id, email: user.email, username: user.display_name });
+    } else {
+      setUser(null);
+    }
+  }, [user]);
   
   if (!isInitialized) {
     return <View style={styles.loading} />;
