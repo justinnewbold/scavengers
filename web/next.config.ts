@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Add empty turbopack config to satisfy Next.js 16 build
+  // Sentry adds webpack config which triggers the check
+  turbopack: {},
 };
 
 // Sentry configuration options
