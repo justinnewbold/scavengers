@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { captureException, addBreadcrumb } from '@/lib/sentry';
 
 interface Props {
   children: ReactNode;
@@ -32,6 +33,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo });
+
+    // Send error to Sentry
+    captureException(error, {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: true,
+    });
+
+    // Add breadcrumb for debugging
+    addBreadcrumb('Error caught by ErrorBoundary', 'error', 'error', {
+      errorMessage: error.message,
+    });
+
     // Log error in development
     if (__DEV__) {
       console.error('ErrorBoundary caught an error:', error, errorInfo);

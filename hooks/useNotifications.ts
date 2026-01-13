@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
 const NOTIFICATION_SETTINGS_KEY = 'notification_settings';
 const SCHEDULED_NOTIFICATIONS_KEY = 'scheduled_notifications';
@@ -129,12 +132,20 @@ export function useNotifications() {
         return null;
       }
 
+      // Get project ID from Expo config
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId
+        || process.env.EXPO_PROJECT_ID;
+
       // Get Expo push token
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: process.env.EXPO_PROJECT_ID,
+        projectId,
       });
 
-      setExpoPushToken(tokenData.data);
+      const token = tokenData.data;
+      setExpoPushToken(token);
+
+      // Register token with backend server
+      await registerTokenWithServer(token);
 
       // Configure Android channel
       if (Platform.OS === 'android') {
@@ -158,12 +169,75 @@ export function useNotifications() {
         });
       }
 
-      return tokenData.data;
+      return token;
     } catch (error) {
       console.error('Failed to register for push notifications:', error);
       return null;
     }
   };
+
+  // Register push token with the backend server
+  const registerTokenWithServer = async (token: string) => {
+    try {
+      const authToken = await AsyncStorage.getItem('auth_token');
+      if (!authToken) {
+        // User not logged in, save token for later registration
+        await AsyncStorage.setItem('pending_push_token', token);
+        return;
+      }
+
+      const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+
+      const response = await fetch(`${API_BASE}/push/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ token, platform }),
+      });
+
+      if (response.ok) {
+        // Clear any pending token
+        await AsyncStorage.removeItem('pending_push_token');
+        console.log('Push token registered with server');
+      } else {
+        console.error('Failed to register push token:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error registering push token with server:', error);
+    }
+  };
+
+  // Register any pending push token (call after login)
+  const registerPendingToken = useCallback(async () => {
+    const pendingToken = await AsyncStorage.getItem('pending_push_token');
+    if (pendingToken) {
+      await registerTokenWithServer(pendingToken);
+    } else if (expoPushToken) {
+      await registerTokenWithServer(expoPushToken);
+    }
+  }, [expoPushToken]);
+
+  // Unregister push token from server (call on logout)
+  const unregisterFromServer = useCallback(async () => {
+    if (!expoPushToken) return;
+
+    try {
+      const authToken = await AsyncStorage.getItem('auth_token');
+      if (!authToken) return;
+
+      await fetch(`${API_BASE}/push/register?token=${encodeURIComponent(expoPushToken)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+      console.log('Push token unregistered from server');
+    } catch (error) {
+      console.error('Error unregistering push token:', error);
+    }
+  }, [expoPushToken]);
 
   const updateSettings = useCallback(async (newSettings: Partial<NotificationSettings>) => {
     const updated = { ...settings, ...newSettings };
@@ -325,5 +399,7 @@ export function useNotifications() {
     scheduleHuntExpiry,
     notifyTeamProgress,
     notifyAchievement,
+    registerPendingToken,
+    unregisterFromServer,
   };
 }
