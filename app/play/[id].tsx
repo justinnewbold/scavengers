@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, MysteryChallenge, StreakDisplay, Confetti } from '@/components';
+import { Button, Card, MysteryChallenge, StreakDisplay, Confetti, StreakMilestone, getMilestoneForStreak } from '@/components';
 import { useHuntStore } from '@/store';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
@@ -30,6 +30,8 @@ export default function PlayScreen() {
   const [bonusPoints, setBonusPoints] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showStreakMilestone, setShowStreakMilestone] = useState(false);
+  const [lastMilestoneStreak, setLastMilestoneStreak] = useState(0);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
@@ -50,12 +52,18 @@ export default function PlayScreen() {
       triggerHaptic('medium');
     },
     onStreakIncrease: (newStreak) => {
-      if (newStreak.count >= 3) {
+      // Check if this is a milestone streak
+      const milestone = getMilestoneForStreak(newStreak.count);
+      if (milestone && newStreak.count > lastMilestoneStreak) {
+        setLastMilestoneStreak(newStreak.count);
+        setShowStreakMilestone(true);
+      } else if (newStreak.count >= 3) {
         triggerHaptic('success');
       }
     },
     onStreakLost: () => {
       triggerHaptic('warning');
+      setLastMilestoneStreak(0); // Reset milestone tracking
     },
     onMultiplierChange: (multiplier) => {
       if (multiplier > 1) {
@@ -327,6 +335,14 @@ export default function PlayScreen() {
       />
 
       {showConfetti && <Confetti />}
+
+      {/* Streak Milestone Celebration */}
+      <StreakMilestone
+        streak={streak.count}
+        multiplier={currentMultiplier}
+        visible={showStreakMilestone}
+        onDismiss={() => setShowStreakMilestone(false)}
+      />
 
       <View style={styles.container}>
         {/* Progress Header */}

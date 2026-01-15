@@ -9,6 +9,8 @@ import {
   Share,
   Platform,
   BackHandler,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +40,8 @@ export default function SoloPlayScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const wasManuallyPausedRef = useRef(false);
 
   // Streak tracking
   const {
@@ -110,6 +114,36 @@ export default function SoloPlayScreen() {
     }).start();
   }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
 
+  // Handle app state changes (pause when backgrounded)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appStateRef.current === 'active' &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        // App going to background - pause if not already paused
+        if (!activeSession?.isPaused) {
+          wasManuallyPausedRef.current = false;
+          pauseSession();
+        } else {
+          wasManuallyPausedRef.current = true;
+        }
+      } else if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App coming to foreground - resume if we auto-paused
+        if (!wasManuallyPausedRef.current && activeSession?.isPaused) {
+          resumeSession();
+        }
+      }
+      appStateRef.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [activeSession?.isPaused, pauseSession, resumeSession]);
+
   // Handle back button
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -134,12 +168,19 @@ export default function SoloPlayScreen() {
   };
 
   const handlePause = () => {
+    wasManuallyPausedRef.current = true; // Track that user manually paused
     pauseSession();
     Alert.alert(
       'Hunt Paused',
       'Your progress is saved. What would you like to do?',
       [
-        { text: 'Continue', onPress: () => resumeSession() },
+        {
+          text: 'Continue',
+          onPress: () => {
+            wasManuallyPausedRef.current = false;
+            resumeSession();
+          },
+        },
         {
           text: 'Quit',
           style: 'destructive',
