@@ -38,12 +38,42 @@ export default function DiscoverScreen() {
         <Text style={styles.heroSubtitle}>
           AI-Powered Scavenger Hunts{'\n'}Free • Offline • Fun
         </Text>
-        
+
+        <View style={styles.heroButtons}>
+          <Button
+            title="Solo Mode"
+            onPress={() => router.push('/solo')}
+            variant="outline"
+            style={styles.heroButtonHalf}
+            icon={<Ionicons name="person" size={18} color={Colors.primary} />}
+          />
+          <Button
+            title="Create Hunt"
+            onPress={() => router.push('/hunt/ai-create')}
+            style={styles.heroButtonHalf}
+            icon={<Ionicons name="sparkles" size={18} color="#fff" />}
+          />
+        </View>
+      </View>
+
+      {/* Solo Mode Promo Card */}
+      <View style={styles.soloPromo}>
+        <View style={styles.soloPromoContent}>
+          <View style={styles.soloPromoIcon}>
+            <Ionicons name="flash" size={24} color={Colors.warning} />
+          </View>
+          <View style={styles.soloPromoText}>
+            <Text style={styles.soloPromoTitle}>Play Solo</Text>
+            <Text style={styles.soloPromoSubtitle}>
+              AI generates unique hunts instantly
+            </Text>
+          </View>
+        </View>
         <Button
-          title="Create with AI ✨"
-          onPress={() => router.push('/hunt/ai-create')}
-          size="lg"
-          style={styles.heroButton}
+          title="Start"
+          size="sm"
+          onPress={() => router.push('/solo')}
+          style={styles.soloPromoButton}
         />
       </View>
       
@@ -157,8 +187,54 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     lineHeight: 24,
   },
-  heroButton: {
-    minWidth: 200,
+  heroButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+  },
+  heroButtonHalf: {
+    flex: 1,
+  },
+  soloPromo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.warning + '15',
+    borderRadius: 16,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.warning + '30',
+  },
+  soloPromoContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  soloPromoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.warning + '25',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.md,
+  },
+  soloPromoText: {
+    flex: 1,
+  },
+  soloPromoTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  soloPromoSubtitle: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  soloPromoButton: {
+    minWidth: 70,
   },
   stats: {
     flexDirection: 'row',
