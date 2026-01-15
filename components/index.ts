@@ -14,3 +14,4 @@ export { MysteryChallenge } from './MysteryChallenge';
 export { StreakDisplay } from './StreakDisplay';
 export { PhotoFeedItem } from './PhotoFeedItem';
 export { StreakMilestone, getMilestoneForStreak } from './StreakMilestone';
+export { ShareableResultsCard } from './ShareableResultsCard';

@@ -387,6 +387,121 @@ export function useNotifications() {
     });
   }, []);
 
+  // Schedule streak expiry warning
+  const scheduleStreakReminder = useCallback(async (
+    streakCount: number,
+    expiresAt: Date
+  ) => {
+    if (!settings.enabled || !settings.huntReminders) return null;
+
+    // Schedule reminder 30 minutes before expiry
+    const reminderTime = new Date(expiresAt.getTime() - 30 * 60 * 1000);
+    if (reminderTime.getTime() <= Date.now()) return null;
+
+    const seconds = Math.floor((reminderTime.getTime() - Date.now()) / 1000);
+
+    try {
+      // Cancel any existing streak reminder
+      const existingReminder = scheduledNotifications.find(n => n.id === 'streak_reminder');
+      if (existingReminder?.notificationId) {
+        await Notifications.cancelScheduledNotificationAsync(existingReminder.notificationId);
+      }
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔥 Streak expiring soon!',
+          body: `Your ${streakCount}-streak expires in 30 mins! Complete a challenge to keep it going.`,
+          data: { type: 'streak_reminder' },
+          sound: true,
+        },
+        trigger: { seconds, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      });
+
+      const scheduled: ScheduledNotification = {
+        id: 'streak_reminder',
+        type: 'hunt_reminder',
+        title: 'Streak expiring soon!',
+        body: `Your ${streakCount}-streak expires in 30 mins!`,
+        data: { type: 'streak_reminder' },
+        scheduledFor: reminderTime.getTime(),
+        notificationId,
+      };
+
+      const updated = scheduledNotifications.filter(n => n.id !== 'streak_reminder');
+      updated.push(scheduled);
+      await saveScheduledNotifications(updated);
+
+      return notificationId;
+    } catch (error) {
+      console.error('Failed to schedule streak reminder:', error);
+      return null;
+    }
+  }, [settings, scheduledNotifications]);
+
+  // Notify when behind in multiplayer
+  const notifyBehindInHunt = useCallback(async (
+    huntId: string,
+    huntName: string,
+    playerName: string,
+    challengesAhead: number
+  ) => {
+    if (!settings.enabled || !settings.teamUpdates) return;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `You're ${challengesAhead} behind!`,
+        body: `${playerName} is pulling ahead in "${huntName}". Time to catch up!`,
+        data: { huntId, type: 'competition_update' },
+        sound: true,
+      },
+      trigger: null,
+    });
+  }, [settings]);
+
+  // Daily streak reminder
+  const scheduleDailyReminder = useCallback(async (
+    currentStreak: number,
+    reminderHour: number = 18 // 6 PM default
+  ) => {
+    if (!settings.enabled || !settings.dailyChallenge) return null;
+
+    // Cancel existing daily reminder
+    const existing = scheduledNotifications.find(n => n.id === 'daily_reminder');
+    if (existing?.notificationId) {
+      await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
+    }
+
+    // Schedule for today or tomorrow at the specified hour
+    const now = new Date();
+    const reminderTime = new Date();
+    reminderTime.setHours(reminderHour, 0, 0, 0);
+
+    if (reminderTime <= now) {
+      reminderTime.setDate(reminderTime.getDate() + 1);
+    }
+
+    const seconds = Math.floor((reminderTime.getTime() - Date.now()) / 1000);
+
+    try {
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: currentStreak > 0 ? `🔥 Keep your ${currentStreak}-day streak!` : '🗺️ Ready for an adventure?',
+          body: currentStreak > 0
+            ? 'Play a quick hunt to maintain your streak!'
+            : 'Start a quick solo hunt and earn some points!',
+          data: { type: 'daily_reminder' },
+          sound: true,
+        },
+        trigger: { seconds, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
+      });
+
+      return notificationId;
+    } catch (error) {
+      console.error('Failed to schedule daily reminder:', error);
+      return null;
+    }
+  }, [settings, scheduledNotifications]);
+
   return {
     settings,
     updateSettings,
@@ -399,6 +514,9 @@ export function useNotifications() {
     scheduleHuntExpiry,
     notifyTeamProgress,
     notifyAchievement,
+    scheduleStreakReminder,
+    notifyBehindInHunt,
+    scheduleDailyReminder,
     registerPendingToken,
     unregisterFromServer,
   };

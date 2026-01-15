@@ -1,63 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { Text, StyleSheet, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { offlineStorage } from '@/lib/offlineStorage';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
-export function OfflineIndicator() {
+interface OfflineIndicatorProps {
+  /** Show even when online with pending submissions */
+  showPending?: boolean;
+  /** Callback when sync completes */
+  onSyncComplete?: (result: { synced: number; failed: number }) => void;
+}
+
+export function OfflineIndicator({ showPending = true, onSyncComplete }: OfflineIndicatorProps) {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
-  const slideAnim = useState(new Animated.Value(-50))[0];
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<{ synced: number; failed: number } | null>(null);
+  const slideAnim = useState(new Animated.Value(-60))[0];
+
+  const refreshPendingCount = useCallback(async () => {
+    const submissions = await offlineStorage.getPendingSubmissions();
+    setPendingCount(submissions.length);
+  }, []);
+
+  const handleSync = useCallback(async () => {
+    if (isSyncing || !isOnline) return;
+
+    setIsSyncing(true);
+    try {
+      const result = await offlineStorage.syncPendingSubmissions();
+      setLastSyncResult(result);
+      await refreshPendingCount();
+      onSyncComplete?.(result);
+
+      // Clear result message after 3 seconds
+      setTimeout(() => setLastSyncResult(null), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, isOnline, refreshPendingCount, onSyncComplete]);
 
   useEffect(() => {
     // Check initial state
     offlineStorage.checkConnection().then(setIsOnline);
-    offlineStorage.getPendingSubmissions().then(s => setPendingCount(s.length));
+    refreshPendingCount();
 
     // Subscribe to connectivity changes
     const unsubscribe = offlineStorage.onConnectivityChange(online => {
       setIsOnline(online);
       if (online) {
-        // Refresh pending count after sync attempt
-        setTimeout(() => {
-          offlineStorage.getPendingSubmissions().then(s => setPendingCount(s.length));
-        }, 2000);
+        // Auto-sync when coming back online
+        handleSync();
       }
     });
 
-    return unsubscribe;
-  }, []);
+    // Refresh pending count periodically
+    const interval = setInterval(refreshPendingCount, 10000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [refreshPendingCount, handleSync]);
+
+  // Determine if we should show the indicator
+  const shouldShow = !isOnline || (showPending && pendingCount > 0) || lastSyncResult !== null;
 
   useEffect(() => {
     Animated.timing(slideAnim, {
-      toValue: !isOnline || pendingCount > 0 ? 0 : -50,
+      toValue: shouldShow ? 0 : -60,
       duration: 300,
       useNativeDriver: true,
     }).start();
-  }, [isOnline, pendingCount]);
+  }, [shouldShow, slideAnim]);
 
-  if (isOnline && pendingCount === 0) {
+  if (!shouldShow) {
     return null;
   }
+
+  // Determine status and styling
+  const getStatus = () => {
+    if (!isOnline) {
+      return {
+        icon: 'cloud-offline' as const,
+        text: `Offline${pendingCount > 0 ? ` • ${pendingCount} queued` : ''}`,
+        style: styles.offline,
+      };
+    }
+    if (isSyncing) {
+      return {
+        icon: 'sync' as const,
+        text: `Syncing ${pendingCount}...`,
+        style: styles.syncing,
+      };
+    }
+    if (lastSyncResult) {
+      if (lastSyncResult.failed > 0) {
+        return {
+          icon: 'warning' as const,
+          text: `Synced ${lastSyncResult.synced}, ${lastSyncResult.failed} failed`,
+          style: styles.warning,
+        };
+      }
+      return {
+        icon: 'checkmark-circle' as const,
+        text: `${lastSyncResult.synced} synced`,
+        style: styles.success,
+      };
+    }
+    if (pendingCount > 0) {
+      return {
+        icon: 'cloud-upload' as const,
+        text: `${pendingCount} pending`,
+        style: styles.pending,
+        showSyncButton: true,
+      };
+    }
+    return null;
+  };
+
+  const status = getStatus();
+  if (!status) return null;
 
   return (
     <Animated.View
       style={[
         styles.container,
         { transform: [{ translateY: slideAnim }] },
-        !isOnline ? styles.offline : styles.syncing,
+        status.style,
       ]}
     >
-      <Ionicons
-        name={!isOnline ? 'cloud-offline' : 'cloud-upload'}
-        size={16}
-        color="#fff"
-      />
-      <Text style={styles.text}>
-        {!isOnline
-          ? 'You are offline'
-          : `Syncing ${pendingCount} submission${pendingCount > 1 ? 's' : ''}...`}
-      </Text>
+      {isSyncing ? (
+        <ActivityIndicator size="small" color="#fff" />
+      ) : (
+        <Ionicons name={status.icon} size={16} color="#fff" />
+      )}
+      <Text style={styles.text}>{status.text}</Text>
+      {'showSyncButton' in status && status.showSyncButton && isOnline && (
+        <TouchableOpacity
+          onPress={handleSync}
+          style={styles.syncButton}
+          disabled={isSyncing}
+        >
+          <Text style={styles.syncButtonText}>Sync Now</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -80,11 +167,32 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.error,
   },
   syncing: {
+    backgroundColor: Colors.primary,
+  },
+  pending: {
     backgroundColor: Colors.warning,
+  },
+  warning: {
+    backgroundColor: '#f59e0b',
+  },
+  success: {
+    backgroundColor: Colors.success,
   },
   text: {
     fontSize: FontSizes.sm,
     fontWeight: '600',
+    color: '#fff',
+  },
+  syncButton: {
+    marginLeft: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+  },
+  syncButtonText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '700',
     color: '#fff',
   },
 });
