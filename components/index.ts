@@ -10,3 +10,6 @@ export { ARChallenge } from './ARChallenge';
 export { VoiceNavButton } from './VoiceNavButton';
 export { Confetti } from './Confetti';
 export { AnimatedLeaderboard } from './AnimatedLeaderboard';
+export { MysteryChallenge } from './MysteryChallenge';
+export { StreakDisplay } from './StreakDisplay';
+export { PhotoFeedItem } from './PhotoFeedItem';
