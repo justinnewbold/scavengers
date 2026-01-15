@@ -6,8 +6,11 @@
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
-// Minimum confidence threshold for auto-approval
-const AUTO_APPROVAL_THRESHOLD = 0.7;
+// Configurable thresholds via environment variables
+// PHOTO_VERIFICATION_AUTO_THRESHOLD: minimum confidence for auto-approval (default: 0.7)
+// PHOTO_VERIFICATION_MANUAL_THRESHOLD: minimum confidence to flag for manual review (default: 0.3)
+const AUTO_APPROVAL_THRESHOLD = parseFloat(process.env.PHOTO_VERIFICATION_AUTO_THRESHOLD || '0.7');
+const MANUAL_REVIEW_THRESHOLD = parseFloat(process.env.PHOTO_VERIFICATION_MANUAL_THRESHOLD || '0.3');
 
 export interface PhotoVerificationResult {
   approved: boolean;
@@ -122,7 +125,7 @@ Respond ONLY with valid JSON (no markdown, no extra text):
         approved,
         confidence,
         reason: result.reason || (approved ? 'Photo verified' : 'Verification failed'),
-        requiresManualReview: !approved && confidence > 0.3 && confidence < AUTO_APPROVAL_THRESHOLD,
+        requiresManualReview: !approved && confidence > MANUAL_REVIEW_THRESHOLD && confidence < AUTO_APPROVAL_THRESHOLD,
       };
     }
 

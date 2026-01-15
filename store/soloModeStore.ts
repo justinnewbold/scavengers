@@ -2,10 +2,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Hunt, Challenge } from '@/types';
+import {
+  SOLO_HUNT_PRESETS as CONFIG_PRESETS,
+  SOLO_THEMES as CONFIG_THEMES,
+  SOLO_MODE_LIMITS,
+} from '@/config/soloMode';
 
 // Solo hunt types
 export type SoloHuntType = 'quick' | 'explorer' | 'challenge' | 'custom';
-export type SoloEnvironment = 'outdoor' | 'indoor' | 'any';
+export type SoloEnvironment = 'outdoor' | 'indoor' | 'mixed';
 
 export interface SoloHuntConfig {
   type: SoloHuntType;
@@ -14,7 +19,7 @@ export interface SoloHuntConfig {
   challengeCount: number;
   environment: SoloEnvironment;
   duration: number; // in minutes
-  useCurrentLocation: boolean;
+  useLocation: boolean;
   latitude?: number;
   longitude?: number;
   locationName?: string;
@@ -93,43 +98,15 @@ interface SoloModeState {
   clearError: () => void;
 }
 
-// Quick hunt presets
-export const SOLO_HUNT_PRESETS: Record<SoloHuntType, Partial<SoloHuntConfig>> = {
-  quick: {
-    challengeCount: 5,
-    duration: 10,
-    difficulty: 'easy',
-  },
-  explorer: {
-    challengeCount: 10,
-    duration: 30,
-    difficulty: 'medium',
-  },
-  challenge: {
-    challengeCount: 15,
-    duration: 45,
-    difficulty: 'hard',
-  },
-  custom: {
-    challengeCount: 8,
-    duration: 20,
-    difficulty: 'medium',
-  },
-};
+// Re-export config values for consumers
+export const SOLO_HUNT_PRESETS = CONFIG_PRESETS;
+export const SOLO_THEMES = CONFIG_THEMES;
 
-// Theme options for solo hunts
-export const SOLO_THEMES = [
-  { id: 'surprise', label: 'Surprise Me!', icon: 'shuffle', description: 'Random theme' },
-  { id: 'nature', label: 'Nature', icon: 'leaf', description: 'Plants, animals, outdoors' },
-  { id: 'urban', label: 'Urban Explorer', icon: 'business', description: 'City sights & architecture' },
-  { id: 'photo', label: 'Photo Quest', icon: 'camera', description: 'Creative photography' },
-  { id: 'fitness', label: 'Active Adventure', icon: 'fitness', description: 'Movement challenges' },
-  { id: 'mindful', label: 'Mindful Walk', icon: 'happy', description: 'Peaceful observations' },
-  { id: 'color', label: 'Color Hunt', icon: 'color-palette', description: 'Find specific colors' },
-  { id: 'texture', label: 'Texture Quest', icon: 'hand-left', description: 'Find interesting textures' },
-];
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+// API base URL - must be set in environment
+const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+if (!API_BASE) {
+  console.warn('EXPO_PUBLIC_API_URL not set - solo mode API calls will fail');
+}
 
 function generateSessionId(): string {
   return `solo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -329,7 +306,7 @@ export const useSoloModeStore = create<SoloModeState>()(
 
         set({
           activeSession: null,
-          history: [result, ...history].slice(0, 50), // Keep last 50 results
+          history: [result, ...history].slice(0, SOLO_MODE_LIMITS.maxHistoryItems),
           personalRecords: { ...personalRecords, [recordKey]: newRecord },
           totalSoloHuntsCompleted: totalSoloHuntsCompleted + 1,
           totalSoloPointsEarned: totalSoloPointsEarned + totalPoints,
