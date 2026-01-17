@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -311,16 +312,35 @@ export function useNotifications() {
     await saveScheduledNotifications([]);
   }, []);
 
-  const handleNotificationResponse = (data: Record<string, unknown>) => {
+  const handleNotificationResponse = useCallback((data: Record<string, unknown>) => {
     // Handle navigation based on notification data
-    if (data.huntId) {
-      // Navigate to hunt - this would integrate with navigation
-      console.log('Navigate to hunt:', data.huntId);
-    }
-    if (data.achievementId) {
-      console.log('Navigate to achievement:', data.achievementId);
-    }
-  };
+    const notificationType = data.type as string | undefined;
+
+    // Small delay to ensure app is fully loaded
+    setTimeout(() => {
+      try {
+        if (data.huntId) {
+          // Navigate to hunt play screen or details based on context
+          if (notificationType === 'competition_update' || notificationType === 'hunt_reminder') {
+            router.push(`/play/${data.huntId}`);
+          } else {
+            router.push(`/hunt/${data.huntId}`);
+          }
+        } else if (data.achievementId) {
+          // Navigate to achievements screen
+          router.push('/achievements');
+        } else if (data.teamId) {
+          // Navigate to teams screen
+          router.push('/teams');
+        } else if (notificationType === 'streak_reminder' || notificationType === 'daily_reminder') {
+          // Navigate to home/discover to start a hunt
+          router.push('/(tabs)');
+        }
+      } catch (error) {
+        console.error('Failed to navigate from notification:', error);
+      }
+    }, 100);
+  }, []);
 
   // Convenience methods for common notifications
   const scheduleHuntReminder = useCallback(async (

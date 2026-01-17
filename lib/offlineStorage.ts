@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { fetchWithTimeout, TimeoutError } from './fetchWithTimeout';
 
 // Storage keys
 const KEYS = {
@@ -195,7 +196,19 @@ class OfflineStorage {
     }
   }
 
-  // Sync pending submissions when online
+  // Delay helper for exponential backoff
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Calculate exponential backoff delay (1s, 2s, 4s, 8s, 16s max)
+  private getBackoffDelay(retryCount: number): number {
+    const baseDelay = 1000; // 1 second
+    const maxDelay = 16000; // 16 seconds
+    return Math.min(baseDelay * Math.pow(2, retryCount), maxDelay);
+  }
+
+  // Sync pending submissions when online with exponential backoff
   async syncPendingSubmissions(): Promise<{ synced: number; failed: number }> {
     if (!this.isOnline) {
       return { synced: 0, failed: 0 };
@@ -204,10 +217,17 @@ class OfflineStorage {
     const pending = await this.getPendingSubmissions();
     let synced = 0;
     let failed = 0;
+    const maxRetries = 5; // Increased from 3 to 5 with exponential backoff
 
     for (const submission of pending) {
+      // Apply backoff delay based on retry count (skip on first attempt)
+      if (submission.retryCount > 0) {
+        const backoffDelay = this.getBackoffDelay(submission.retryCount - 1);
+        await this.delay(backoffDelay);
+      }
+
       try {
-        const response = await fetch(
+        const response = await fetchWithTimeout(
           `${process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api'}/submissions`,
           {
             method: 'POST',
@@ -218,31 +238,45 @@ class OfflineStorage {
               submission_type: submission.submission_type,
               submission_data: submission.submission_data,
             }),
+            timeout: 30000, // 30 second timeout for submissions
           }
         );
 
         if (response.ok) {
           await this.removePendingSubmission(submission.id);
           synced++;
-        } else if (submission.retryCount >= 3) {
-          // Max retries reached, remove from queue
+        } else if (response.status >= 400 && response.status < 500) {
+          // Client error (4xx) - don't retry, remove from queue
+          await this.removePendingSubmission(submission.id);
+          failed++;
+        } else if (submission.retryCount >= maxRetries) {
+          // Max retries reached for server errors
           await this.removePendingSubmission(submission.id);
           failed++;
         } else {
-          // Increment retry count
+          // Server error - increment retry count for next sync
           await this.updatePendingSubmission(submission.id, {
             retryCount: submission.retryCount + 1,
           });
           failed++;
         }
-      } catch {
-        if (submission.retryCount >= 3) {
+      } catch (error) {
+        const isTimeout = error instanceof TimeoutError;
+        const isNetworkError = (error as Error).message?.includes('Network');
+
+        if (submission.retryCount >= maxRetries) {
+          // Max retries reached
           await this.removePendingSubmission(submission.id);
           failed++;
-        } else {
+        } else if (isTimeout || isNetworkError) {
+          // Network/timeout errors are retryable
           await this.updatePendingSubmission(submission.id, {
             retryCount: submission.retryCount + 1,
           });
+          failed++;
+        } else {
+          // Unknown error - remove from queue
+          await this.removePendingSubmission(submission.id);
           failed++;
         }
       }
