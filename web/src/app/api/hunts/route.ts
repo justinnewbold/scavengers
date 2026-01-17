@@ -163,7 +163,8 @@ export async function POST(request: NextRequest) {
     // Validate challenges - must have at least 1 for active hunts
     const challenges = body.challenges || [];
     const validChallenges = challenges.filter(
-      (c: unknown): c is Record<string, unknown> => c != null && typeof c === 'object' && !!c.title
+      (c: unknown): c is Record<string, unknown> =>
+        c != null && typeof c === 'object' && 'title' in c && !!(c as Record<string, unknown>).title
     );
 
     if (status === 'active' && validChallenges.length === 0) {
