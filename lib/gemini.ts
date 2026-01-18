@@ -160,6 +160,46 @@ For ${request.difficulty} difficulty:
 - Hard: Complex tasks, rare finds, multi-step challenges`;
   }
   
+  // Validate that required fields exist and are valid
+  private validateHuntResponse(parsed: Record<string, unknown>): void {
+    // Validate title
+    if (!parsed.title || typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
+      throw new Error('Invalid response: missing or empty title');
+    }
+
+    // Validate challenges array
+    if (!Array.isArray(parsed.challenges)) {
+      throw new Error('Invalid response: challenges must be an array');
+    }
+
+    if (parsed.challenges.length === 0) {
+      throw new Error('Invalid response: at least one challenge is required');
+    }
+
+    // Validate each challenge has required fields
+    for (let i = 0; i < parsed.challenges.length; i++) {
+      const challenge = parsed.challenges[i] as Record<string, unknown>;
+
+      if (!challenge || typeof challenge !== 'object') {
+        throw new Error(`Invalid response: challenge ${i + 1} is not an object`);
+      }
+
+      if (!challenge.title || typeof challenge.title !== 'string') {
+        throw new Error(`Invalid response: challenge ${i + 1} missing title`);
+      }
+
+      if (!challenge.description || typeof challenge.description !== 'string') {
+        throw new Error(`Invalid response: challenge ${i + 1} missing description`);
+      }
+
+      // Points must be a positive number
+      const points = Number(challenge.points);
+      if (isNaN(points) || points <= 0) {
+        throw new Error(`Invalid response: challenge ${i + 1} has invalid points`);
+      }
+    }
+  }
+
   private parseHuntResponse(text: string): AIGeneratedHunt {
     // Extract JSON from response by finding balanced braces
     const jsonStart = text.indexOf('{');
@@ -183,19 +223,28 @@ For ${request.difficulty} difficulty:
     }
 
     const jsonString = text.slice(jsonStart, jsonEnd);
-    const parsed = JSON.parse(jsonString);
-    
-    // Validate and normalize the response
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (error) {
+      throw new Error('Failed to parse hunt response: invalid JSON');
+    }
+
+    // Validate required fields before processing
+    this.validateHuntResponse(parsed);
+
+    // Normalize and return validated response
     return {
-      title: parsed.title || 'Untitled Hunt',
-      description: parsed.description || '',
-      challenges: (parsed.challenges || []).map((c: any, index: number) => ({
-        title: c.title || `Challenge ${index + 1}`,
-        description: c.description || '',
-        points: Number(c.points) || 10,
-        verification_type: this.normalizeVerificationType(c.verification_type),
-        hint: c.hint || null,
-        verification_data: c.verification_data || {},
+      title: String(parsed.title).trim(),
+      description: parsed.description ? String(parsed.description).trim() : '',
+      challenges: (parsed.challenges as Record<string, unknown>[]).map((c, index) => ({
+        title: String(c.title).trim() || `Challenge ${index + 1}`,
+        description: String(c.description).trim() || '',
+        points: Math.max(1, Math.min(1000, Number(c.points) || 10)), // Clamp points 1-1000
+        verification_type: this.normalizeVerificationType(String(c.verification_type || 'manual')),
+        hint: c.hint ? String(c.hint).trim() : null,
+        verification_data: (c.verification_data as Record<string, unknown>) || {},
       })),
     };
   }

@@ -15,3 +15,4 @@ export { StreakDisplay } from './StreakDisplay';
 export { PhotoFeedItem } from './PhotoFeedItem';
 export { StreakMilestone, getMilestoneForStreak } from './StreakMilestone';
 export { ShareableResultsCard } from './ShareableResultsCard';
+export { Skeleton, HuntCardSkeleton, FeedItemSkeleton, DiscoverSkeleton, ProfileStatsSkeleton } from './SkeletonLoader';

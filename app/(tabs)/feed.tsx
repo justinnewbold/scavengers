@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PhotoFeedItem } from '@/components';
+import { PhotoFeedItem, FeedItemSkeleton } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { FeedItem, ReactionType } from '@/types';
@@ -211,9 +211,16 @@ export default function FeedScreen() {
 
   if (isLoading && feed.length === 0) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading feed...</Text>
+      <View style={styles.container}>
+        <View style={styles.filterContainer}>
+          {renderFilterButton('all', 'Everyone', 'globe-outline')}
+          {renderFilterButton('mine', 'My Photos', 'person-outline')}
+        </View>
+        <View style={styles.skeletonContainer}>
+          <FeedItemSkeleton />
+          <FeedItemSkeleton />
+          <FeedItemSkeleton />
+        </View>
       </View>
     );
   }
@@ -338,5 +345,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing.lg,
     alignItems: 'center',
+  },
+  skeletonContainer: {
+    padding: Spacing.md,
   },
 });

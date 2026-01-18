@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,17 +8,27 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { HuntCard, Button } from '@/components';
+import { HuntCard, Button, DiscoverSkeleton, HuntCardSkeleton } from '@/components';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const { publicHunts, isLoading, fetchPublicHunts } = useHuntStore();
-  
+  const [hasLoaded, setHasLoaded] = useState(false);
+
   useEffect(() => {
-    fetchPublicHunts();
+    fetchPublicHunts().finally(() => setHasLoaded(true));
   }, []);
+
+  // Show full skeleton on initial load
+  if (!hasLoaded && isLoading) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <DiscoverSkeleton />
+      </ScrollView>
+    );
+  }
   
   return (
     <ScrollView

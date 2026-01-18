@@ -11,6 +11,14 @@ const KEYS = {
   OFFLINE_MODE: 'offline_mode_enabled',
 };
 
+// Storage limits to prevent filling device storage
+const STORAGE_LIMITS = {
+  MAX_CACHED_HUNTS: 50,
+  MAX_USER_HUNTS_PER_USER: 20,
+  MAX_PENDING_SUBMISSIONS: 100,
+  STALE_THRESHOLD_MS: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 export interface CachedHunt {
   id: string;
   title: string;
@@ -86,7 +94,17 @@ class OfflineStorage {
     return this.isOnline;
   }
 
-  // Cache hunts for offline access
+  // LRU eviction: remove oldest items when over limit
+  private evictOldest<T extends { cachedAt: number }>(items: T[], maxItems: number): T[] {
+    if (items.length <= maxItems) return items;
+
+    // Sort by cachedAt (oldest first) and keep only the newest items
+    return items
+      .sort((a, b) => b.cachedAt - a.cachedAt)
+      .slice(0, maxItems);
+  }
+
+  // Cache hunts for offline access with LRU eviction
   async cacheHunts(hunts: CachedHunt[]): Promise<void> {
     try {
       const existing = await this.getCachedHunts();
@@ -97,10 +115,11 @@ class OfflineStorage {
         huntMap.set(hunt.id, { ...hunt, cachedAt: Date.now() });
       }
 
-      await AsyncStorage.setItem(
-        KEYS.CACHED_HUNTS,
-        JSON.stringify(Array.from(huntMap.values()))
-      );
+      // Apply LRU eviction if over limit
+      let allHunts = Array.from(huntMap.values());
+      allHunts = this.evictOldest(allHunts, STORAGE_LIMITS.MAX_CACHED_HUNTS);
+
+      await AsyncStorage.setItem(KEYS.CACHED_HUNTS, JSON.stringify(allHunts));
     } catch (error) {
       console.error('Failed to cache hunts:', error);
     }
@@ -120,14 +139,19 @@ class OfflineStorage {
     return hunts.find(h => h.id === huntId) || null;
   }
 
-  // Cache user's hunts separately
+  // Cache user's hunts separately with LRU eviction
   async cacheUserHunts(userId: string, hunts: CachedHunt[]): Promise<void> {
     try {
       const key = `${KEYS.CACHED_USER_HUNTS}_${userId}`;
-      await AsyncStorage.setItem(key, JSON.stringify(hunts.map(h => ({
+      let cachedHunts = hunts.map(h => ({
         ...h,
         cachedAt: Date.now(),
-      }))));
+      }));
+
+      // Apply LRU eviction if over limit
+      cachedHunts = this.evictOldest(cachedHunts, STORAGE_LIMITS.MAX_USER_HUNTS_PER_USER);
+
+      await AsyncStorage.setItem(key, JSON.stringify(cachedHunts));
     } catch (error) {
       console.error('Failed to cache user hunts:', error);
     }
@@ -143,7 +167,7 @@ class OfflineStorage {
     }
   }
 
-  // Queue submissions when offline
+  // Queue submissions when offline with limit enforcement
   async queueSubmission(submission: Omit<PendingSubmission, 'id' | 'created_at' | 'retryCount'>): Promise<string> {
     const id = `pending_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const pendingSubmission: PendingSubmission = {
@@ -154,7 +178,16 @@ class OfflineStorage {
     };
 
     try {
-      const pending = await this.getPendingSubmissions();
+      let pending = await this.getPendingSubmissions();
+
+      // If at limit, remove oldest submissions first (FIFO eviction)
+      if (pending.length >= STORAGE_LIMITS.MAX_PENDING_SUBMISSIONS) {
+        // Keep newest submissions, make room for new one
+        pending = pending
+          .sort((a, b) => b.created_at - a.created_at)
+          .slice(0, STORAGE_LIMITS.MAX_PENDING_SUBMISSIONS - 1);
+      }
+
       pending.push(pendingSubmission);
       await AsyncStorage.setItem(KEYS.PENDING_SUBMISSIONS, JSON.stringify(pending));
       return id;

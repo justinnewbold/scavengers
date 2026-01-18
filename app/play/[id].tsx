@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, MysteryChallenge, StreakDisplay, Confetti, StreakMilestone, getMilestoneForStreak } from '@/components';
 import { useHuntStore } from '@/store';
-import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
+import { useStreak, useProximityHaptics, triggerHaptic, useAccessibility } from '@/hooks';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { Hunt, Challenge } from '@/types';
 
@@ -36,6 +36,9 @@ export default function PlayScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
   const bonusAnim = useRef(new Animated.Value(0)).current;
+
+  // Accessibility announcements
+  const { announceChallenge, announceStreak, announceHuntComplete } = useAccessibility();
 
   // Streak tracking
   const {
@@ -60,10 +63,13 @@ export default function PlayScreen() {
       } else if (newStreak.count >= 3) {
         triggerHaptic('success');
       }
+      // Announce streak for accessibility
+      announceStreak(newStreak.count, newStreak.multiplier);
     },
     onStreakLost: () => {
       triggerHaptic('warning');
       setLastMilestoneStreak(0); // Reset milestone tracking
+      announceStreak(0, 1);
     },
     onMultiplierChange: (multiplier) => {
       if (multiplier > 1) {
@@ -124,10 +130,41 @@ export default function PlayScreen() {
     }).start();
   }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
 
+  // Fisher-Yates shuffle for challenge randomization
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   const loadHunt = async () => {
     if (!id) return;
     const huntData = await getHuntById(id);
+
+    if (huntData) {
+      // Apply shuffle_challenges setting if enabled
+      if (huntData.settings?.shuffle_challenges && huntData.challenges) {
+        huntData.challenges = shuffleArray(huntData.challenges);
+      }
+    }
+
     setHunt(huntData);
+  };
+
+  // Check if skip is allowed
+  const canSkip = hunt?.settings?.allowSkip ?? false;
+
+  const handleSkipChallenge = () => {
+    if (!canSkip || !hunt?.challenges) return;
+
+    const nextIndex = currentChallengeIndex + 1;
+    if (nextIndex < hunt.challenges.length) {
+      setCurrentChallengeIndex(nextIndex);
+      triggerHaptic('light');
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -477,16 +514,26 @@ export default function PlayScreen() {
                 </Text>
               </View>
 
-              <Button
-                title={
-                  completedChallenges.has(currentChallenge.id!)
-                    ? '✓ Completed'
-                    : 'Verify Challenge'
-                }
-                onPress={() => handleVerification(currentChallenge)}
-                disabled={completedChallenges.has(currentChallenge.id!)}
-                style={styles.verifyButton}
-              />
+              <View style={styles.actionButtons}>
+                <Button
+                  title={
+                    completedChallenges.has(currentChallenge.id!)
+                      ? '✓ Completed'
+                      : 'Verify Challenge'
+                  }
+                  onPress={() => handleVerification(currentChallenge)}
+                  disabled={completedChallenges.has(currentChallenge.id!)}
+                  style={[styles.verifyButton, canSkip && styles.verifyButtonWithSkip]}
+                />
+                {canSkip && currentChallengeIndex < (hunt.challenges?.length || 1) - 1 && (
+                  <Button
+                    title="Skip"
+                    variant="outline"
+                    onPress={handleSkipChallenge}
+                    style={styles.skipButton}
+                  />
+                )}
+              </View>
             </Card>
           )}
 
@@ -710,8 +757,20 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
   },
-  verifyButton: {
+  actionButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
     marginTop: Spacing.sm,
+  },
+  verifyButton: {
+    flex: 1,
+  },
+  verifyButtonWithSkip: {
+    flex: 3,
+  },
+  skipButton: {
+    flex: 1,
+    minWidth: 70,
   },
   navigation: {
     flexDirection: 'row',
