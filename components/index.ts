@@ -25,3 +25,7 @@ export { ActivityFeed } from './ActivityFeed';
 export { GlobalLeaderboard } from './GlobalLeaderboard';
 export { SeriesCard } from './SeriesCard';
 export { EventBanner } from './EventBanner';
+export { LiveRaceCard } from './LiveRaceCard';
+export { SpectatorOverlay } from './SpectatorOverlay';
+export { TournamentBracketView as TournamentBracket } from './TournamentBracket';
+export { ReplayPlayer } from './ReplayPlayer';
