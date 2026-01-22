@@ -7,7 +7,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, BorderRadius, TouchTargets } from '@/constants/theme';
 import { triggerHaptic, type HapticType } from '@/hooks/useHaptics';
 
 interface ButtonProps {
@@ -86,6 +86,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
+    minHeight: TouchTargets.minimum, // WCAG AA compliant touch target
   },
   
   // Variants

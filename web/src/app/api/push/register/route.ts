@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 
-// POST /api/push/register - Register push notification token
+/**
+ * POST /api/push/register - Register push notification token
+ */
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
@@ -13,26 +15,29 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { token, platform } = body;
 
-    if (!token || !platform) {
+    if (!token || typeof token !== 'string') {
       return NextResponse.json(
-        { error: 'Token and platform are required' },
+        { error: 'Push token is required' },
         { status: 400 }
       );
     }
 
-    if (!['ios', 'android', 'web'].includes(platform)) {
+    if (!platform || !['ios', 'android', 'web'].includes(platform)) {
       return NextResponse.json(
-        { error: 'Invalid platform' },
+        { error: 'Valid platform (ios, android, web) is required' },
         { status: 400 }
       );
     }
 
-    // Upsert the token
+    // Upsert push token for this user
     await sql`
-      INSERT INTO push_tokens (user_id, token, platform, last_used)
-      VALUES (${auth.user.id}, ${token}, ${platform}, NOW())
+      INSERT INTO push_tokens (user_id, token, platform, created_at, updated_at)
+      VALUES (${auth.user.id}, ${token}, ${platform}, NOW(), NOW())
       ON CONFLICT (user_id, token)
-      DO UPDATE SET last_used = NOW(), platform = ${platform}
+      DO UPDATE SET
+        platform = ${platform},
+        updated_at = NOW(),
+        is_active = true
     `;
 
     return NextResponse.json({ success: true });
@@ -45,7 +50,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE /api/push/register - Unregister push token
+/**
+ * DELETE /api/push/register - Unregister push notification token
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
@@ -58,19 +65,21 @@ export async function DELETE(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { error: 'Token is required' },
+        { error: 'Push token is required' },
         { status: 400 }
       );
     }
 
+    // Mark token as inactive (soft delete)
     await sql`
-      DELETE FROM push_tokens
+      UPDATE push_tokens
+      SET is_active = false, updated_at = NOW()
       WHERE user_id = ${auth.user.id} AND token = ${token}
     `;
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Push unregister error:', error);
+    console.error('Push unregistration error:', error);
     return NextResponse.json(
       { error: 'Failed to unregister push token' },
       { status: 500 }

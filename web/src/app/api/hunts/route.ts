@@ -160,10 +160,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate challenges - must have at least 1 for active hunts
+    const challenges = body.challenges || [];
+    const validChallenges = challenges.filter(
+      (c: unknown): c is Record<string, unknown> =>
+        c != null && typeof c === 'object' && 'title' in c && !!(c as Record<string, unknown>).title
+    );
+
+    if (status === 'active' && validChallenges.length === 0) {
+      return NextResponse.json(
+        { error: 'Active hunts must have at least one challenge' },
+        { status: 400 }
+      );
+    }
+
+    if (validChallenges.length > 50) {
+      return NextResponse.json(
+        { error: 'Maximum 50 challenges allowed per hunt' },
+        { status: 400 }
+      );
+    }
+
+    // Validate time limits if provided
+    const startsAt = body.starts_at ? new Date(body.starts_at) : null;
+    const endsAt = body.ends_at ? new Date(body.ends_at) : null;
+
+    if (startsAt && isNaN(startsAt.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid start date format' },
+        { status: 400 }
+      );
+    }
+
+    if (endsAt && isNaN(endsAt.getTime())) {
+      return NextResponse.json(
+        { error: 'Invalid end date format' },
+        { status: 400 }
+      );
+    }
+
+    if (startsAt && endsAt && startsAt >= endsAt) {
+      return NextResponse.json(
+        { error: 'End date must be after start date' },
+        { status: 400 }
+      );
+    }
+
     // Insert hunt with creator_id
     const huntResult = await sql`
-      INSERT INTO hunts (title, description, difficulty, is_public, status, creator_id, location, duration_minutes, max_participants, created_at, updated_at)
-      VALUES (${title}, ${description}, ${difficulty}, ${isPublic}, ${status}, ${auth.user.id}, ${location}, ${durationMinutes}, ${maxParticipants}, NOW(), NOW())
+      INSERT INTO hunts (title, description, difficulty, is_public, status, creator_id, location, duration_minutes, max_participants, starts_at, ends_at, created_at, updated_at)
+      VALUES (${title}, ${description}, ${difficulty}, ${isPublic}, ${status}, ${auth.user.id}, ${location}, ${durationMinutes}, ${maxParticipants}, ${startsAt?.toISOString() || null}, ${endsAt?.toISOString() || null}, NOW(), NOW())
       RETURNING *
     `;
 
@@ -176,13 +222,7 @@ export async function POST(request: NextRequest) {
 
     const hunt = huntResult.rows[0];
 
-    // Insert challenges if provided
-    const challenges = body.challenges || [];
-    // Filter out null/undefined challenges
-    const validChallenges = challenges.filter(
-      (c: unknown): c is Record<string, unknown> => c != null && typeof c === 'object'
-    );
-
+    // Insert challenges if any valid ones exist
     if (validChallenges.length > 0) {
       let insertedCount = 0;
       const insertErrors: string[] = [];

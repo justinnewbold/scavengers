@@ -17,32 +17,19 @@ export type SoundEffect =
   | 'rankUp'
   | 'rankDown';
 
-// Sound file mappings - these would be actual audio files in assets
-const SOUND_FILES: Record<SoundEffect, string | null> = {
-  success: null, // Would be: require('@/assets/sounds/success.mp3')
-  achievement: null,
-  levelUp: null,
-  challenge_complete: null,
-  button_tap: null,
-  notification: null,
-  error: null,
-  countdown: null,
-  rankUp: null,
-  rankDown: null,
-};
-
-// Synthesized sound configurations (fallback when no audio files)
-const _SYNTH_SOUNDS: Record<SoundEffect, { frequency: number; duration: number; type: 'beep' | 'chirp' | 'buzz' }> = {
-  success: { frequency: 800, duration: 200, type: 'chirp' },
-  achievement: { frequency: 1000, duration: 500, type: 'chirp' },
-  levelUp: { frequency: 600, duration: 300, type: 'chirp' },
-  challenge_complete: { frequency: 700, duration: 250, type: 'beep' },
-  button_tap: { frequency: 400, duration: 50, type: 'beep' },
-  notification: { frequency: 500, duration: 150, type: 'beep' },
-  error: { frequency: 200, duration: 300, type: 'buzz' },
-  countdown: { frequency: 440, duration: 100, type: 'beep' },
-  rankUp: { frequency: 900, duration: 400, type: 'chirp' },
-  rankDown: { frequency: 300, duration: 400, type: 'buzz' },
+// Sound file mappings - actual audio files in assets/sounds
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const SOUND_FILES: Record<SoundEffect, ReturnType<typeof require>> = {
+  success: require('@/assets/sounds/success.wav'),
+  achievement: require('@/assets/sounds/achievement.wav'),
+  levelUp: require('@/assets/sounds/levelUp.wav'),
+  challenge_complete: require('@/assets/sounds/challenge_complete.wav'),
+  button_tap: require('@/assets/sounds/button_tap.wav'),
+  notification: require('@/assets/sounds/notification.wav'),
+  error: require('@/assets/sounds/error.wav'),
+  countdown: require('@/assets/sounds/countdown.wav'),
+  rankUp: require('@/assets/sounds/rankUp.wav'),
+  rankDown: require('@/assets/sounds/rankDown.wav'),
 };
 
 let soundEnabled = true;
@@ -80,48 +67,48 @@ export function useSoundEffects() {
     try {
       const soundFile = SOUND_FILES[effect];
 
-      if (soundFile) {
-        // Load and play actual audio file
-        let sound = soundRefs.current.get(effect);
+      // Load and play actual audio file
+      let sound = soundRefs.current.get(effect);
 
-        if (!sound) {
-          const { sound: newSound } = await Audio.Sound.createAsync(
-            soundFile as never,
-            { shouldPlay: false }
-          );
-          sound = newSound;
-          soundRefs.current.set(effect, sound);
-        }
+      if (!sound) {
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          soundFile,
+          { shouldPlay: false }
+        );
+        sound = newSound;
+        soundRefs.current.set(effect, sound);
+      }
 
-        await sound.setPositionAsync(0);
-        await sound.playAsync();
-      } else {
-        // Use haptic feedback as fallback since we don't have actual audio files
-        switch (effect) {
-          case 'success':
-          case 'achievement':
-          case 'levelUp':
-          case 'challenge_complete':
-          case 'rankUp':
-            triggerHaptic('success');
-            break;
-          case 'error':
-          case 'rankDown':
-            triggerHaptic('error');
-            break;
-          case 'button_tap':
-            triggerHaptic('light');
-            break;
-          case 'notification':
-            triggerHaptic('medium');
-            break;
-          case 'countdown':
-            triggerHaptic('light');
-            break;
-        }
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+
+      // Also trigger haptic for tactile feedback
+      switch (effect) {
+        case 'success':
+        case 'achievement':
+        case 'levelUp':
+        case 'challenge_complete':
+        case 'rankUp':
+          triggerHaptic('success');
+          break;
+        case 'error':
+        case 'rankDown':
+          triggerHaptic('error');
+          break;
+        case 'button_tap':
+          triggerHaptic('light');
+          break;
+        case 'notification':
+          triggerHaptic('medium');
+          break;
+        case 'countdown':
+          triggerHaptic('light');
+          break;
       }
     } catch (error) {
-      console.debug('Sound playback failed:', error);
+      // Fallback to haptic only if sound fails
+      console.debug('Sound playback failed, using haptic fallback:', error);
+      triggerHaptic('medium');
     }
   }, []);
 
@@ -143,11 +130,10 @@ export function useSoundEffects() {
    */
   const preload = useCallback(async (effects: SoundEffect[]) => {
     for (const effect of effects) {
-      const soundFile = SOUND_FILES[effect];
-      if (soundFile && !soundRefs.current.has(effect)) {
+      if (!soundRefs.current.has(effect)) {
         try {
           const { sound } = await Audio.Sound.createAsync(
-            soundFile as never,
+            SOUND_FILES[effect],
             { shouldPlay: false }
           );
           soundRefs.current.set(effect, sound);

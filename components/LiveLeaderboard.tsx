@@ -1,238 +1,408 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  FlatList,
+  Image,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Card } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-
-interface Player {
-  id: string;
-  name: string;
-  score: number;
-  currentChallenge: number;
-  completedChallenges: number[];
-}
+import { useRealtimeStore } from '@/store/realtimeStore';
+import type { LeaderboardEntry, RealtimeEvent, ChallengeCompletedEvent } from '@/types/realtime';
 
 interface LiveLeaderboardProps {
-  players: Player[];
-  currentUserId: string;
-  totalChallenges: number;
+  huntId: string;
+  currentPlayerId: string;
+  compact?: boolean;
+  showEvents?: boolean;
+  maxEntries?: number;
 }
 
-export function LiveLeaderboard({ players, currentUserId, totalChallenges }: LiveLeaderboardProps) {
-  const [animations] = useState(() =>
-    players.reduce((acc, player) => {
-      acc[player.id] = new Animated.Value(0);
-      return acc;
-    }, {} as Record<string, Animated.Value>)
-  );
+export function LiveLeaderboard({
+  huntId,
+  currentPlayerId,
+  compact = false,
+  showEvents = true,
+  maxEntries = 10,
+}: LiveLeaderboardProps) {
+  const {
+    connectionState,
+    leaderboard,
+    recentEvents,
+    connect,
+    disconnect,
+  } = useRealtimeStore();
 
-  // Sort players by score
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Animate position changes
-    sortedPlayers.forEach((player, index) => {
-      if (animations[player.id]) {
-        Animated.spring(animations[player.id], {
-          toValue: index,
-          useNativeDriver: true,
-          tension: 50,
-          friction: 7,
-        }).start();
-      }
-    });
-  }, [sortedPlayers]);
+    connect(huntId);
+    return () => disconnect();
+  }, [huntId]);
+
+  // Pulse animation for live indicator
+  useEffect(() => {
+    if (connectionState === 'connected') {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 0.5,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [connectionState, pulseAnim]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
-      case 0:
-        return { icon: 'trophy', color: '#FFD700' };
       case 1:
-        return { icon: 'medal', color: '#C0C0C0' };
+        return <Text style={styles.medalEmoji}>🥇</Text>;
       case 2:
-        return { icon: 'medal', color: '#CD7F32' };
+        return <Text style={styles.medalEmoji}>🥈</Text>;
+      case 3:
+        return <Text style={styles.medalEmoji}>🥉</Text>;
       default:
-        return { icon: 'person', color: Colors.textSecondary };
+        return <Text style={styles.rankNumber}>{rank}</Text>;
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="podium" size={20} color={Colors.primary} />
-        <Text style={styles.title}>Live Leaderboard</Text>
-        <View style={styles.liveBadge}>
-          <View style={styles.liveIndicator} />
-          <Text style={styles.liveText}>LIVE</Text>
+  const getConnectionIcon = () => {
+    switch (connectionState) {
+      case 'connected':
+        return (
+          <Animated.View style={[styles.liveIndicator, { opacity: pulseAnim }]}>
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </Animated.View>
+        );
+      case 'connecting':
+      case 'reconnecting':
+        return (
+          <View style={styles.connectingIndicator}>
+            <Ionicons name="sync" size={12} color={Colors.warning} />
+            <Text style={styles.connectingText}>Connecting...</Text>
+          </View>
+        );
+      default:
+        return (
+          <View style={styles.disconnectedIndicator}>
+            <Ionicons name="cloud-offline" size={12} color={Colors.error} />
+            <Text style={styles.disconnectedText}>Offline</Text>
+          </View>
+        );
+    }
+  };
+
+  const renderLeaderboardEntry = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
+    const isCurrentPlayer = item.playerId === currentPlayerId;
+    const displayedRank = item.rank || index + 1;
+
+    return (
+      <View
+        style={[
+          styles.entry,
+          isCurrentPlayer && styles.currentPlayerEntry,
+          compact && styles.entryCompact,
+        ]}
+      >
+        <View style={styles.rankContainer}>{getRankIcon(displayedRank)}</View>
+
+        {item.avatarUrl ? (
+          <Image source={{ uri: item.avatarUrl }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Ionicons name="person" size={compact ? 14 : 18} color={Colors.textSecondary} />
+          </View>
+        )}
+
+        <View style={styles.playerInfo}>
+          <Text
+            style={[styles.playerName, isCurrentPlayer && styles.currentPlayerName]}
+            numberOfLines={1}
+          >
+            {item.displayName}
+            {isCurrentPlayer && ' (You)'}
+          </Text>
+          {!compact && (
+            <View style={styles.playerStats}>
+              <Text style={styles.statText}>
+                {item.challengesCompleted} challenges
+              </Text>
+              {item.currentStreak > 1 && (
+                <Text style={styles.streakText}>🔥 {item.currentStreak}x</Text>
+              )}
+            </View>
+          )}
         </View>
+
+        <Text style={[styles.score, isCurrentPlayer && styles.currentPlayerScore]}>
+          {item.score.toLocaleString()}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderEvent = ({ item }: { item: RealtimeEvent }) => {
+    if (item.type !== 'challenge_completed') return null;
+
+    const data = item.data as ChallengeCompletedEvent;
+    const isCurrentPlayer = data.playerId === currentPlayerId;
+
+    return (
+      <View style={[styles.eventItem, isCurrentPlayer && styles.currentPlayerEvent]}>
+        <Ionicons
+          name="checkmark-circle"
+          size={16}
+          color={isCurrentPlayer ? Colors.primary : Colors.success}
+        />
+        <Text style={styles.eventText} numberOfLines={1}>
+          <Text style={styles.eventPlayerName}>{data.displayName}</Text>
+          {' completed '}
+          <Text style={styles.eventChallenge}>{data.challengeTitle}</Text>
+          {' +'}
+          <Text style={styles.eventPoints}>{data.points}</Text>
+        </Text>
+      </View>
+    );
+  };
+
+  const displayedLeaderboard = leaderboard.slice(0, maxEntries);
+  const challengeEvents = recentEvents.filter(e => e.type === 'challenge_completed').slice(0, 5);
+
+  return (
+    <Card style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+          <Ionicons name="podium" size={20} color={Colors.primary} />
+          <Text style={styles.title}>Leaderboard</Text>
+        </View>
+        {getConnectionIcon()}
       </View>
 
-      <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-        {sortedPlayers.map((player, index) => {
-          const { icon, color } = getRankIcon(index);
-          const isCurrentUser = player.id === currentUserId;
-          const progress = (player.completedChallenges.length / totalChallenges) * 100;
+      {displayedLeaderboard.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>
+            {connectionState === 'connected'
+              ? 'No players yet...'
+              : 'Connecting to live scores...'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={displayedLeaderboard}
+          keyExtractor={(item) => item.playerId}
+          renderItem={renderLeaderboardEntry}
+          scrollEnabled={false}
+        />
+      )}
 
-          return (
-            <View
-              key={player.id}
-              style={[styles.playerRow, isCurrentUser && styles.currentUserRow]}
-            >
-              <View style={styles.rankContainer}>
-                <Ionicons name={icon as any} size={18} color={color} />
-                <Text style={styles.rank}>#{index + 1}</Text>
-              </View>
-
-              <View style={styles.playerInfo}>
-                <View style={styles.nameRow}>
-                  <Text style={[styles.playerName, isCurrentUser && styles.currentUserName]}>
-                    {player.name}
-                    {isCurrentUser && ' (You)'}
-                  </Text>
-                  {player.completedChallenges.length === totalChallenges && (
-                    <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
-                  )}
-                </View>
-                <View style={styles.progressContainer}>
-                  <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${progress}%` }]} />
-                  </View>
-                  <Text style={styles.progressText}>
-                    {player.completedChallenges.length}/{totalChallenges}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.scoreContainer}>
-                <Text style={styles.score}>{player.score}</Text>
-                <Text style={styles.scoreLabel}>pts</Text>
-              </View>
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
+      {showEvents && challengeEvents.length > 0 && (
+        <View style={styles.eventsSection}>
+          <Text style={styles.eventsTitle}>Recent Activity</Text>
+          <FlatList
+            data={challengeEvents}
+            keyExtractor={(item) => `${item.timestamp}-${item.userId}`}
+            renderItem={renderEvent}
+            scrollEnabled={false}
+          />
+        </View>
+      )}
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.sm,
     marginBottom: Spacing.md,
-    paddingBottom: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   title: {
-    flex: 1,
-    fontSize: FontSizes.md,
-    fontWeight: '600',
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
     color: Colors.text,
   },
-  liveBadge: {
+  liveIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: Colors.error + '20',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
-    borderRadius: 100,
+    borderRadius: 12,
   },
-  liveIndicator: {
+  liveDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#EF4444',
+    backgroundColor: Colors.error,
   },
   liveText: {
     fontSize: FontSizes.xs,
     fontWeight: '700',
-    color: '#EF4444',
+    color: Colors.error,
+    letterSpacing: 1,
   },
-  list: {
-    maxHeight: 200,
-  },
-  playerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm,
-    borderRadius: 8,
-    marginBottom: Spacing.xs,
-  },
-  currentUserRow: {
-    backgroundColor: Colors.primaryMuted,
-  },
-  rankContainer: {
+  connectingIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    width: 50,
   },
-  rank: {
-    fontSize: FontSizes.sm,
+  connectingText: {
+    fontSize: FontSizes.xs,
+    color: Colors.warning,
+  },
+  disconnectedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  disconnectedText: {
+    fontSize: FontSizes.xs,
+    color: Colors.error,
+  },
+  entry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  entryCompact: {
+    paddingVertical: Spacing.xs,
+  },
+  currentPlayerEntry: {
+    backgroundColor: Colors.primary + '10',
+    marginHorizontal: -Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: 8,
+  },
+  rankContainer: {
+    width: 32,
+    alignItems: 'center',
+  },
+  medalEmoji: {
+    fontSize: 18,
+  },
+  rankNumber: {
+    fontSize: FontSizes.md,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: Spacing.sm,
+  },
+  avatarPlaceholder: {
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   playerInfo: {
     flex: 1,
-    marginHorizontal: Spacing.sm,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
   },
   playerName: {
-    fontSize: FontSizes.sm,
-    color: Colors.text,
+    fontSize: FontSizes.md,
     fontWeight: '500',
+    color: Colors.text,
   },
-  currentUserName: {
+  currentPlayerName: {
     color: Colors.primary,
     fontWeight: '600',
   },
-  progressContainer: {
+  playerStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    marginTop: 4,
+    gap: Spacing.sm,
   },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: 2,
-  },
-  progressText: {
+  statText: {
     fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-    minWidth: 30,
+    color: Colors.textSecondary,
   },
-  scoreContainer: {
-    alignItems: 'flex-end',
+  streakText: {
+    fontSize: FontSizes.xs,
+    color: Colors.warning,
   },
   score: {
     fontSize: FontSizes.lg,
     fontWeight: '700',
+    color: Colors.text,
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  currentPlayerScore: {
     color: Colors.primary,
   },
-  scoreLabel: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
+  emptyState: {
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+  },
+  eventsSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  eventsTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  eventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: 4,
+  },
+  currentPlayerEvent: {
+    backgroundColor: Colors.primary + '10',
+    marginHorizontal: -Spacing.xs,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: 4,
+  },
+  eventText: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+  },
+  eventPlayerName: {
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  eventChallenge: {
+    fontStyle: 'italic',
+  },
+  eventPoints: {
+    color: Colors.success,
+    fontWeight: '600',
   },
 });
 

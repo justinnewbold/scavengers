@@ -3,12 +3,16 @@ import { sql } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth, isValidUUID } from '@/lib/auth';
 import { checkRateLimit, getClientIP, rateLimiters, rateLimitResponse } from '@/lib/rateLimit';
+import { verifyPhotoWithAI, checkContentSafety, type PhotoVerificationData } from '@/lib/photoVerification';
 
 interface VerificationData {
   correct_answer?: string;
   case_sensitive?: boolean;
   location?: { lat: number; lng: number; radius?: number };
   qrCode?: string;
+  ai_prompt?: string;
+  required_objects?: string[];
+  keywords?: string[];
 }
 
 // Maximum photo size: 5MB (base64 encoded = ~6.67MB)
@@ -83,11 +87,13 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 // Server-side verification of submissions
-function verifySubmission(
+async function verifySubmission(
   submissionType: string,
   submissionData: Record<string, unknown>,
-  verificationData: VerificationData
-): { verified: boolean; reason?: string } {
+  verificationData: VerificationData,
+  challengeTitle?: string,
+  challengeDescription?: string
+): Promise<{ verified: boolean; reason?: string; requiresManualReview?: boolean; confidence?: number }> {
   switch (submissionType) {
     case 'text_answer': {
       const answer = (submissionData.answer as string)?.trim() || '';
@@ -157,8 +163,36 @@ function verifySubmission(
       if (!photoValidation.valid) {
         return { verified: false, reason: photoValidation.error };
       }
-      // Photo passes validation - auto-approve (in production, integrate with moderation service)
-      return { verified: true };
+
+      const photoData = (submissionData.photoData as string) || '';
+
+      // Check content safety first
+      const safetyCheck = await checkContentSafety(photoData);
+      if (!safetyCheck.safe) {
+        return {
+          verified: false,
+          reason: `Photo rejected: ${safetyCheck.reason || 'inappropriate content'}`,
+        };
+      }
+
+      // Use AI to verify photo matches challenge requirements
+      const aiResult = await verifyPhotoWithAI(
+        photoData,
+        challengeTitle || 'Challenge',
+        challengeDescription || '',
+        {
+          ai_prompt: verificationData.ai_prompt,
+          required_objects: verificationData.required_objects,
+          keywords: verificationData.keywords,
+        }
+      );
+
+      return {
+        verified: aiResult.approved,
+        reason: aiResult.reason,
+        requiresManualReview: aiResult.requiresManualReview,
+        confidence: aiResult.confidence,
+      };
     }
 
     case 'manual':
@@ -259,6 +293,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check hunt time limits
+    const huntTimeResult = await sql`
+      SELECT starts_at, ends_at, status FROM hunts WHERE id = ${participant.hunt_id}
+    `;
+    const huntTime = huntTimeResult.rows[0];
+
+    if (huntTime) {
+      const now = new Date();
+
+      // Check if hunt has ended
+      if (huntTime.ends_at && new Date(huntTime.ends_at) < now) {
+        return NextResponse.json(
+          { error: 'This hunt has ended. No more submissions allowed.' },
+          { status: 400 }
+        );
+      }
+
+      // Check if hunt hasn't started yet
+      if (huntTime.starts_at && new Date(huntTime.starts_at) > now) {
+        return NextResponse.json(
+          { error: 'This hunt has not started yet.' },
+          { status: 400 }
+        );
+      }
+
+      // Check if hunt is in a valid status
+      if (huntTime.status === 'completed' || huntTime.status === 'cancelled') {
+        return NextResponse.json(
+          { error: `This hunt is ${huntTime.status}. No more submissions allowed.` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validate submission type matches challenge verification type
     if (submission_type !== challenge.verification_type) {
       return NextResponse.json(
@@ -282,11 +350,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Server-side verification
-    const verificationResult = verifySubmission(
+    // Get challenge details for AI verification
+    const challengeDetailsResult = await sql`
+      SELECT title, description FROM challenges WHERE id = ${challenge_id}
+    `;
+    const challengeDetails = challengeDetailsResult.rows[0];
+
+    // Server-side verification (async for photo AI verification)
+    const verificationResult = await verifySubmission(
       submission_type,
       submission_data || {},
-      (challenge.verification_data as VerificationData) || {}
+      (challenge.verification_data as VerificationData) || {},
+      challengeDetails?.title,
+      challengeDetails?.description
     );
 
     const status = verificationResult.verified ? 'approved' : 'rejected';

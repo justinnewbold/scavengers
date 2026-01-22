@@ -1,15 +1,72 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
+interface UserStats {
+  huntsCreated: number;
+  huntsPlayed: number;
+  totalPoints: number;
+  currentStreak: number;
+  longestStreak: number;
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) return;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch(`${API_BASE}/auth/stats`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Failed to fetch stats:', error);
+      }
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      setIsLoadingStats(true);
+      fetchStats().finally(() => setIsLoadingStats(false));
+    }
+  }, [user, fetchStats]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchStats();
+    setRefreshing(false);
+  }, [fetchStats]);
+
   const handleSignOut = () => {
     Alert.alert(
       'Sign Out',
@@ -45,7 +102,13 @@ export default function ProfileScreen() {
   }
   
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+      }
+    >
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
@@ -59,15 +122,27 @@ export default function ProfileScreen() {
       
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>0</Text>
+          {isLoadingStats ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <Text style={styles.statNumber}>{stats?.huntsCreated ?? 0}</Text>
+          )}
           <Text style={styles.statLabel}>Created</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>0</Text>
+          {isLoadingStats ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <Text style={styles.statNumber}>{stats?.huntsPlayed ?? 0}</Text>
+          )}
           <Text style={styles.statLabel}>Played</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>0</Text>
+          {isLoadingStats ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <Text style={styles.statNumber}>{stats?.totalPoints ?? 0}</Text>
+          )}
           <Text style={styles.statLabel}>Points</Text>
         </Card>
       </View>

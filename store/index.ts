@@ -432,3 +432,7 @@ export const useHuntStore = create<HuntState>()(
 );
 
 export default useHuntStore;
+
+// Re-export solo mode store
+export { useSoloModeStore, SOLO_HUNT_PRESETS, SOLO_THEMES } from './soloModeStore';
+export type { SoloHuntType, SoloEnvironment, SoloHuntConfig, SoloHuntResult, SoloHuntSession, PersonalRecord } from './soloModeStore';

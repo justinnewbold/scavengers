@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Navbar, Hero, Features, HuntCard, CreateHuntModal } from '@/components';
 import { useHuntStore } from '@/stores/huntStore';
-import { demoHunts } from '@/lib/ai';
 import { Hunt } from '@/types';
 
 export default function Home() {
@@ -14,40 +13,38 @@ export default function Home() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { hunts, setHunts } = useHuntStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch public hunts from API, fallback to demo hunts
+  // Fetch public hunts from API
   useEffect(() => {
     async function fetchPublicHunts() {
       try {
         const res = await fetch('/api/hunts?public=true&limit=6');
         if (res.ok) {
           const data = await res.json();
-          if (data.hunts && data.hunts.length > 0) {
-            // Transform API hunts to match Hunt type
-            const apiHunts = data.hunts.map((h: Record<string, unknown>) => ({
-              id: h.id,
-              title: h.title,
-              description: h.description,
-              difficulty: h.difficulty,
-              estimatedTime: h.duration_minutes || 60,
-              challengeCount: Array.isArray(h.challenges) ? h.challenges.length : 0,
-              location: h.location,
-              isPublic: h.is_public,
-              createdAt: h.created_at,
-              createdBy: 'Community',
-              tags: [h.difficulty as string, 'scavenger-hunt'],
-            }));
-            setHunts(apiHunts as Hunt[]);
-          } else {
-            // Use demo hunts if no public hunts available
-            setHunts(demoHunts as Hunt[]);
-          }
+          // Transform API hunts to match Hunt type
+          const apiHunts = (data.hunts || []).map((h: Record<string, unknown>) => ({
+            id: h.id,
+            title: h.title,
+            description: h.description,
+            difficulty: h.difficulty,
+            estimatedTime: h.duration_minutes || 60,
+            challengeCount: Array.isArray(h.challenges) ? h.challenges.length : 0,
+            location: h.location,
+            isPublic: h.is_public,
+            createdAt: h.created_at,
+            createdBy: 'Community',
+            tags: [h.difficulty as string, 'scavenger-hunt'],
+          }));
+          setHunts(apiHunts as Hunt[]);
         } else {
-          setHunts(demoHunts as Hunt[]);
+          setError('Failed to load hunts');
+          setHunts([]);
         }
-      } catch {
-        // Fallback to demo hunts on error
-        setHunts(demoHunts as Hunt[]);
+      } catch (err) {
+        console.error('Failed to fetch hunts:', err);
+        setError('Unable to connect to server');
+        setHunts([]);
       } finally {
         setIsLoading(false);
       }
@@ -107,10 +104,34 @@ export default function Home() {
             )}
           </div>
 
-          {hunts.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-[#8B949E] text-lg">No hunts yet. Create your first one!</p>
-            </div>
+          {hunts.length === 0 && !isLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-16 bg-[#161B22] rounded-2xl border border-[#21262D]"
+            >
+              {error ? (
+                <>
+                  <div className="text-4xl mb-4">🔌</div>
+                  <p className="text-[#8B949E] text-lg mb-2">{error}</p>
+                  <p className="text-[#484F58] text-sm">Try refreshing the page</p>
+                </>
+              ) : (
+                <>
+                  <div className="text-4xl mb-4">🗺️</div>
+                  <p className="text-white text-xl mb-2">No hunts available yet</p>
+                  <p className="text-[#8B949E] text-lg mb-6">Be the first to create an adventure!</p>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#FF8B5C] text-white font-semibold"
+                  >
+                    Create a Hunt
+                  </motion.button>
+                </>
+              )}
+            </motion.div>
           )}
         </div>
       </section>

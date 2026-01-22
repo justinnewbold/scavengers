@@ -147,12 +147,12 @@ export async function verifyPhoto(request: VerificationRequest): Promise<Verific
   } catch (error) {
     console.error('Photo verification failed:', error);
 
-    // Return a lenient result on error (don't block user progress)
+    // Return failed verification on error (fail closed for security)
     return {
-      verified: true,
+      verified: false,
       confidence: 0,
       matchedLabels: [],
-      feedback: 'Photo accepted (verification unavailable)',
+      feedback: 'Verification unavailable. Please try again or check your connection.',
       processingTimeMs: Date.now() - startTime,
     };
   }

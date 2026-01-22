@@ -44,6 +44,9 @@ export interface Challenge {
   hint?: string | null;
   order_index?: number;
   created_at?: string;
+  // Mystery challenge settings
+  is_mystery?: boolean;
+  reveal_distance_meters?: number; // Distance at which challenge is revealed (default: 50m)
 }
 
 export interface VerificationData {
@@ -150,4 +153,57 @@ export interface LeaderboardEntry {
   score: number;
   challenges_completed: number;
   time_elapsed?: number;
+}
+
+// Streak Types
+export interface StreakState {
+  count: number;
+  multiplier: number;
+  lastCompletionTime: number | null;
+  isActive: boolean;
+}
+
+export const STREAK_CONFIG = {
+  // Time window to maintain streak (in seconds)
+  STREAK_WINDOW_SECONDS: 120, // 2 minutes to complete next challenge
+  // Multipliers for each streak level
+  MULTIPLIERS: [1, 1.5, 2, 2.5, 3], // 1x, 1.5x, 2x, 2.5x, 3x (max)
+  // Minimum streak count for each multiplier
+  STREAK_THRESHOLDS: [0, 2, 4, 6, 8], // 0=1x, 2=1.5x, 4=2x, 6=2.5x, 8+=3x
+};
+
+// Photo Feed & Reactions Types
+export type ReactionType = 'fire' | 'laugh' | 'wow' | 'love' | 'clap';
+
+export interface Reaction {
+  id: string;
+  submission_id: string;
+  user_id: string;
+  reaction_type: ReactionType;
+  created_at: string;
+}
+
+export interface FeedItem {
+  id: string;
+  submission_id: string;
+  user_id: string;
+  display_name: string;
+  avatar_url?: string;
+  hunt_title: string;
+  challenge_title: string;
+  photo_url?: string;
+  photo_data?: string;
+  points_awarded: number;
+  created_at: string;
+  reactions: ReactionSummary;
+  user_reaction?: ReactionType;
+}
+
+export interface ReactionSummary {
+  fire: number;
+  laugh: number;
+  wow: number;
+  love: number;
+  clap: number;
+  total: number;
 }

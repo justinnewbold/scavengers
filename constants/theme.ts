@@ -70,6 +70,36 @@ export const BorderRadius = {
   full: 9999,
 };
 
+// WCAG 2.1 compliant touch target sizes
+// Minimum 48x48dp for touch targets (AA compliance)
+// Recommended 44x44dp as iOS standard, 48x48dp as Android standard
+export const TouchTargets = {
+  minimum: 48, // WCAG AA minimum
+  recommended: 48, // Recommended for both platforms
+  large: 56, // For primary actions
+  extraLarge: 64, // For main CTAs
+};
+
+// Helper styles for ensuring touch target compliance
+export const TouchTargetStyles = {
+  minimum: {
+    minWidth: 48,
+    minHeight: 48,
+  },
+  recommended: {
+    minWidth: 48,
+    minHeight: 48,
+  },
+  large: {
+    minWidth: 56,
+    minHeight: 56,
+  },
+  extraLarge: {
+    minWidth: 64,
+    minHeight: 64,
+  },
+};
+
 export const Shadows = {
   sm: {
     shadowColor: '#000',

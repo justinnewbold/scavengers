@@ -150,34 +150,95 @@ async function setupDatabase() {
     await sql`CREATE INDEX IF NOT EXISTS idx_submissions_challenge_id ON submissions(challenge_id)`;
     console.log('✅ Indexes created\n');
 
-    // Insert sample data
-    console.log('🌱 Inserting sample data...');
+    // Insert sample data (only if no hunts exist)
+    console.log('🌱 Checking for existing data...');
+    const existingHunts = await sql`SELECT COUNT(*) as count FROM hunts`;
 
-    // Sample hunts
-    await sql`
-      INSERT INTO hunts (id, title, description, difficulty, is_public, status) VALUES
-        ('11111111-1111-1111-1111-111111111111', 'Downtown Discovery', 'Explore the heart of the city with this exciting urban adventure! Find hidden gems and historic landmarks.', 'medium', true, 'active'),
-        ('22222222-2222-2222-2222-222222222222', 'Nature Trail Challenge', 'Connect with nature and find hidden treasures along the trail. Perfect for outdoor enthusiasts!', 'easy', true, 'active'),
-        ('33333333-3333-3333-3333-333333333333', 'Mystery Manor Hunt', 'Solve puzzles and uncover secrets in this thrilling indoor adventure. Not for the faint of heart!', 'hard', true, 'active')
-      ON CONFLICT (id) DO NOTHING
-    `;
+    if (existingHunts.rows[0].count === '0') {
+      console.log('   No existing hunts found, inserting sample data...\n');
 
-    // Sample challenges
-    await sql`
-      INSERT INTO challenges (hunt_id, title, description, points, verification_type, hint, order_index) VALUES
-        ('11111111-1111-1111-1111-111111111111', 'Find the Clock Tower', 'Take a photo of the historic clock tower in the town square.', 20, 'photo', 'Look for the tallest building in the old town area', 0),
-        ('11111111-1111-1111-1111-111111111111', 'Coffee Shop Secret', 'What year was the oldest coffee shop on Main Street established?', 15, 'text_answer', 'Check the sign above the door', 1),
-        ('11111111-1111-1111-1111-111111111111', 'Park Bench Poetry', 'Find the bench with a poem engraved on it and photograph it.', 25, 'photo', 'It is near the fountain', 2),
-        ('22222222-2222-2222-2222-222222222222', 'Trailhead Start', 'Check in at the trailhead entrance sign.', 10, 'photo', 'Take a selfie with the sign!', 0),
-        ('22222222-2222-2222-2222-222222222222', 'Spot Wildlife', 'Take a photo of any wildlife you encounter.', 30, 'photo', 'Be patient and quiet', 1),
-        ('22222222-2222-2222-2222-222222222222', 'Bridge Crossing', 'Find and photograph the wooden bridge over the creek.', 20, 'photo', 'Follow the sound of water', 2),
-        ('33333333-3333-3333-3333-333333333333', 'The Hidden Safe', 'Find the safe hidden behind the painting. What is the 4-digit combination?', 50, 'text_answer', 'The clue is in the book on the desk', 0),
-        ('33333333-3333-3333-3333-333333333333', 'Library Secrets', 'Which book title on the third shelf opens the secret passage?', 40, 'text_answer', 'It is written in red', 1),
-        ('33333333-3333-3333-3333-333333333333', 'Portrait Mystery', 'Whose eyes in the portrait gallery follow you around the room?', 35, 'text_answer', 'Count the portraits carefully', 2)
-      ON CONFLICT DO NOTHING
-    `;
+      // Create sample hunts with proper UUIDs
+      const hunt1 = await sql`
+        INSERT INTO hunts (title, description, difficulty, is_public, status, location, duration_minutes)
+        VALUES (
+          'City Explorer Challenge',
+          'Discover hidden gems and iconic landmarks in the heart of downtown. Perfect for tourists and locals alike who want to see the city from a new perspective.',
+          'medium',
+          true,
+          'active',
+          'Downtown Area',
+          60
+        )
+        RETURNING id
+      `;
 
-    console.log('✅ Sample data inserted\n');
+      const hunt2 = await sql`
+        INSERT INTO hunts (title, description, difficulty, is_public, status, location, duration_minutes)
+        VALUES (
+          'Park Adventure',
+          'Explore nature and enjoy the outdoors with this family-friendly scavenger hunt. Look for wildlife, interesting plants, and scenic viewpoints.',
+          'easy',
+          true,
+          'active',
+          'Central Park',
+          45
+        )
+        RETURNING id
+      `;
+
+      const hunt3 = await sql`
+        INSERT INTO hunts (title, description, difficulty, is_public, status, location, duration_minutes)
+        VALUES (
+          'History Detective',
+          'Uncover the stories behind historic buildings and monuments. Test your knowledge of local history while exploring the old town district.',
+          'hard',
+          true,
+          'active',
+          'Historic District',
+          90
+        )
+        RETURNING id
+      `;
+
+      const huntId1 = hunt1.rows[0].id;
+      const huntId2 = hunt2.rows[0].id;
+      const huntId3 = hunt3.rows[0].id;
+
+      // Insert challenges for Hunt 1 - City Explorer
+      await sql`
+        INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index) VALUES
+          (${huntId1}, 'Town Hall Selfie', 'Take a photo in front of the main entrance of Town Hall.', 15, 'photo', '{"ai_prompt": "Photo should show a government building entrance", "required_objects": ["building", "entrance"]}', 'Look for the building with the flag', 0),
+          (${huntId1}, 'Coffee Culture', 'Find a local coffee shop and photograph their specialty drink menu.', 10, 'photo', '{"ai_prompt": "Photo should show a menu board or coffee drinks", "required_objects": ["menu", "coffee"]}', 'There are several on Main Street', 1),
+          (${huntId1}, 'Street Art Hunt', 'Photograph a piece of street art or mural in the downtown area.', 20, 'photo', '{"ai_prompt": "Photo should show street art, graffiti, or a mural", "required_objects": ["art", "wall"]}', 'Check the alleyways between buildings', 2),
+          (${huntId1}, 'Fountain Find', 'Take a photo of the main fountain in the city square.', 15, 'photo', '{"ai_prompt": "Photo should show a fountain with water", "required_objects": ["fountain", "water"]}', 'Listen for the sound of water', 3),
+          (${huntId1}, 'Book Lovers Spot', 'Find the oldest bookstore downtown. What year does the sign say it opened?', 25, 'text_answer', '{"correct_answer": "1952", "case_sensitive": false}', 'Look for a wooden storefront', 4)
+      `;
+
+      // Insert challenges for Hunt 2 - Park Adventure
+      await sql`
+        INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index) VALUES
+          (${huntId2}, 'Park Entrance', 'Start your adventure by photographing the main park entrance sign.', 10, 'photo', '{"ai_prompt": "Photo should show a park entrance or welcome sign", "required_objects": ["sign"]}', 'It is next to the parking area', 0),
+          (${huntId2}, 'Wildlife Watch', 'Spot and photograph any bird or squirrel in the park.', 20, 'photo', '{"ai_prompt": "Photo should show wildlife like a bird or squirrel", "required_objects": ["animal"]}', 'Try near the picnic areas', 1),
+          (${huntId2}, 'Scenic Viewpoint', 'Find the highest point in the park and photograph the view.', 15, 'photo', '{"ai_prompt": "Photo should show a scenic landscape view", "keywords": ["view", "landscape", "overlook"]}', 'Follow the hill trail', 2),
+          (${huntId2}, 'Nature Find', 'Photograph an interesting leaf, flower, or plant.', 10, 'photo', '{"ai_prompt": "Photo should show plants, flowers, or leaves", "required_objects": ["plant"]}', 'Gardens are near the visitor center', 3),
+          (${huntId2}, 'Bench Break', 'Find a park bench with a memorial plaque and read the inscription.', 15, 'manual', '{}', 'Near the rose garden', 4)
+      `;
+
+      // Insert challenges for Hunt 3 - History Detective
+      await sql`
+        INSERT INTO challenges (hunt_id, title, description, points, verification_type, verification_data, hint, order_index) VALUES
+          (${huntId3}, 'Oldest Building', 'Find the oldest building in the historic district. What year was it built?', 30, 'text_answer', '{"correct_answer": "1847", "case_sensitive": false}', 'Look for a plaque on the brick building near the corner', 0),
+          (${huntId3}, 'War Memorial', 'Photograph the war memorial and count the names listed. How many are there?', 35, 'text_answer', '{"correct_answer": "127", "case_sensitive": false}', 'It is in the small park behind the library', 1),
+          (${huntId3}, 'Historic Marker', 'Find a blue historic marker sign and photograph it.', 25, 'photo', '{"ai_prompt": "Photo should show a historic marker or informational plaque", "required_objects": ["sign", "plaque"]}', 'There are several along Main Street', 2),
+          (${huntId3}, 'Clock Tower Time', 'The clock tower chimes every hour. What time is shown on the north face?', 20, 'manual', '{}', 'Stand at the intersection to see all faces', 3),
+          (${huntId3}, 'Architecture Details', 'Photograph an example of Victorian architecture in the district.', 30, 'photo', '{"ai_prompt": "Photo should show Victorian architectural features like ornate trim or bay windows", "keywords": ["victorian", "ornate", "historic"]}', 'Look for buildings with decorative trim', 4),
+          (${huntId3}, 'Founders Statue', 'Find the statue of the town founder. What is written at the base?', 40, 'text_answer', '{"correct_answer": "In service to all", "case_sensitive": false}', 'Near the old courthouse', 5)
+      `;
+
+      console.log('✅ Sample hunts and challenges created\n');
+    } else {
+      console.log(`   Found ${existingHunts.rows[0].count} existing hunts, skipping sample data\n`);
+    }
 
     // Verify setup
     console.log('🔍 Verifying setup...');
