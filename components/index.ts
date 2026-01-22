@@ -21,3 +21,7 @@ export { AchievementList } from './AchievementList';
 export { DiscoveryMap } from './DiscoveryMap';
 export { DiscoveryFilters } from './DiscoveryFilters';
 export { HuntReviews } from './HuntReviews';
+export { ActivityFeed } from './ActivityFeed';
+export { GlobalLeaderboard } from './GlobalLeaderboard';
+export { SeriesCard } from './SeriesCard';
+export { EventBanner } from './EventBanner';
