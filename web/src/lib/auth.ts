@@ -174,3 +174,9 @@ export function isValidUUID(id: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(id);
 }
+
+/**
+ * Alias for getAuthUser - for backward compatibility
+ * @deprecated Use getAuthUser instead
+ */
+export const getSessionUser = getAuthUser;

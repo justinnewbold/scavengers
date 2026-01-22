@@ -124,3 +124,30 @@ export async function getDbStats() {
     return null;
   }
 }
+
+/**
+ * Database client object for query-style calls
+ * Provides a .query() method compatible with pg client interface
+ */
+export const db = {
+  /**
+   * Execute a parameterized SQL query
+   * @param text SQL query string with $1, $2, etc. placeholders
+   * @param params Array of parameter values
+   */
+  async query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    params?: unknown[]
+  ): Promise<{ rows: T[]; rowCount: number }> {
+    try {
+      const result = await getPool().query<T>(text, params || []);
+      return { rows: result.rows, rowCount: result.rowCount ?? 0 };
+    } catch (error) {
+      console.error('DB Query Error:', {
+        query: text.substring(0, 200),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  },
+};
