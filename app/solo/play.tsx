@@ -271,7 +271,7 @@ export default function SoloPlayScreen() {
       result.personalBest ? `   🥇 NEW PERSONAL BEST!` : null,
       '',
       `Try solo mode on Scavengers!`,
-      '#Scavengers #SoloMode`,
+      '#Scavengers #SoloMode',
     ]
       .filter(Boolean)
       .join('\n');
