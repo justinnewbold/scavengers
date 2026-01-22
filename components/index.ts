@@ -16,3 +16,8 @@ export { PhotoFeedItem } from './PhotoFeedItem';
 export { StreakMilestone, getMilestoneForStreak } from './StreakMilestone';
 export { ShareableResultsCard } from './ShareableResultsCard';
 export { Skeleton, HuntCardSkeleton, FeedItemSkeleton, DiscoverSkeleton, ProfileStatsSkeleton } from './SkeletonLoader';
+export { AchievementBadge, AchievementUnlockModal } from './AchievementBadge';
+export { AchievementList } from './AchievementList';
+export { DiscoveryMap } from './DiscoveryMap';
+export { DiscoveryFilters } from './DiscoveryFilters';
+export { HuntReviews } from './HuntReviews';
