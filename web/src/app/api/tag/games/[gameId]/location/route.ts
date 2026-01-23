@@ -6,6 +6,21 @@ interface RouteParams {
   params: Promise<{ gameId: string }>;
 }
 
+interface SabotageRow {
+  id: string;
+  tag_game_id: string;
+  deployed_by: string;
+  sabotage_type: string;
+  latitude: string;
+  longitude: string;
+  radius_meters: number;
+  data: Record<string, unknown>;
+  triggered: boolean;
+  triggered_by: string | null;
+  triggered_at: string | null;
+  expires_at: string;
+}
+
 // Update player location
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -59,9 +74,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       [gameId, user.id]
     );
 
-    const triggeredSabotages = [];
+    const triggeredSabotages: SabotageRow[] = [];
 
-    for (const sabotage of sabotageResult.rows) {
+    for (const sabotage of sabotageResult.rows as SabotageRow[]) {
       const distance = calculateDistance(
         latitude,
         longitude,
@@ -197,10 +212,7 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-async function applySabotageEffect(gameId: string, playerId: string, sabotage: {
-  sabotage_type: string;
-  data: Record<string, unknown>;
-}) {
+async function applySabotageEffect(_gameId: string, playerId: string, sabotage: SabotageRow) {
   switch (sabotage.sabotage_type) {
     case 'point_drain':
       await db.query(
