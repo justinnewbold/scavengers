@@ -29,6 +29,17 @@ interface AuthState {
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
+// Dev bypass - set EXPO_PUBLIC_DEV_BYPASS=true in .env to skip login during development
+const DEV_BYPASS_ENABLED = __DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS === 'true';
+
+const DEV_USER: User = {
+  id: 'dev-user-123',
+  email: 'dev@example.com',
+  display_name: 'Dev User',
+  avatar_url: undefined,
+  created_at: new Date().toISOString(),
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -39,6 +50,13 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
+        // Dev bypass - auto-authenticate without API call
+        if (DEV_BYPASS_ENABLED) {
+          console.log('🔓 Dev bypass enabled - auto-authenticating as dev user');
+          set({ user: DEV_USER, isAuthenticated: true, isInitialized: true });
+          return;
+        }
+
         try {
           const token = await AsyncStorage.getItem('auth_token');
           if (token) {
