@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   Team,
@@ -63,7 +64,7 @@ interface TeamStore {
   clearError: () => void;
 }
 
-export const useTeamStore = create<TeamStore>((set, get) => ({
+export const useTeamStore = create<TeamStore>()(persist((set, get) => ({
   teams: [],
   currentTeam: null,
   members: [],
@@ -494,7 +495,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
   },
 
-  fetchMessages: async (roomId, limit = 50) => {
+  fetchMessages: async (roomId: string, limit: number = 50) => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) throw new Error('Not authenticated');
@@ -512,7 +513,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
   },
 
-  sendMessage: async (roomId, content, type = 'text') => {
+  sendMessage: async (roomId: string, content: string, type: 'text' | 'location' | 'photo' = 'text') => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) throw new Error('Not authenticated');
@@ -537,7 +538,7 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
   },
 
-  markAsRead: async (roomId) => {
+  markAsRead: async (roomId: string) => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) return;
@@ -557,13 +558,19 @@ export const useTeamStore = create<TeamStore>((set, get) => ({
     }
   },
 
-  setCurrentTeam: (team) => {
+  setCurrentTeam: (team: Team | null) => {
     set({ currentTeam: team });
   },
 
   clearError: () => {
     set({ error: null });
   },
+}), {
+  name: 'team-storage',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    teams: state.teams,
+  }),
 }));
 
 export default useTeamStore;

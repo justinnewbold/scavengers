@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   HuntSeries,
   SeriesChapter,
@@ -65,7 +67,7 @@ interface SeriesState {
   fetchCollections: () => Promise<void>;
 }
 
-export const useSeriesStore = create<SeriesState>((set, get) => ({
+export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   // Initial state
   featuredSeries: [],
   allSeries: [],
@@ -504,4 +506,11 @@ export const useSeriesStore = create<SeriesState>((set, get) => ({
       set({ error: 'Failed to load collections' });
     }
   },
+}), {
+  name: 'series-storage',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    seriesProgress: state.seriesProgress,
+    collections: state.collections,
+  }),
 }));

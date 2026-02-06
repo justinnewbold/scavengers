@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   Achievement,
@@ -96,7 +97,7 @@ const defaultStats: UserStats = {
   fastestHuntMinutes: null,
 };
 
-export const useAchievementStore = create<AchievementStore>((set, get) => ({
+export const useAchievementStore = create<AchievementStore>()(persist((set, get) => ({
   achievements: ACHIEVEMENTS,
   userAchievements: [],
   achievementProgress: [],
@@ -442,6 +443,14 @@ export const useAchievementStore = create<AchievementStore>((set, get) => ({
   clearError: () => {
     set({ error: null });
   },
+}), {
+  name: 'achievement-storage',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    userAchievements: state.userAchievements,
+    achievementProgress: state.achievementProgress,
+    userStats: state.userStats,
+  }),
 }));
 
 export default useAchievementStore;

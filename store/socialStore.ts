@@ -72,6 +72,9 @@ interface SocialState {
   searchUsers: (query: string) => Promise<UserProfile[]>;
 }
 
+// Track in-flight like/unlike requests to prevent race conditions
+const likeInFlight = new Set<string>();
+
 export const useSocialStore = create<SocialState>((set, get) => ({
   // Initial state
   friends: [],
@@ -223,6 +226,10 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   },
 
   likeActivity: async (activityId: string) => {
+    // Prevent concurrent like/unlike on the same activity
+    if (likeInFlight.has(activityId)) return;
+    likeInFlight.add(activityId);
+
     // Optimistic update
     set(state => ({
       activityFeed: state.activityFeed.map(a =>
@@ -246,19 +253,25 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       set(state => ({
         activityFeed: state.activityFeed.map(a =>
           a.id === activityId
-            ? { ...a, isLiked: false, likeCount: a.likeCount - 1 }
+            ? { ...a, isLiked: false, likeCount: Math.max(0, a.likeCount - 1) }
             : a
         ),
         friendsActivity: state.friendsActivity.map(a =>
           a.id === activityId
-            ? { ...a, isLiked: false, likeCount: a.likeCount - 1 }
+            ? { ...a, isLiked: false, likeCount: Math.max(0, a.likeCount - 1) }
             : a
         ),
       }));
+    } finally {
+      likeInFlight.delete(activityId);
     }
   },
 
   unlikeActivity: async (activityId: string) => {
+    // Prevent concurrent like/unlike on the same activity
+    if (likeInFlight.has(activityId)) return;
+    likeInFlight.add(activityId);
+
     // Optimistic update
     set(state => ({
       activityFeed: state.activityFeed.map(a =>
@@ -291,6 +304,8 @@ export const useSocialStore = create<SocialState>((set, get) => ({
             : a
         ),
       }));
+    } finally {
+      likeInFlight.delete(activityId);
     }
   },
 

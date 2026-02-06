@@ -137,7 +137,7 @@ export const useSoloModeStore = create<SoloModeState>()(
         try {
           // Generate hunt using AI
           const theme = config.theme === 'surprise' || !config.theme
-            ? SOLO_THEMES[Math.floor(Math.random() * (SOLO_THEMES.length - 1)) + 1].id
+            ? SOLO_THEMES[Math.floor(Math.random() * SOLO_THEMES.length)].id
             : config.theme;
 
           const response = await fetch(`${API_BASE}/solo/generate`, {

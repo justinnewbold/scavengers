@@ -9,3 +9,4 @@ export { useSoundEffects, type SoundEffect } from './useSoundEffects';
 export { useProximityHaptics } from './useProximityHaptics';
 export { useStreak } from './useStreak';
 export { useAccessibility } from './useAccessibility';
+export { useRequireAuth } from './useRequireAuth';

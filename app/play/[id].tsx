@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, MysteryChallenge, StreakDisplay, Confetti, StreakMilestone, getMilestoneForStreak } from '@/components';
 import { useHuntStore } from '@/store';
-import { useStreak, useProximityHaptics, triggerHaptic, useAccessibility } from '@/hooks';
+import { useStreak, useProximityHaptics, triggerHaptic, useAccessibility, useRequireAuth } from '@/hooks';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { Hunt, Challenge } from '@/types';
 
@@ -21,6 +21,7 @@ export default function PlayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getHuntById } = useHuntStore();
+  useRequireAuth();
 
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);

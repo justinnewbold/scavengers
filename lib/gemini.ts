@@ -17,10 +17,11 @@ export class GeminiAI {
   async generateHunt(request: AIGenerationRequest): Promise<AIGeneratedHunt> {
     const prompt = this.buildHuntPrompt(request);
     
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
       },
       body: JSON.stringify({
         contents: [{
@@ -67,16 +68,17 @@ Respond in JSON format only:
   "reason": "Brief explanation"
 }`;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${this.apiKey}`, {
+    const response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
       },
       body: JSON.stringify({
         contents: [{
           parts: [
             { text: prompt },
-            { 
+            {
               inlineData: {
                 mimeType: 'image/jpeg',
                 data: imageBase64

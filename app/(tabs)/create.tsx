@@ -4,9 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useRequireAuth } from '@/hooks';
 
 export default function CreateScreen() {
   const router = useRouter();
+  useRequireAuth();
   
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
