@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Button } from '@/components';
+import { Card, Button, BottomSheet } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -157,54 +157,48 @@ export default function TeamsScreen() {
         />
       </View>
 
-      {/* Create Team Modal */}
-      {showCreate && (
-        <Card style={styles.modal}>
-          <Text style={styles.modalTitle}>{t('teams.createTeam')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Team Name"
-            placeholderTextColor={Colors.textTertiary}
-            value={newTeamName}
-            onChangeText={setNewTeamName}
-            maxLength={50}
-          />
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Description (optional)"
-            placeholderTextColor={Colors.textTertiary}
-            value={newTeamDesc}
-            onChangeText={setNewTeamDesc}
-            multiline
-            numberOfLines={3}
-            maxLength={500}
-          />
-          <View style={styles.modalActions}>
-            <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowCreate(false)} />
-            <Button title={t('common.save')} onPress={handleCreateTeam} disabled={!newTeamName.trim()} />
-          </View>
-        </Card>
-      )}
+      {/* Create Team Bottom Sheet */}
+      <BottomSheet visible={showCreate} onClose={() => setShowCreate(false)} title={t('teams.createTeam')}>
+        <TextInput
+          style={styles.input}
+          placeholder="Team Name"
+          placeholderTextColor={Colors.textTertiary}
+          value={newTeamName}
+          onChangeText={setNewTeamName}
+          maxLength={50}
+        />
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          placeholder="Description (optional)"
+          placeholderTextColor={Colors.textTertiary}
+          value={newTeamDesc}
+          onChangeText={setNewTeamDesc}
+          multiline
+          numberOfLines={3}
+          maxLength={500}
+        />
+        <View style={styles.modalActions}>
+          <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowCreate(false)} />
+          <Button title={t('common.save')} onPress={handleCreateTeam} disabled={!newTeamName.trim()} />
+        </View>
+      </BottomSheet>
 
-      {/* Join Team Modal */}
-      {showJoin && (
-        <Card style={styles.modal}>
-          <Text style={styles.modalTitle}>{t('teams.joinTeam')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter team code"
-            placeholderTextColor={Colors.textTertiary}
-            value={joinCode}
-            onChangeText={setJoinCode}
-            autoCapitalize="characters"
-            maxLength={20}
-          />
-          <View style={styles.modalActions}>
-            <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowJoin(false)} />
-            <Button title="Join" onPress={handleJoinTeam} disabled={!joinCode.trim()} />
-          </View>
-        </Card>
-      )}
+      {/* Join Team Bottom Sheet */}
+      <BottomSheet visible={showJoin} onClose={() => setShowJoin(false)} title={t('teams.joinTeam')}>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter team code"
+          placeholderTextColor={Colors.textTertiary}
+          value={joinCode}
+          onChangeText={setJoinCode}
+          autoCapitalize="characters"
+          maxLength={20}
+        />
+        <View style={styles.modalActions}>
+          <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowJoin(false)} />
+          <Button title="Join" onPress={handleJoinTeam} disabled={!joinCode.trim()} />
+        </View>
+      </BottomSheet>
 
       {/* Teams List */}
       {loading ? (
@@ -268,8 +262,7 @@ const styles = StyleSheet.create({
   placeholder: { width: 32 },
   actions: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
   actionButton: { flex: 1 },
-  modal: { padding: Spacing.lg, marginBottom: Spacing.lg },
-  modalTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginBottom: Spacing.md },
+  // modal and modalTitle styles removed - now handled by BottomSheet component
   input: {
     backgroundColor: Colors.surface,
     borderWidth: 1,

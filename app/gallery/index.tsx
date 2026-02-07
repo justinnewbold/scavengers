@@ -12,10 +12,12 @@ import {
   Share,
   Alert,
   RefreshControl,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components';
+import { Button, BottomSheet } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -40,7 +42,7 @@ export default function GalleryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [editingCaption, setEditingCaption] = useState(false);
+  const [showCaptionSheet, setShowCaptionSheet] = useState(false);
   const [captionText, setCaptionText] = useState('');
   const [selectedForShare, setSelectedForShare] = useState<string[]>([]);
   const [shareMode, setShareMode] = useState(false);
@@ -121,7 +123,8 @@ export default function GalleryScreen() {
         p.id === selectedPhoto.id ? { ...p, caption: captionText } : p
       ));
       setSelectedPhoto({ ...selectedPhoto, caption: captionText });
-      setEditingCaption(false);
+
+      setShowCaptionSheet(false);
     } catch (_error) {
       Alert.alert('Error', 'Failed to save caption');
     }
@@ -135,6 +138,86 @@ export default function GalleryScreen() {
       });
     } catch (error) {
       console.error('Share error:', error);
+    }
+  };
+
+  const deletePhoto = async (photo: Photo) => {
+    if (!session?.access_token) return;
+
+    try {
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/gallery/${photo.id}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }
+      );
+
+      if (response.ok) {
+        setPhotos(photos.filter(p => p.id !== photo.id));
+        if (selectedPhoto?.id === photo.id) {
+          setSelectedPhoto(null);
+        }
+      } else {
+        Alert.alert('Error', 'Failed to delete photo');
+      }
+    } catch (_error) {
+      Alert.alert('Error', 'Failed to delete photo');
+    }
+  };
+
+  const showPhotoActions = (photo: Photo) => {
+    const options = ['Cancel', 'Share Photo', 'Toggle Favorite', 'Edit Caption', 'Delete Photo'];
+    const cancelButtonIndex = 0;
+    const destructiveButtonIndex = 4;
+
+    const handleAction = (buttonIndex: number | undefined) => {
+      switch (buttonIndex) {
+        case 1:
+          sharePhoto(photo);
+          break;
+        case 2:
+          toggleFavorite(photo);
+          break;
+        case 3:
+          setSelectedPhoto(photo);
+          setCaptionText(photo.caption || '');
+          setShowCaptionSheet(true);
+          break;
+        case 4:
+          Alert.alert(
+            'Delete Photo',
+            'Are you sure you want to delete this photo? This action cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => deletePhoto(photo) },
+            ]
+          );
+          break;
+      }
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          destructiveButtonIndex,
+        },
+        handleAction
+      );
+    } else {
+      Alert.alert(
+        'Photo Actions',
+        undefined,
+        [
+          { text: 'Share Photo', onPress: () => handleAction(1) },
+          { text: 'Toggle Favorite', onPress: () => handleAction(2) },
+          { text: 'Edit Caption', onPress: () => handleAction(3) },
+          { text: 'Delete Photo', style: 'destructive', onPress: () => handleAction(4) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
@@ -267,6 +350,8 @@ export default function GalleryScreen() {
               key={photo.id}
               style={styles.photoCard}
               onPress={() => shareMode ? togglePhotoSelection(photo.id) : setSelectedPhoto(photo)}
+              onLongPress={() => showPhotoActions(photo)}
+              delayLongPress={200}
             >
               <Image source={{ uri: photo.photo_url }} style={styles.photo} />
               {photo.is_favorite && (
@@ -300,42 +385,30 @@ export default function GalleryScreen() {
           <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => { setSelectedPhoto(null); setEditingCaption(false); }}
+              onPress={() => { setSelectedPhoto(null); setShowCaptionSheet(false); }}
             >
               <Ionicons name="close" size={28} color={Colors.text} />
             </TouchableOpacity>
 
             {selectedPhoto && (
               <>
-                <Image source={{ uri: selectedPhoto.photo_url }} style={styles.modalPhoto} />
+                <TouchableOpacity
+                  activeOpacity={1}
+                  onLongPress={() => showPhotoActions(selectedPhoto)}
+                  delayLongPress={200}
+                >
+                  <Image source={{ uri: selectedPhoto.photo_url }} style={styles.modalPhoto} />
+                </TouchableOpacity>
 
                 <View style={styles.modalInfo}>
                   <Text style={styles.modalHuntTitle}>{selectedPhoto.hunt_title}</Text>
                   <Text style={styles.modalChallengeTitle}>{selectedPhoto.challenge_title}</Text>
 
-                  {editingCaption ? (
-                    <View style={styles.captionEdit}>
-                      <TextInput
-                        style={styles.captionInput}
-                        value={captionText}
-                        onChangeText={setCaptionText}
-                        placeholder="Add a caption..."
-                        placeholderTextColor={Colors.textTertiary}
-                        multiline
-                        maxLength={300}
-                      />
-                      <View style={styles.captionActions}>
-                        <Button title="Cancel" variant="ghost" size="sm" onPress={() => setEditingCaption(false)} />
-                        <Button title="Save" size="sm" onPress={saveCaption} />
-                      </View>
-                    </View>
-                  ) : (
-                    <TouchableOpacity onPress={() => { setEditingCaption(true); setCaptionText(selectedPhoto.caption || ''); }}>
-                      <Text style={styles.caption}>
-                        {selectedPhoto.caption || 'Tap to add a caption...'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity onPress={() => { setCaptionText(selectedPhoto.caption || ''); setShowCaptionSheet(true); }}>
+                    <Text style={styles.caption}>
+                      {selectedPhoto.caption || 'Tap to add a caption...'}
+                    </Text>
+                  </TouchableOpacity>
 
                   <View style={styles.modalActions}>
                     <TouchableOpacity style={styles.actionButton} onPress={() => toggleFavorite(selectedPhoto)}>
@@ -357,6 +430,29 @@ export default function GalleryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Caption Edit Bottom Sheet */}
+      <BottomSheet
+        visible={showCaptionSheet}
+        onClose={() => setShowCaptionSheet(false)}
+        title="Edit Caption"
+        snapPoints={[0.4]}
+      >
+        <TextInput
+          style={styles.captionInput}
+          value={captionText}
+          onChangeText={setCaptionText}
+          placeholder="Add a caption..."
+          placeholderTextColor={Colors.textTertiary}
+          multiline
+          maxLength={300}
+          autoFocus
+        />
+        <View style={styles.captionActions}>
+          <Button title="Cancel" variant="ghost" size="sm" onPress={() => setShowCaptionSheet(false)} />
+          <Button title="Save" size="sm" onPress={saveCaption} />
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -463,7 +559,6 @@ const styles = StyleSheet.create({
   modalHuntTitle: { fontSize: FontSizes.sm, color: Colors.textSecondary },
   modalChallengeTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.xs },
   caption: { fontSize: FontSizes.md, color: Colors.textSecondary, marginTop: Spacing.md, fontStyle: 'italic' },
-  captionEdit: { marginTop: Spacing.md },
   captionInput: {
     backgroundColor: Colors.surface,
     borderRadius: 8,
