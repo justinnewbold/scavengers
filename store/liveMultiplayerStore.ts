@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   LiveRace,
   RaceParticipant,
@@ -103,7 +104,7 @@ interface LiveMultiplayerState {
 
   // Actions - Matchmaking
   startMatchmaking: (huntId?: string, preferences?: Partial<MatchmakingQueue>) => Promise<void>;
-  cancelMatchmaking: () => void;
+  cancelMatchmaking: () => Promise<void>;
   acceptMatch: () => Promise<void>;
   declineMatch: () => void;
 
@@ -148,11 +149,16 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   createRace: async (huntId, settings) => {
     set({ isLoading: true, error: null });
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/live/races`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ huntId, ...settings }),
       });
+      if (!response.ok) throw new Error('Failed to create race');
       const data = await response.json();
 
       set({
@@ -173,11 +179,16 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   joinRace: async (raceId, inviteCode) => {
     set({ isLoading: true, error: null });
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/live/races/${raceId}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ inviteCode }),
       });
+      if (!response.ok) throw new Error('Failed to join race');
       const data = await response.json();
 
       set({
@@ -197,8 +208,12 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/leave`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       get().disconnect();
@@ -218,9 +233,13 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/ready`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ isReady }),
       });
     } catch (error) {
@@ -233,8 +252,12 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/start`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       set({ isRacing: true });
@@ -249,8 +272,12 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/cancel`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       get().disconnect();
@@ -270,9 +297,13 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/challenge`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ challengeId, score }),
       });
     } catch (error) {
@@ -293,8 +324,12 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${currentRace.id}/finish`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       set({ isRacing: false });
@@ -307,9 +342,14 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   startSpectating: async (raceId) => {
     set({ isLoading: true, error: null });
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/live/races/${raceId}/spectate`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to start spectating');
       const data = await response.json();
 
       set({
@@ -409,6 +449,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/tournaments`);
+      if (!response.ok) throw new Error('Failed to load tournaments');
       const data = await response.json();
 
       set({
@@ -424,6 +465,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/tournaments/${tournamentId}`);
+      if (!response.ok) throw new Error('Failed to load tournament');
       const data = await response.json();
 
       set({
@@ -438,9 +480,14 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   registerForTournament: async (tournamentId) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/register`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to register for tournament');
       const data = await response.json();
 
       set(state => ({
@@ -456,8 +503,12 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   withdrawFromTournament: async (tournamentId) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/tournaments/${tournamentId}/withdraw`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       set(state => ({
@@ -477,6 +528,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     try {
       const params = huntId ? `?huntId=${huntId}` : '';
       const response = await fetch(`${API_BASE}/replays${params}`);
+      if (!response.ok) throw new Error('Failed to load replays');
       const data = await response.json();
 
       set({
@@ -492,6 +544,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     set({ isLoading: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/replays/${replayId}`);
+      if (!response.ok) throw new Error('Failed to load replay');
       const data = await response.json();
 
       set({
@@ -524,9 +577,14 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   shareReplay: async (replayId) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/replays/${replayId}/share`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to share replay');
       const data = await response.json();
 
       // Update share count
@@ -550,6 +608,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   fetchInvites: async () => {
     try {
       const response = await fetch(`${API_BASE}/live/invites`);
+      if (!response.ok) throw new Error('Failed to load invites');
       const data = await response.json();
 
       set({ pendingInvites: data.invites });
@@ -560,9 +619,13 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   sendInvite: async (raceId, userId) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/live/races/${raceId}/invite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId }),
       });
     } catch (error) {
@@ -573,11 +636,16 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   respondToInvite: async (inviteId, accept) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/live/invites/${inviteId}/${accept ? 'accept' : 'decline'}`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (accept) {
+        if (!response.ok) throw new Error('Failed to respond to invite');
         const data = await response.json();
         set(state => ({
           currentRace: data.race,
@@ -605,11 +673,16 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     });
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/live/matchmaking`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ huntId, preferences }),
       });
+      if (!response.ok) throw new Error('Failed to start matchmaking');
       const data = await response.json();
 
       if (data.status === 'queued') {
@@ -625,8 +698,18 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     }
   },
 
-  cancelMatchmaking: () => {
-    fetch(`${API_BASE}/live/matchmaking/cancel`, { method: 'POST' });
+  cancelMatchmaking: async () => {
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      await fetch(`${API_BASE}/live/matchmaking/cancel`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    } catch {
+      // Best-effort cancellation
+    }
     set({
       isMatchmaking: false,
       matchmakingStatus: null,
@@ -758,6 +841,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   fetchPublicRaces: async () => {
     try {
       const response = await fetch(`${API_BASE}/live/races?public=true`);
+      if (!response.ok) throw new Error('Failed to load public races');
       const data = await response.json();
 
       set({ publicRaces: data.races });
@@ -769,6 +853,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   fetchFriendRaces: async () => {
     try {
       const response = await fetch(`${API_BASE}/live/races?friends=true`);
+      if (!response.ok) throw new Error('Failed to load friend races');
       const data = await response.json();
 
       set({ friendRaces: data.races });

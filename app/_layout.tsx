@@ -20,9 +20,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function setup() {
-      await i18n.initialize();
-      await initialize();
-      await SplashScreen.hideAsync();
+      try {
+        await i18n.initialize();
+        await initialize();
+      } finally {
+        await SplashScreen.hideAsync();
+      }
     }
     setup();
   }, []);
