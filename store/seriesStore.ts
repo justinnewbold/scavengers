@@ -88,6 +88,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     set({ isLoadingSeries: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/series/featured`);
+      if (!response.ok) throw new Error('Failed to load featured series');
       const data = await response.json();
       set({ featuredSeries: data.series, isLoadingSeries: false });
     } catch (error) {
@@ -100,6 +101,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     try {
       const params = genre ? `?genre=${genre}` : '';
       const response = await fetch(`${API_BASE}/series${params}`);
+      if (!response.ok) throw new Error('Failed to load series');
       const data = await response.json();
       set({ allSeries: data.series, isLoadingSeries: false });
     } catch (error) {
@@ -111,6 +113,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     set({ isLoadingSeries: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/series/${seriesId}`);
+      if (!response.ok) throw new Error('Failed to load series details');
       const data = await response.json();
 
       set(state => ({
@@ -127,9 +130,14 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   startSeries: async (seriesId: string) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/series/${seriesId}/start`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to start series');
       const data = await response.json();
 
       const newProgress: SeriesProgress = {
@@ -173,8 +181,12 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   resetSeriesProgress: async (seriesId: string) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       await fetch(`${API_BASE}/series/${seriesId}/reset`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       set(state => {
@@ -199,6 +211,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     set({ isLoadingChapter: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/series/${seriesId}/chapters/${chapterId}`);
+      if (!response.ok) throw new Error('Failed to load chapter');
       const data = await response.json();
 
       set(state => ({
@@ -223,11 +236,16 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   completeChapter: async (seriesId: string, chapterId: string, score: number) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/series/${seriesId}/chapters/${chapterId}/complete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ score }),
       });
+      if (!response.ok) throw new Error('Failed to complete chapter');
       const data = await response.json();
 
       set(state => {
@@ -290,11 +308,16 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     if (!selectedOption) return;
 
     try {
-      await fetch(`${API_BASE}/series/${seriesId}/choices`, {
+      const token = await AsyncStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/series/${seriesId}/choices`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ choicePointId, optionId }),
       });
+      if (!response.ok) throw new Error('Failed to save choice');
 
       const currentProgress = seriesProgress[seriesId];
       if (!currentProgress) return;
@@ -469,9 +492,14 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   // Endings
   achieveEnding: async (seriesId: string, endingId: string) => {
     try {
-      await fetch(`${API_BASE}/series/${seriesId}/endings/${endingId}`, {
+      const token = await AsyncStorage.getItem('auth_token');
+      const response = await fetch(`${API_BASE}/series/${seriesId}/endings/${endingId}`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to save ending');
 
       set(state => {
         const progress = state.seriesProgress[seriesId];
@@ -502,6 +530,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   fetchCollections: async () => {
     try {
       const response = await fetch(`${API_BASE}/series/collections`);
+      if (!response.ok) throw new Error('Failed to load collections');
       const data = await response.json();
       set({ collections: data.collections });
     } catch (error) {

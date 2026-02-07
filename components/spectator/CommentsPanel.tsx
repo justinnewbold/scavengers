@@ -50,6 +50,7 @@ export const CommentsPanel = memo(function CommentsPanel({
           onChangeText={setInput}
           onSubmitEditing={handleSend}
           returnKeyType="send"
+          maxLength={500}
         />
         <TouchableOpacity style={styles.sendButton} onPress={handleSend}>
           <Ionicons name="send" size={20} color={Colors.primary} />

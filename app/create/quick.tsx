@@ -191,6 +191,7 @@ export default function QuickCreateScreen() {
           onChangeText={setTitle}
           placeholder="Enter hunt title"
           placeholderTextColor={Colors.textTertiary}
+          maxLength={100}
         />
       </Card>
 
@@ -295,6 +296,7 @@ export default function QuickCreateScreen() {
           onChangeText={setCustomTheme}
           placeholder="e.g., 'Harry Potter', 'Sports', 'Art'"
           placeholderTextColor={Colors.textTertiary}
+          maxLength={200}
         />
       </Card>
 
@@ -387,7 +389,7 @@ export default function QuickCreateScreen() {
         }}
       />
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
         {step === 'template' && renderTemplateSelection()}
         {step === 'configure' && renderConfiguration()}
         {step === 'preview' && renderPreview()}

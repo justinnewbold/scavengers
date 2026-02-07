@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { offlineStorage, CachedHunt, PendingSubmission } from '@/lib/offlineStorage';
 import type { Hunt, Challenge } from '@/types';
 
@@ -38,6 +38,9 @@ export function useOfflineMode(): UseOfflineModeResult {
   const [pendingSubmissions, setPendingSubmissions] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Keep a ref to syncNow so the connectivity listener always calls the latest version
+  const syncNowRef = useRef<() => Promise<{ synced: number; failed: number }>>();
+
   // Listen for connectivity changes
   useEffect(() => {
     // Get initial state
@@ -52,7 +55,7 @@ export function useOfflineMode(): UseOfflineModeResult {
 
       // Auto-sync when coming back online
       if (online) {
-        syncNow();
+        syncNowRef.current?.();
       }
     });
 
@@ -176,6 +179,9 @@ export function useOfflineMode(): UseOfflineModeResult {
       setIsSyncing(false);
     }
   }, [isSyncing, isOnline]);
+
+  // Keep ref in sync with latest callback
+  syncNowRef.current = syncNow;
 
   // Get pending submissions for a specific hunt
   const getPendingForHunt = useCallback(async (huntId: string) => {

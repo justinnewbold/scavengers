@@ -266,7 +266,7 @@ export const useSoloModeStore = create<SoloModeState>()(
         // Create result
         const result: SoloHuntResult = {
           id: generateSessionId(),
-          huntId: activeSession.hunt.id!,
+          huntId: activeSession.hunt.id || generateSessionId(),
           huntTitle: activeSession.hunt.title,
           config: activeSession.config,
           score: activeSession.score,

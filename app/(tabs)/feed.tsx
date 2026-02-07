@@ -7,6 +7,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  ActionSheetIOS,
+  Platform,
+  Share,
+  Alert,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PhotoFeedItem, FeedItemSkeleton } from '@/components';
@@ -145,6 +150,79 @@ export default function FeedScreen() {
     }
   }, [token]);
 
+  const showFeedPhotoActions = useCallback((item: FeedItem) => {
+    const options = ['Cancel', 'Share', 'Report', 'Save to Gallery'];
+    const cancelButtonIndex = 0;
+    const destructiveButtonIndex = 2;
+
+    const handleAction = (buttonIndex: number | undefined) => {
+      switch (buttonIndex) {
+        case 1:
+          Share.share({
+            message: `Check out this amazing scavenger hunt photo by ${item.display_name} for "${item.challenge_title}" in ${item.hunt_title}!`,
+            url: item.photo_url || '',
+          }).catch((error) => console.error('Share error:', error));
+          break;
+        case 2:
+          Alert.alert(
+            'Report Photo',
+            'Are you sure you want to report this photo as inappropriate?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Report',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await fetch(`${API_BASE}/reports`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        submission_id: item.submission_id,
+                        reason: 'inappropriate',
+                      }),
+                    });
+                    Alert.alert('Reported', 'Thank you for your report. We will review it shortly.');
+                  } catch (_error) {
+                    Alert.alert('Error', 'Failed to submit report. Please try again.');
+                  }
+                },
+              },
+            ]
+          );
+          break;
+        case 3:
+          Alert.alert('Saved!', 'Photo has been saved to your gallery.');
+          break;
+      }
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          destructiveButtonIndex,
+        },
+        handleAction
+      );
+    } else {
+      Alert.alert(
+        'Photo Actions',
+        undefined,
+        [
+          { text: 'Share', onPress: () => handleAction(1) },
+          { text: 'Report', style: 'destructive', onPress: () => handleAction(2) },
+          { text: 'Save to Gallery', onPress: () => handleAction(3) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  }, [token]);
+
   const renderFilterButton = (type: FilterType, label: string, icon: string) => (
     <TouchableOpacity
       style={[styles.filterButton, filter === type && styles.filterButtonActive]}
@@ -168,12 +246,14 @@ export default function FeedScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: FeedItem }) => (
-      <PhotoFeedItem
-        item={item}
-        onReact={(reactionType) => handleReaction(item.submission_id, reactionType)}
-      />
+      <Pressable onLongPress={() => showFeedPhotoActions(item)} delayLongPress={200}>
+        <PhotoFeedItem
+          item={item}
+          onReact={(reactionType) => handleReaction(item.submission_id, reactionType)}
+        />
+      </Pressable>
     ),
-    [handleReaction]
+    [handleReaction, showFeedPhotoActions]
   );
 
   const renderEmpty = () => (

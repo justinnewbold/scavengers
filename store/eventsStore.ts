@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   SeasonalEvent,
   EventChallenge,
@@ -80,6 +81,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     set({ isLoadingEvents: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/events`);
+      if (!response.ok) throw new Error('Failed to load events');
       const data = await response.json();
 
       set({
@@ -97,6 +99,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     set({ isLoadingEvents: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/events/${eventId}`);
+      if (!response.ok) throw new Error('Failed to load event details');
       const data = await response.json();
 
       set({
@@ -113,9 +116,14 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   joinEvent: async (eventId: string) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/events/${eventId}/join`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to join event');
       const data = await response.json();
 
       set(state => ({
@@ -136,9 +144,14 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   completeChallenge: async (eventId: string, challengeId: string) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/events/${eventId}/challenges/${challengeId}/complete`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to complete challenge');
       const data = await response.json();
 
       set(state => {
@@ -168,9 +181,14 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   claimReward: async (eventId: string, rewardId: string) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const response = await fetch(`${API_BASE}/events/${eventId}/rewards/${rewardId}/claim`, {
         method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      if (!response.ok) throw new Error('Failed to claim reward');
       const data = await response.json();
 
       set(state => {
@@ -230,6 +248,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     try {
       const params = new URLSearchParams({ scope, period, metric });
       const response = await fetch(`${API_BASE}/leaderboards?${params}`);
+      if (!response.ok) throw new Error('Failed to load leaderboard');
       const data = await response.json();
 
       const leaderboardKey = `${scope}Leaderboard` as keyof Pick<
@@ -249,6 +268,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   fetchUserRank: async () => {
     try {
       const response = await fetch(`${API_BASE}/leaderboards/my-rank`);
+      if (!response.ok) throw new Error('Failed to load your rank');
       const data = await response.json();
 
       set({
@@ -280,6 +300,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
     try {
       const response = await fetch(`${API_BASE}/leaderboards/${leaderboardId}?offset=${offset}&limit=50`);
+      if (!response.ok) throw new Error('Failed to load more entries');
       const data = await response.json();
 
       // Update the appropriate leaderboard

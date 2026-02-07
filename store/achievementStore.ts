@@ -8,6 +8,7 @@ import type {
   AchievementCategory,
 } from '@/types/achievements';
 import { ACHIEVEMENTS, RARITY_COLORS } from '@/types/achievements';
+import { useAuthStore } from './authStore';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -283,9 +284,10 @@ export const useAchievementStore = create<AchievementStore>()(persist((set, get)
       }
 
       // Update local state
+      const userId = useAuthStore.getState().user?.id || '';
       const newUserAchievements: UserAchievement[] = newUnlocks.map(a => ({
         id: `local-${a.id}-${Date.now()}`,
-        oduserId: '',
+        oduserId: userId,
         odachievementId: a.id,
         unlockedAt: new Date().toISOString(),
         progress: a.requirement.threshold,

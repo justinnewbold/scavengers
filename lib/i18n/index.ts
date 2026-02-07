@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocales } from 'expo-localization';
 import en from './locales/en';
 import es from './locales/es';
 import fr from './locales/fr';
@@ -24,6 +25,13 @@ class I18n {
       const stored = await AsyncStorage.getItem(LOCALE_KEY);
       if (stored && this.isValidLocale(stored)) {
         this.currentLocale = stored as Locale;
+      } else {
+        // Auto-detect from device locale
+        const deviceLocales = getLocales();
+        const deviceLang = deviceLocales[0]?.languageCode;
+        if (deviceLang && this.isValidLocale(deviceLang)) {
+          this.currentLocale = deviceLang as Locale;
+        }
       }
     } catch {
       // Use default locale

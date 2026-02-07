@@ -99,6 +99,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     set({ isLoadingFriends: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/social/friends`);
+      if (!response.ok) throw new Error('Failed to load friends');
       const data = await response.json();
       set({ friends: data.friends, isLoadingFriends: false });
     } catch (error) {
@@ -109,6 +110,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchFriendRequests: async () => {
     try {
       const response = await fetch(`${API_BASE}/social/friend-requests`);
+      if (!response.ok) throw new Error('Failed to load friend requests');
       const data = await response.json();
       set({
         friendRequests: data.received,
@@ -126,6 +128,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, message }),
       });
+      if (!response.ok) throw new Error('Failed to send friend request');
       const data = await response.json();
 
       set(state => ({
@@ -142,6 +145,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       const response = await fetch(`${API_BASE}/social/friend-requests/${requestId}/accept`, {
         method: 'POST',
       });
+      if (!response.ok) throw new Error('Failed to accept friend request');
       const data = await response.json();
 
       set(state => ({
@@ -206,6 +210,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     set({ isLoadingActivity: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/social/activity?page=${page}`);
+      if (!response.ok) throw new Error('Failed to load activity feed');
       const data = await response.json();
 
       set(state => ({
@@ -220,6 +225,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchFriendsActivity: async () => {
     try {
       const response = await fetch(`${API_BASE}/social/activity/friends`);
+      if (!response.ok) throw new Error('Failed to load friends activity');
       const data = await response.json();
       set({ friendsActivity: data.activities });
     } catch (error) {
@@ -343,6 +349,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     set({ isLoadingChallenges: true, error: null });
     try {
       const response = await fetch(`${API_BASE}/social/challenges`);
+      if (!response.ok) throw new Error('Failed to load challenges');
       const data = await response.json();
 
       set({
@@ -363,6 +370,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendId, huntId, stakes }),
       });
+      if (!response.ok) throw new Error('Failed to send challenge');
       const data = await response.json();
 
       set(state => ({
@@ -379,6 +387,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       const response = await fetch(`${API_BASE}/social/challenges/${challengeId}/accept`, {
         method: 'POST',
       });
+      if (!response.ok) throw new Error('Failed to accept challenge');
       const data = await response.json();
 
       set(state => ({
@@ -410,6 +419,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchFollowedCreators: async () => {
     try {
       const response = await fetch(`${API_BASE}/social/following`);
+      if (!response.ok) throw new Error('Failed to load followed creators');
       const data = await response.json();
       set({ followedCreators: data.creators });
     } catch (error) {
@@ -422,6 +432,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       const response = await fetch(`${API_BASE}/social/follow/${creatorId}`, {
         method: 'POST',
       });
+      if (!response.ok) throw new Error('Failed to follow creator');
       const data = await response.json();
 
       set(state => ({
@@ -470,6 +481,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchSuggestions: async () => {
     try {
       const response = await fetch(`${API_BASE}/social/suggestions`);
+      if (!response.ok) throw new Error('Failed to load suggestions');
       const data = await response.json();
       set({ suggestions: data.suggestions });
     } catch (error) {
@@ -487,6 +499,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchUserProfile: async (userId: string) => {
     try {
       const response = await fetch(`${API_BASE}/users/${userId}/profile`);
+      if (!response.ok) throw new Error('Failed to load user profile');
       const data = await response.json();
       return data.profile;
     } catch (error) {
@@ -498,6 +511,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   searchUsers: async (query: string) => {
     try {
       const response = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Failed to search users');
       const data = await response.json();
       return data.users;
     } catch (error) {

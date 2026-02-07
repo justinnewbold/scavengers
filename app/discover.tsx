@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useDiscoveryStore } from '@/store/discoveryStore';
 import type { DiscoverableHunt, DiscoveryFilters, HuntDifficulty, HuntEnvironment } from '@/types/discovery';
 import { POPULAR_TAGS } from '@/types/discovery';
@@ -26,6 +27,7 @@ const CARD_WIDTH = SCREEN_WIDTH * 0.7;
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -93,6 +95,15 @@ export default function DiscoverScreen() {
     ]);
     setRefreshing(false);
   }, []);
+
+  // Auto-search on debounced query change
+  useEffect(() => {
+    if (debouncedSearch.trim()) {
+      searchHunts(debouncedSearch);
+    } else {
+      clearSearch();
+    }
+  }, [debouncedSearch]);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -322,6 +333,7 @@ export default function DiscoverScreen() {
             placeholderTextColor={Colors.textTertiary}
             returnKeyType="search"
             onSubmitEditing={handleSearch}
+            maxLength={100}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={handleClearSearch}>
