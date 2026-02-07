@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ interface MatchCardProps {
   isUserMatch?: boolean;
 }
 
-function MatchCard({ match, onPress, isUserMatch }: MatchCardProps) {
+const MatchCard = memo(function MatchCard({ match, onPress, isUserMatch }: MatchCardProps) {
   const getStatusColor = () => {
     switch (match.status) {
       case 'in_progress': return Colors.warning;
@@ -116,9 +116,9 @@ function MatchCard({ match, onPress, isUserMatch }: MatchCardProps) {
       )}
     </TouchableOpacity>
   );
-}
+});
 
-function RoundColumn({
+const RoundColumn = memo(function RoundColumn({
   round,
   matches,
   roundName,
@@ -154,7 +154,7 @@ function RoundColumn({
       </View>
     </View>
   );
-}
+});
 
 export function TournamentBracketView({
   tournament,
@@ -174,7 +174,10 @@ export function TournamentBracketView({
     }
   };
 
-  const rounds = Array.from(new Set(brackets.map(b => b.round))).sort((a, b) => a - b);
+  const rounds = useMemo(
+    () => Array.from(new Set(brackets.map(b => b.round))).sort((a, b) => a - b),
+    [brackets]
+  );
 
   return (
     <View style={styles.container}>

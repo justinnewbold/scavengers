@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,7 @@ interface SpectatorOverlayProps {
 }
 
 // Floating reaction animation component
-function FloatingReaction({ reaction, onComplete }: { reaction: SpectatorReaction; onComplete: () => void }) {
+const FloatingReaction = memo(function FloatingReaction({ reaction, onComplete }: { reaction: SpectatorReaction; onComplete: () => void }) {
   const translateY = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(0.5)).current;
@@ -80,10 +80,10 @@ function FloatingReaction({ reaction, onComplete }: { reaction: SpectatorReactio
       <Text style={styles.floatingEmoji}>{config.emoji}</Text>
     </Animated.View>
   );
-}
+});
 
 // Race position card
-function RacerCard({
+const RacerCard = memo(function RacerCard({
   participant,
   position,
   totalChallenges,
@@ -147,10 +147,10 @@ function RacerCard({
       )}
     </TouchableOpacity>
   );
-}
+});
 
 // Comments panel
-function CommentsPanel({
+const CommentsPanel = memo(function CommentsPanel({
   comments,
   onSend,
 }: {
@@ -202,7 +202,7 @@ function CommentsPanel({
       </View>
     </View>
   );
-}
+});
 
 export function SpectatorOverlay({ race, onClose }: SpectatorOverlayProps) {
   const {
@@ -231,14 +231,17 @@ export function SpectatorOverlay({ race, onClose }: SpectatorOverlayProps) {
     setFloatingReactions(prev => prev.filter(r => r.id !== reactionId));
   };
 
-  const sortedParticipants = [...race.participants]
-    .filter(p => p.status === 'racing' || p.status === 'finished')
-    .sort((a, b) => {
-      if (a.completedChallenges !== b.completedChallenges) {
-        return b.completedChallenges - a.completedChallenges;
-      }
-      return b.score - a.score;
-    });
+  const sortedParticipants = useMemo(
+    () => [...race.participants]
+      .filter(p => p.status === 'racing' || p.status === 'finished')
+      .sort((a, b) => {
+        if (a.completedChallenges !== b.completedChallenges) {
+          return b.completedChallenges - a.completedChallenges;
+        }
+        return b.score - a.score;
+      }),
+    [race.participants]
+  );
 
   return (
     <KeyboardAvoidingView

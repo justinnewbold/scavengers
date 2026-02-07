@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -85,7 +85,7 @@ function RankChange({ change }: { change?: number }) {
   );
 }
 
-function LeaderboardRow({
+const LeaderboardRow = memo(function LeaderboardRow({
   entry,
   isCurrentUser,
   metric,
@@ -140,7 +140,7 @@ function LeaderboardRow({
       </View>
     </View>
   );
-}
+});
 
 export function GlobalLeaderboard({
   initialScope = 'global',
@@ -183,9 +183,12 @@ export function GlobalLeaderboard({
   };
 
   const leaderboard = getCurrentLeaderboard();
-  const entries = maxEntries
-    ? leaderboard?.entries.slice(0, maxEntries)
-    : leaderboard?.entries;
+  const entries = useMemo(
+    () => maxEntries
+      ? leaderboard?.entries.slice(0, maxEntries)
+      : leaderboard?.entries,
+    [leaderboard?.entries, maxEntries]
+  );
 
   const handleScopeChange = (newScope: LeaderboardScope) => {
     setScope(newScope);

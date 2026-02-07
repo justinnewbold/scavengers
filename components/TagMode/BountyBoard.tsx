@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -39,9 +39,18 @@ export function BountyBoard({
     return typeof expiresAt === 'string' ? new Date(expiresAt).getTime() : expiresAt;
   };
 
-  const activeBounties = bounties.filter(b => !b.claimed && getExpiresAtMs(b.expiresAt) > Date.now());
-  const myBounties = activeBounties.filter(b => b.targetId === currentPlayerId);
-  const otherBounties = activeBounties.filter(b => b.targetId !== currentPlayerId);
+  const activeBounties = useMemo(
+    () => bounties.filter(b => !b.claimed && getExpiresAtMs(b.expiresAt) > Date.now()),
+    [bounties]
+  );
+  const myBounties = useMemo(
+    () => activeBounties.filter(b => b.targetId === currentPlayerId),
+    [activeBounties, currentPlayerId]
+  );
+  const otherBounties = useMemo(
+    () => activeBounties.filter(b => b.targetId !== currentPlayerId),
+    [activeBounties, currentPlayerId]
+  );
 
   const getPlayerName = (playerId: string) => {
     const player = players.find(p => p.id === playerId);
@@ -83,8 +92,11 @@ export function BountyBoard({
     setBountyReason('');
   };
 
-  const eligibleTargets = players.filter(
-    p => p.id !== currentPlayerId && !activeBounties.some(b => b.targetId === p.id)
+  const eligibleTargets = useMemo(
+    () => players.filter(
+      p => p.id !== currentPlayerId && !activeBounties.some(b => b.targetId === p.id)
+    ),
+    [players, currentPlayerId, activeBounties]
   );
 
   return (

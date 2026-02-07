@@ -8,9 +8,11 @@ interface CardProps {
   onPress?: () => void;
   onTouchEnd?: () => void;
   style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
-export function Card({ children, variant = 'default', onPress, onTouchEnd, style }: CardProps) {
+export function Card({ children, variant = 'default', onPress, onTouchEnd, style, accessibilityLabel, accessibilityHint }: CardProps) {
   const cardStyles = [
     styles.base,
     styles[variant],
@@ -24,13 +26,16 @@ export function Card({ children, variant = 'default', onPress, onTouchEnd, style
         onPress={onPress}
         onPressOut={onTouchEnd}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
       >
         {children}
       </TouchableOpacity>
     );
   }
 
-  return <View style={cardStyles}>{children}</View>;
+  return <View style={cardStyles} accessible={true} accessibilityLabel={accessibilityLabel}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

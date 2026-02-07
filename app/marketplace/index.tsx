@@ -63,7 +63,7 @@ export default function MarketplaceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
-  const [selectedDifficulty, _setSelectedDifficulty] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent'>('popular');
 
   useEffect(() => {
@@ -265,6 +265,22 @@ export default function MarketplaceScreen() {
             <Text style={[styles.filterText, selectedTheme === theme && styles.filterTextActive]}>{theme}</Text>
           </TouchableOpacity>
         ))}
+
+        <View style={styles.filterDivider} />
+
+        {/* Difficulty Filters */}
+        {(['easy', 'medium', 'hard'] as const).map((difficulty) => (
+          <TouchableOpacity
+            key={difficulty}
+            style={[styles.filterChip, selectedDifficulty === difficulty && styles.filterChipActive]}
+            onPress={() => setSelectedDifficulty(selectedDifficulty === difficulty ? null : difficulty)}
+          >
+            <View style={[styles.difficultyDot, { backgroundColor: DIFFICULTY_COLORS[difficulty] }]} />
+            <Text style={[styles.filterText, selectedDifficulty === difficulty && styles.filterTextActive]}>
+              {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       <FlatList
@@ -358,6 +374,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.sm,
   },
   themeIconTiny: { fontSize: 14 },
+  difficultyDot: { width: 8, height: 8, borderRadius: 4 },
   listContent: { padding: Spacing.md, paddingTop: 0 },
   featuredSection: { marginBottom: Spacing.lg },
   sectionTitle: {

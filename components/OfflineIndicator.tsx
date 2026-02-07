@@ -129,6 +129,9 @@ export function OfflineIndicator({ showPending = true, onSyncComplete }: Offline
         { transform: [{ translateY: slideAnim }] },
         status.style,
       ]}
+      accessibilityRole="alert"
+      accessibilityLabel={status.text}
+      accessibilityLiveRegion="polite"
     >
       {isSyncing ? (
         <ActivityIndicator size="small" color="#fff" />
@@ -141,6 +144,10 @@ export function OfflineIndicator({ showPending = true, onSyncComplete }: Offline
           onPress={handleSync}
           style={styles.syncButton}
           disabled={isSyncing}
+          accessibilityRole="button"
+          accessibilityLabel="Sync now"
+          accessibilityHint="Syncs pending submissions to the server"
+          accessibilityState={{ disabled: isSyncing }}
         >
           <Text style={styles.syncButtonText}>Sync Now</Text>
         </TouchableOpacity>

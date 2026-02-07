@@ -253,7 +253,7 @@ export const useSoloModeStore = create<SoloModeState>()(
 
       // Finish the solo hunt
       finishSoloHunt: () => {
-        const { activeSession, history, personalRecords, totalSoloHuntsCompleted, totalSoloPointsEarned, lastPlayedDate } = get();
+        const { activeSession, history, personalRecords, totalSoloHuntsCompleted, totalSoloPointsEarned, lastPlayedDate, currentDailyStreak } = get();
         if (!activeSession) return null;
 
         const totalPoints = activeSession.score + activeSession.bonusPoints;
@@ -299,9 +299,9 @@ export const useSoloModeStore = create<SoloModeState>()(
         let newDailyStreak = 1;
 
         if (lastPlayedDate === yesterday) {
-          newDailyStreak = get().currentDailyStreak + 1;
+          newDailyStreak = currentDailyStreak + 1;
         } else if (lastPlayedDate === today) {
-          newDailyStreak = get().currentDailyStreak;
+          newDailyStreak = currentDailyStreak;
         }
 
         set({

@@ -101,8 +101,8 @@ export const useAuthStore = create<AuthState>()(
           
           set({ user, isAuthenticated: true, isLoading: false });
           return true;
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Login failed', isLoading: false });
           return false;
         }
       },
@@ -126,8 +126,8 @@ export const useAuthStore = create<AuthState>()(
           
           set({ user, isAuthenticated: true, isLoading: false });
           return true;
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Registration failed', isLoading: false });
           return false;
         }
       },
@@ -166,8 +166,8 @@ export const useAuthStore = create<AuthState>()(
 
           const data = await res.json();
           set({ user: data.user, isLoading: false });
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Update failed', isLoading: false });
         }
       },
 
@@ -209,7 +209,6 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
     }
   )

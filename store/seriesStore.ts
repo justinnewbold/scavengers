@@ -12,6 +12,8 @@ import type {
   SeriesCollection,
 } from '@/types/series';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
 interface SeriesState {
   // Series data
   featuredSeries: HuntSeries[];
@@ -85,7 +87,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   fetchFeaturedSeries: async () => {
     set({ isLoadingSeries: true, error: null });
     try {
-      const response = await fetch('/api/series/featured');
+      const response = await fetch(`${API_BASE}/series/featured`);
       const data = await response.json();
       set({ featuredSeries: data.series, isLoadingSeries: false });
     } catch (error) {
@@ -97,7 +99,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     set({ isLoadingSeries: true, error: null });
     try {
       const params = genre ? `?genre=${genre}` : '';
-      const response = await fetch(`/api/series${params}`);
+      const response = await fetch(`${API_BASE}/series${params}`);
       const data = await response.json();
       set({ allSeries: data.series, isLoadingSeries: false });
     } catch (error) {
@@ -108,7 +110,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   fetchSeriesDetails: async (seriesId: string) => {
     set({ isLoadingSeries: true, error: null });
     try {
-      const response = await fetch(`/api/series/${seriesId}`);
+      const response = await fetch(`${API_BASE}/series/${seriesId}`);
       const data = await response.json();
 
       set(state => ({
@@ -125,7 +127,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   startSeries: async (seriesId: string) => {
     try {
-      const response = await fetch(`/api/series/${seriesId}/start`, {
+      const response = await fetch(`${API_BASE}/series/${seriesId}/start`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -171,7 +173,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   resetSeriesProgress: async (seriesId: string) => {
     try {
-      await fetch(`/api/series/${seriesId}/reset`, {
+      await fetch(`${API_BASE}/series/${seriesId}/reset`, {
         method: 'POST',
       });
 
@@ -196,7 +198,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   startChapter: async (seriesId: string, chapterId: string) => {
     set({ isLoadingChapter: true, error: null });
     try {
-      const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}`);
+      const response = await fetch(`${API_BASE}/series/${seriesId}/chapters/${chapterId}`);
       const data = await response.json();
 
       set(state => ({
@@ -221,7 +223,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
 
   completeChapter: async (seriesId: string, chapterId: string, score: number) => {
     try {
-      const response = await fetch(`/api/series/${seriesId}/chapters/${chapterId}/complete`, {
+      const response = await fetch(`${API_BASE}/series/${seriesId}/chapters/${chapterId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ score }),
@@ -288,7 +290,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
     if (!selectedOption) return;
 
     try {
-      await fetch(`/api/series/${seriesId}/choices`, {
+      await fetch(`${API_BASE}/series/${seriesId}/choices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ choicePointId, optionId }),
@@ -467,7 +469,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   // Endings
   achieveEnding: async (seriesId: string, endingId: string) => {
     try {
-      await fetch(`/api/series/${seriesId}/endings/${endingId}`, {
+      await fetch(`${API_BASE}/series/${seriesId}/endings/${endingId}`, {
         method: 'POST',
       });
 
@@ -499,7 +501,7 @@ export const useSeriesStore = create<SeriesState>()(persist((set, get) => ({
   // Collections
   fetchCollections: async () => {
     try {
-      const response = await fetch('/api/series/collections');
+      const response = await fetch(`${API_BASE}/series/collections`);
       const data = await response.json();
       set({ collections: data.collections });
     } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,31 @@ export default function DiscoverScreen() {
     updateLocation,
     clearSearch,
   } = useDiscoveryStore();
+
+  const activeDifficulty = filters.difficulty;
+
+  const filteredNearbyHunts = useMemo(() => {
+    if (!activeDifficulty?.length) return nearbyHunts;
+    return nearbyHunts.filter(h => activeDifficulty.includes(h.difficulty));
+  }, [nearbyHunts, activeDifficulty]);
+
+  const filteredRecommendations = useMemo(() => {
+    if (!activeDifficulty?.length) return recommendations;
+    return recommendations.filter(r => activeDifficulty.includes(r.hunt.difficulty));
+  }, [recommendations, activeDifficulty]);
+
+  const filteredSections = useMemo(() => {
+    if (!activeDifficulty?.length) return sections;
+    return sections
+      .map(s => ({ ...s, hunts: s.hunts.filter(h => activeDifficulty.includes(h.difficulty)) }))
+      .filter(s => s.hunts.length > 0);
+  }, [sections, activeDifficulty]);
+
+  const filteredFeaturedHunt = useMemo(() => {
+    if (!featuredHunt) return null;
+    if (!activeDifficulty?.length) return featuredHunt;
+    return activeDifficulty.includes(featuredHunt.difficulty) ? featuredHunt : null;
+  }, [featuredHunt, activeDifficulty]);
 
   useEffect(() => {
     updateLocation().then(() => {
@@ -345,15 +370,15 @@ export default function DiscoverScreen() {
           contentContainerStyle={styles.content}
         >
           {/* Featured hunt */}
-          {featuredHunt && (
+          {filteredFeaturedHunt && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Featured Hunt</Text>
-              {renderHuntCard(featuredHunt, SCREEN_WIDTH - 32)}
+              {renderHuntCard(filteredFeaturedHunt, SCREEN_WIDTH - 32)}
             </View>
           )}
 
           {/* Nearby hunts */}
-          {nearbyHunts.length > 0 && (
+          {filteredNearbyHunts.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Near You</Text>
@@ -366,13 +391,13 @@ export default function DiscoverScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalList}
               >
-                {nearbyHunts.slice(0, 5).map((hunt) => renderHuntCard(hunt))}
+                {filteredNearbyHunts.slice(0, 5).map((hunt) => renderHuntCard(hunt))}
               </ScrollView>
             </View>
           )}
 
           {/* Recommendations */}
-          {recommendations.length > 0 && (
+          {filteredRecommendations.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>For You</Text>
               <ScrollView
@@ -380,13 +405,13 @@ export default function DiscoverScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalList}
               >
-                {recommendations.map((rec) => renderHuntCard(rec.hunt))}
+                {filteredRecommendations.map((rec) => renderHuntCard(rec.hunt))}
               </ScrollView>
             </View>
           )}
 
           {/* Dynamic sections */}
-          {sections.map((section) => (
+          {filteredSections.map((section) => (
             <View key={section.id} style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
