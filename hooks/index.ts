@@ -7,6 +7,7 @@ export { useNotifications, type NotificationSettings, type ScheduledNotification
 export { useDeepLinks, type DeepLinkData } from './useDeepLinks';
 export { useSoundEffects, type SoundEffect } from './useSoundEffects';
 export { useProximityHaptics } from './useProximityHaptics';
+export { useHapticPatterns } from './useHapticPatterns';
 export { useStreak } from './useStreak';
 export { useAccessibility } from './useAccessibility';
 export { useRequireAuth } from './useRequireAuth';

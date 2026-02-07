@@ -8,9 +8,11 @@ import {
   Share,
   Alert,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { HuntCard, Button } from '@/components';
+import { AnimatedListItem } from '@/components/AnimatedListItem';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import type { SwipeAction } from '@/components/SwipeableRow';
 import { useHuntStore, useAuthStore } from '@/store';
@@ -108,23 +110,24 @@ export default function MyHuntsScreen() {
     }
   }, [handleShare, handleEdit, handleDelete, handleArchive]);
 
-  const renderHuntCard = useCallback((hunt: Hunt) => {
+  const renderHuntCard = useCallback((hunt: Hunt, index: number) => {
     const rightActions = hunt.status === 'active'
       ? RIGHT_ACTIONS_ACTIVE
       : RIGHT_ACTIONS_DEFAULT;
 
     return (
-      <SwipeableRow
-        key={hunt.id}
-        leftActions={LEFT_ACTIONS}
-        rightActions={rightActions}
-        onActionPress={(actionId) => handleActionPress(actionId, hunt)}
-      >
-        <HuntCard
-          hunt={hunt}
-          onPress={() => router.push(`/hunt/${hunt.id}`)}
-        />
-      </SwipeableRow>
+      <AnimatedListItem key={hunt.id} index={index}>
+        <SwipeableRow
+          leftActions={LEFT_ACTIONS}
+          rightActions={rightActions}
+          onActionPress={(actionId) => handleActionPress(actionId, hunt)}
+        >
+          <HuntCard
+            hunt={hunt}
+            onPress={() => router.push(`/hunt/${hunt.id}`)}
+          />
+        </SwipeableRow>
+      </AnimatedListItem>
     );
   }, [handleActionPress, router]);
 
@@ -210,7 +213,9 @@ export default function MyHuntsScreen() {
           {activeHunts.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>🟢 Active</Text>
-              {activeHunts.map(renderHuntCard)}
+              <Animated.View>
+                {activeHunts.map((hunt, i) => renderHuntCard(hunt, i))}
+              </Animated.View>
             </View>
           )}
 
@@ -218,7 +223,9 @@ export default function MyHuntsScreen() {
           {draftHunts.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>📝 Drafts</Text>
-              {draftHunts.map(renderHuntCard)}
+              <Animated.View>
+                {draftHunts.map((hunt, i) => renderHuntCard(hunt, i))}
+              </Animated.View>
             </View>
           )}
 
@@ -226,7 +233,9 @@ export default function MyHuntsScreen() {
           {completedHunts.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>✅ Completed</Text>
-              {completedHunts.map(renderHuntCard)}
+              <Animated.View>
+                {completedHunts.map((hunt, i) => renderHuntCard(hunt, i))}
+              </Animated.View>
             </View>
           )}
         </>

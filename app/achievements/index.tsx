@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card } from '@/components';
+import { Card, SegmentedControl } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -36,6 +36,9 @@ const CATEGORY_ICONS = {
   special: 'star',
 };
 
+const CATEGORY_SEGMENTS = ['All', 'Exploration', 'Social', 'Mastery', 'Special'] as const;
+const CATEGORY_MAP: (string | null)[] = [null, 'exploration', 'social', 'mastery', 'special'];
+
 export default function AchievementsScreen() {
   const router = useRouter();
   const { t } = useI18n();
@@ -44,7 +47,8 @@ export default function AchievementsScreen() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryIndex, setCategoryIndex] = useState(0);
+  const selectedCategory = CATEGORY_MAP[categoryIndex];
 
   useEffect(() => {
     fetchAchievements();
@@ -79,8 +83,6 @@ export default function AchievementsScreen() {
 
   const earnedCount = achievements.filter((a) => a.earned).length;
   const totalPoints = achievements.filter((a) => a.earned).reduce((sum, a) => sum + a.points, 0);
-
-  const categories = ['exploration', 'social', 'mastery', 'special'] as const;
 
   if (!user) {
     return (
@@ -120,37 +122,13 @@ export default function AchievementsScreen() {
       </Card>
 
       {/* Category Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-        <TouchableOpacity
-          style={[styles.categoryChip, !selectedCategory && styles.categoryChipActive]}
-          onPress={() => setSelectedCategory(null)}
-        >
-          <Text style={[styles.categoryText, !selectedCategory && styles.categoryTextActive]}>All</Text>
-        </TouchableOpacity>
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.categoryChip,
-              selectedCategory === cat && styles.categoryChipActive,
-              { borderColor: CATEGORY_COLORS[cat] },
-            ]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Ionicons
-              name={CATEGORY_ICONS[cat] as any}
-              size={16}
-              color={selectedCategory === cat ? Colors.text : CATEGORY_COLORS[cat]}
-            />
-            <Text style={[
-              styles.categoryText,
-              selectedCategory === cat && styles.categoryTextActive,
-            ]}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.categoryContainer}>
+        <SegmentedControl
+          segments={[...CATEGORY_SEGMENTS]}
+          selectedIndex={categoryIndex}
+          onChange={setCategoryIndex}
+        />
+      </View>
 
       {/* Achievements Grid */}
       {loading ? (
@@ -239,24 +217,7 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: FontSizes.xxl, fontWeight: '700', color: Colors.primary },
   statLabel: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: Spacing.xs },
   statDivider: { width: 1, backgroundColor: Colors.border, marginHorizontal: Spacing.lg },
-  categoryScroll: { marginBottom: Spacing.lg },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginRight: Spacing.sm,
-  },
-  categoryChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  categoryText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  categoryTextActive: { color: Colors.text, fontWeight: '600' },
+  categoryContainer: { marginBottom: Spacing.lg },
   loadingText: { textAlign: 'center', color: Colors.textSecondary, marginTop: Spacing.xl },
   achievementsList: { gap: Spacing.md },
   achievementCard: {
