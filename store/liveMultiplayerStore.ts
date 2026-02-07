@@ -16,6 +16,8 @@ import type {
   ReactionType,
 } from '@/types/liveMultiplayer';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
 interface LiveMultiplayerState {
   // Active Race
   currentRace: LiveRace | null;
@@ -146,7 +148,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   createRace: async (huntId, settings) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/live/races', {
+      const response = await fetch(`${API_BASE}/live/races`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ huntId, ...settings }),
@@ -171,7 +173,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   joinRace: async (raceId, inviteCode) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/live/races/${raceId}/join`, {
+      const response = await fetch(`${API_BASE}/live/races/${raceId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inviteCode }),
@@ -195,7 +197,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/leave`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/leave`, {
         method: 'POST',
       });
 
@@ -216,7 +218,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/ready`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/ready`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isReady }),
@@ -231,7 +233,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/start`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/start`, {
         method: 'POST',
       });
 
@@ -247,7 +249,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/cancel`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/cancel`, {
         method: 'POST',
       });
 
@@ -268,7 +270,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/challenge`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/challenge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ challengeId, score }),
@@ -291,7 +293,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     if (!currentRace) return;
 
     try {
-      await fetch(`/api/live/races/${currentRace.id}/finish`, {
+      await fetch(`${API_BASE}/live/races/${currentRace.id}/finish`, {
         method: 'POST',
       });
 
@@ -305,7 +307,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   startSpectating: async (raceId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/live/races/${raceId}/spectate`, {
+      const response = await fetch(`${API_BASE}/live/races/${raceId}/spectate`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -406,7 +408,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   fetchTournaments: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch('/api/tournaments');
+      const response = await fetch(`${API_BASE}/tournaments`);
       const data = await response.json();
 
       set({
@@ -421,7 +423,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   fetchTournamentDetails: async (tournamentId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}`);
+      const response = await fetch(`${API_BASE}/tournaments/${tournamentId}`);
       const data = await response.json();
 
       set({
@@ -436,7 +438,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   registerForTournament: async (tournamentId) => {
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/register`, {
+      const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/register`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -454,7 +456,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   withdrawFromTournament: async (tournamentId) => {
     try {
-      await fetch(`/api/tournaments/${tournamentId}/withdraw`, {
+      await fetch(`${API_BASE}/tournaments/${tournamentId}/withdraw`, {
         method: 'POST',
       });
 
@@ -474,7 +476,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     set({ isLoading: true, error: null });
     try {
       const params = huntId ? `?huntId=${huntId}` : '';
-      const response = await fetch(`/api/replays${params}`);
+      const response = await fetch(`${API_BASE}/replays${params}`);
       const data = await response.json();
 
       set({
@@ -489,7 +491,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   loadReplay: async (replayId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`/api/replays/${replayId}`);
+      const response = await fetch(`${API_BASE}/replays/${replayId}`);
       const data = await response.json();
 
       set({
@@ -522,7 +524,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   shareReplay: async (replayId) => {
     try {
-      const response = await fetch(`/api/replays/${replayId}/share`, {
+      const response = await fetch(`${API_BASE}/replays/${replayId}/share`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -547,7 +549,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   // Invites
   fetchInvites: async () => {
     try {
-      const response = await fetch('/api/live/invites');
+      const response = await fetch(`${API_BASE}/live/invites`);
       const data = await response.json();
 
       set({ pendingInvites: data.invites });
@@ -558,7 +560,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   sendInvite: async (raceId, userId) => {
     try {
-      await fetch(`/api/live/races/${raceId}/invite`, {
+      await fetch(`${API_BASE}/live/races/${raceId}/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -571,7 +573,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   respondToInvite: async (inviteId, accept) => {
     try {
-      const response = await fetch(`/api/live/invites/${inviteId}/${accept ? 'accept' : 'decline'}`, {
+      const response = await fetch(`${API_BASE}/live/invites/${inviteId}/${accept ? 'accept' : 'decline'}`, {
         method: 'POST',
       });
 
@@ -603,7 +605,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
     });
 
     try {
-      const response = await fetch('/api/live/matchmaking', {
+      const response = await fetch(`${API_BASE}/live/matchmaking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ huntId, preferences }),
@@ -624,7 +626,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   },
 
   cancelMatchmaking: () => {
-    fetch('/api/live/matchmaking/cancel', { method: 'POST' });
+    fetch(`${API_BASE}/live/matchmaking/cancel`, { method: 'POST' });
     set({
       isMatchmaking: false,
       matchmakingStatus: null,
@@ -755,7 +757,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
   // Public Races
   fetchPublicRaces: async () => {
     try {
-      const response = await fetch('/api/live/races?public=true');
+      const response = await fetch(`${API_BASE}/live/races?public=true`);
       const data = await response.json();
 
       set({ publicRaces: data.races });
@@ -766,7 +768,7 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
 
   fetchFriendRaces: async () => {
     try {
-      const response = await fetch('/api/live/races?friends=true');
+      const response = await fetch(`${API_BASE}/live/races?friends=true`);
       const data = await response.json();
 
       set({ friendRaces: data.races });

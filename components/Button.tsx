@@ -21,6 +21,8 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   haptic?: HapticType | false;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 export function Button({
@@ -34,6 +36,8 @@ export function Button({
   style,
   textStyle,
   haptic = 'light',
+  accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) {
   const handlePress = useCallback(() => {
     if (haptic !== false) {
@@ -63,6 +67,10 @@ export function Button({
       onPress={handlePress}
       disabled={disabled || loading}
       activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {loading ? (
         <ActivityIndicator 

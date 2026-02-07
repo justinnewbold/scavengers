@@ -62,7 +62,11 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <View style={styles.container}>
+        <View
+          style={styles.container}
+          accessibilityRole="alert"
+          accessibilityLabel="Something went wrong. An unexpected error occurred. Please try again."
+        >
           <View style={styles.content}>
             <View style={styles.iconContainer}>
               <Ionicons name="warning-outline" size={48} color={Colors.error} />
@@ -86,7 +90,13 @@ export class ErrorBoundary extends Component<Props, State> {
               </ScrollView>
             )}
 
-            <TouchableOpacity style={styles.button} onPress={this.handleReset}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={this.handleReset}
+              accessibilityRole="button"
+              accessibilityLabel="Try again"
+              accessibilityHint="Attempts to reload the content"
+            >
               <Ionicons name="refresh" size={20} color="#fff" />
               <Text style={styles.buttonText}>Try Again</Text>
             </TouchableOpacity>

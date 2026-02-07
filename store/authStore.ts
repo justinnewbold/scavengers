@@ -25,6 +25,7 @@ interface AuthState {
   updateProfile: (updates: Partial<User>) => Promise<void>;
   clearError: () => void;
   checkAuth: () => Promise<void>;
+  handleUnauthorized: () => Promise<void>;
 }
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
@@ -100,8 +101,8 @@ export const useAuthStore = create<AuthState>()(
           
           set({ user, isAuthenticated: true, isLoading: false });
           return true;
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Login failed', isLoading: false });
           return false;
         }
       },
@@ -125,8 +126,8 @@ export const useAuthStore = create<AuthState>()(
           
           set({ user, isAuthenticated: true, isLoading: false });
           return true;
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Registration failed', isLoading: false });
           return false;
         }
       },
@@ -165,12 +166,18 @@ export const useAuthStore = create<AuthState>()(
 
           const data = await res.json();
           set({ user: data.user, isLoading: false });
-        } catch (error: any) {
-          set({ error: error.message, isLoading: false });
+        } catch (error: unknown) {
+          set({ error: error instanceof Error ? error.message : 'Update failed', isLoading: false });
         }
       },
 
       clearError: () => set({ error: null }),
+
+      // Called when any API returns 401 - clears auth state so the app redirects to login
+      handleUnauthorized: async () => {
+        await AsyncStorage.removeItem('auth_token');
+        set({ user: null, isAuthenticated: false, error: 'Session expired. Please log in again.' });
+      },
 
       checkAuth: async () => {
         set({ isLoading: true });
@@ -202,10 +209,18 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
-        isAuthenticated: state.isAuthenticated,
       }),
     }
   )
 );
 
 export default useAuthStore;
+
+/**
+ * Helper for API calls that require authentication.
+ * Returns auth headers, or null if no token is available.
+ * Call `useAuthStore.getState().handleUnauthorized()` if the response is 401.
+ */
+export async function getAuthToken(): Promise<string | null> {
+  return AsyncStorage.getItem('auth_token');
+}

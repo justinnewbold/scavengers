@@ -10,6 +10,8 @@ import type {
   ActivityComment,
 } from '@/types/social';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
 interface SocialState {
   // Friends
   friends: Friend[];
@@ -72,6 +74,9 @@ interface SocialState {
   searchUsers: (query: string) => Promise<UserProfile[]>;
 }
 
+// Track in-flight like/unlike requests to prevent race conditions
+const likeInFlight = new Set<string>();
+
 export const useSocialStore = create<SocialState>((set, get) => ({
   // Initial state
   friends: [],
@@ -93,7 +98,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchFriends: async () => {
     set({ isLoadingFriends: true, error: null });
     try {
-      const response = await fetch('/api/social/friends');
+      const response = await fetch(`${API_BASE}/social/friends`);
       const data = await response.json();
       set({ friends: data.friends, isLoadingFriends: false });
     } catch (error) {
@@ -103,7 +108,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   fetchFriendRequests: async () => {
     try {
-      const response = await fetch('/api/social/friend-requests');
+      const response = await fetch(`${API_BASE}/social/friend-requests`);
       const data = await response.json();
       set({
         friendRequests: data.received,
@@ -116,7 +121,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   sendFriendRequest: async (userId: string, message?: string) => {
     try {
-      const response = await fetch('/api/social/friend-requests', {
+      const response = await fetch(`${API_BASE}/social/friend-requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, message }),
@@ -134,7 +139,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   acceptFriendRequest: async (requestId: string) => {
     try {
-      const response = await fetch(`/api/social/friend-requests/${requestId}/accept`, {
+      const response = await fetch(`${API_BASE}/social/friend-requests/${requestId}/accept`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -151,7 +156,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   declineFriendRequest: async (requestId: string) => {
     try {
-      await fetch(`/api/social/friend-requests/${requestId}/decline`, {
+      await fetch(`${API_BASE}/social/friend-requests/${requestId}/decline`, {
         method: 'POST',
       });
 
@@ -166,7 +171,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   removeFriend: async (friendId: string) => {
     try {
-      await fetch(`/api/social/friends/${friendId}`, {
+      await fetch(`${API_BASE}/social/friends/${friendId}`, {
         method: 'DELETE',
       });
 
@@ -181,7 +186,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   blockUser: async (userId: string) => {
     try {
-      await fetch(`/api/social/block/${userId}`, {
+      await fetch(`${API_BASE}/social/block/${userId}`, {
         method: 'POST',
       });
 
@@ -200,7 +205,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchActivityFeed: async (page = 1) => {
     set({ isLoadingActivity: true, error: null });
     try {
-      const response = await fetch(`/api/social/activity?page=${page}`);
+      const response = await fetch(`${API_BASE}/social/activity?page=${page}`);
       const data = await response.json();
 
       set(state => ({
@@ -214,7 +219,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   fetchFriendsActivity: async () => {
     try {
-      const response = await fetch('/api/social/activity/friends');
+      const response = await fetch(`${API_BASE}/social/activity/friends`);
       const data = await response.json();
       set({ friendsActivity: data.activities });
     } catch (error) {
@@ -223,6 +228,10 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   },
 
   likeActivity: async (activityId: string) => {
+    // Prevent concurrent like/unlike on the same activity
+    if (likeInFlight.has(activityId)) return;
+    likeInFlight.add(activityId);
+
     // Optimistic update
     set(state => ({
       activityFeed: state.activityFeed.map(a =>
@@ -238,7 +247,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     }));
 
     try {
-      await fetch(`/api/social/activity/${activityId}/like`, {
+      await fetch(`${API_BASE}/social/activity/${activityId}/like`, {
         method: 'POST',
       });
     } catch (error) {
@@ -246,19 +255,25 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       set(state => ({
         activityFeed: state.activityFeed.map(a =>
           a.id === activityId
-            ? { ...a, isLiked: false, likeCount: a.likeCount - 1 }
+            ? { ...a, isLiked: false, likeCount: Math.max(0, a.likeCount - 1) }
             : a
         ),
         friendsActivity: state.friendsActivity.map(a =>
           a.id === activityId
-            ? { ...a, isLiked: false, likeCount: a.likeCount - 1 }
+            ? { ...a, isLiked: false, likeCount: Math.max(0, a.likeCount - 1) }
             : a
         ),
       }));
+    } finally {
+      likeInFlight.delete(activityId);
     }
   },
 
   unlikeActivity: async (activityId: string) => {
+    // Prevent concurrent like/unlike on the same activity
+    if (likeInFlight.has(activityId)) return;
+    likeInFlight.add(activityId);
+
     // Optimistic update
     set(state => ({
       activityFeed: state.activityFeed.map(a =>
@@ -274,7 +289,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     }));
 
     try {
-      await fetch(`/api/social/activity/${activityId}/unlike`, {
+      await fetch(`${API_BASE}/social/activity/${activityId}/unlike`, {
         method: 'POST',
       });
     } catch (error) {
@@ -291,12 +306,14 @@ export const useSocialStore = create<SocialState>((set, get) => ({
             : a
         ),
       }));
+    } finally {
+      likeInFlight.delete(activityId);
     }
   },
 
   commentOnActivity: async (activityId: string, content: string) => {
     try {
-      await fetch(`/api/social/activity/${activityId}/comments`, {
+      await fetch(`${API_BASE}/social/activity/${activityId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
@@ -325,7 +342,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchChallenges: async () => {
     set({ isLoadingChallenges: true, error: null });
     try {
-      const response = await fetch('/api/social/challenges');
+      const response = await fetch(`${API_BASE}/social/challenges`);
       const data = await response.json();
 
       set({
@@ -341,7 +358,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   sendChallenge: async (friendId: string, huntId: string, stakes?: string) => {
     try {
-      const response = await fetch('/api/social/challenges', {
+      const response = await fetch(`${API_BASE}/social/challenges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friendId, huntId, stakes }),
@@ -359,7 +376,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   acceptChallenge: async (challengeId: string) => {
     try {
-      const response = await fetch(`/api/social/challenges/${challengeId}/accept`, {
+      const response = await fetch(`${API_BASE}/social/challenges/${challengeId}/accept`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -376,7 +393,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   declineChallenge: async (challengeId: string) => {
     try {
-      await fetch(`/api/social/challenges/${challengeId}/decline`, {
+      await fetch(`${API_BASE}/social/challenges/${challengeId}/decline`, {
         method: 'POST',
       });
 
@@ -392,7 +409,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Following
   fetchFollowedCreators: async () => {
     try {
-      const response = await fetch('/api/social/following');
+      const response = await fetch(`${API_BASE}/social/following`);
       const data = await response.json();
       set({ followedCreators: data.creators });
     } catch (error) {
@@ -402,7 +419,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   followCreator: async (creatorId: string) => {
     try {
-      const response = await fetch(`/api/social/follow/${creatorId}`, {
+      const response = await fetch(`${API_BASE}/social/follow/${creatorId}`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -418,7 +435,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   unfollowCreator: async (creatorId: string) => {
     try {
-      await fetch(`/api/social/unfollow/${creatorId}`, {
+      await fetch(`${API_BASE}/social/unfollow/${creatorId}`, {
         method: 'POST',
       });
 
@@ -433,7 +450,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   toggleCreatorNotifications: async (creatorId: string) => {
     try {
-      await fetch(`/api/social/following/${creatorId}/notifications`, {
+      await fetch(`${API_BASE}/social/following/${creatorId}/notifications`, {
         method: 'POST',
       });
 
@@ -452,7 +469,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Suggestions
   fetchSuggestions: async () => {
     try {
-      const response = await fetch('/api/social/suggestions');
+      const response = await fetch(`${API_BASE}/social/suggestions`);
       const data = await response.json();
       set({ suggestions: data.suggestions });
     } catch (error) {
@@ -469,7 +486,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Profile
   fetchUserProfile: async (userId: string) => {
     try {
-      const response = await fetch(`/api/users/${userId}/profile`);
+      const response = await fetch(`${API_BASE}/users/${userId}/profile`);
       const data = await response.json();
       return data.profile;
     } catch (error) {
@@ -480,7 +497,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   searchUsers: async (query: string) => {
     try {
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       return data.users;
     } catch (error) {

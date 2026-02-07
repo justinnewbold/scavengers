@@ -29,12 +29,12 @@ export const Colors = {
   // Text colors
   text: '#FFFFFF',
   textSecondary: '#B0B0C0',
-  textTertiary: '#707080',
+  textTertiary: '#9090A0',
   textInverse: '#0F0F1A',
   
   // Border colors
-  border: '#3A3A5A',
-  borderLight: '#4A4A6A',
+  border: '#4A4A6A',
+  borderLight: '#5A5A7A',
   
   // Gradient presets
   gradientPrimary: ['#6C63FF', '#8B85FF'],

@@ -11,9 +11,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { HuntCard, Button } from '@/components';
 import { useHuntStore, useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useRequireAuth } from '@/hooks';
 
 export default function MyHuntsScreen() {
   const router = useRouter();
+  useRequireAuth();
   const { user } = useAuthStore();
   const { hunts: myHunts, isLoading, fetchHunts: fetchMyHunts } = useHuntStore();
   

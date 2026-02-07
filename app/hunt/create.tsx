@@ -5,9 +5,11 @@ import { Input, Button } from '@/components';
 import { db } from '@/lib/supabase';
 import { useAuthStore, useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useRequireAuth } from '@/hooks';
 
 export default function CreateHuntScreen() {
   const router = useRouter();
+  useRequireAuth();
   const { user } = useAuthStore();
   const { setCurrentHunt } = useHuntStore();
   

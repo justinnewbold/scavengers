@@ -6,6 +6,7 @@ import { Card, Button } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRequireAuth } from '@/hooks';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -19,6 +20,7 @@ interface UserStats {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  useRequireAuth();
   const { user, logout } = useAuthStore();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);

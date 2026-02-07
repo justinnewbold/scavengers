@@ -49,9 +49,28 @@ export interface PendingSubmission {
   retryCount: number;
 }
 
+// Simple async mutex to prevent concurrent read-modify-write on the same key
+class AsyncMutex {
+  private locks = new Map<string, Promise<void>>();
+
+  async acquire(key: string): Promise<() => void> {
+    while (this.locks.has(key)) {
+      await this.locks.get(key);
+    }
+    let release: () => void;
+    const promise = new Promise<void>(resolve => { release = resolve; });
+    this.locks.set(key, promise);
+    return () => {
+      this.locks.delete(key);
+      release!();
+    };
+  }
+}
+
 class OfflineStorage {
   private isOnline: boolean = true;
   private listeners: Set<(online: boolean) => void> = new Set();
+  private mutex = new AsyncMutex();
 
   constructor() {
     this.initNetworkListener();
@@ -106,6 +125,7 @@ class OfflineStorage {
 
   // Cache hunts for offline access with LRU eviction
   async cacheHunts(hunts: CachedHunt[]): Promise<void> {
+    const release = await this.mutex.acquire(KEYS.CACHED_HUNTS);
     try {
       const existing = await this.getCachedHunts();
       const huntMap = new Map(existing.map(h => [h.id, h]));
@@ -122,6 +142,8 @@ class OfflineStorage {
       await AsyncStorage.setItem(KEYS.CACHED_HUNTS, JSON.stringify(allHunts));
     } catch (error) {
       console.error('Failed to cache hunts:', error);
+    } finally {
+      release();
     }
   }
 
@@ -177,6 +199,7 @@ class OfflineStorage {
       retryCount: 0,
     };
 
+    const release = await this.mutex.acquire(KEYS.PENDING_SUBMISSIONS);
     try {
       let pending = await this.getPendingSubmissions();
 
@@ -194,6 +217,8 @@ class OfflineStorage {
     } catch (error) {
       console.error('Failed to queue submission:', error);
       throw error;
+    } finally {
+      release();
     }
   }
 

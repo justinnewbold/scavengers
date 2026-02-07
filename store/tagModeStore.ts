@@ -285,6 +285,12 @@ export const useTagModeStore = create<TagModeStore>((set, get) => ({
       return;
     }
 
+    // Clean up any existing subscription before creating a new one
+    if (locationSubscription) {
+      locationSubscription.remove();
+      locationSubscription = null;
+    }
+
     locationSubscription = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.High,

@@ -10,6 +10,8 @@ import type {
   LeaderboardMetric,
 } from '@/types/events';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
 interface EventsState {
   // Events
   activeEvents: SeasonalEvent[];
@@ -77,7 +79,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   fetchActiveEvents: async () => {
     set({ isLoadingEvents: true, error: null });
     try {
-      const response = await fetch('/api/events');
+      const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
 
       set({
@@ -94,7 +96,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
   fetchEventDetails: async (eventId: string) => {
     set({ isLoadingEvents: true, error: null });
     try {
-      const response = await fetch(`/api/events/${eventId}`);
+      const response = await fetch(`${API_BASE}/events/${eventId}`);
       const data = await response.json();
 
       set({
@@ -111,7 +113,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   joinEvent: async (eventId: string) => {
     try {
-      const response = await fetch(`/api/events/${eventId}/join`, {
+      const response = await fetch(`${API_BASE}/events/${eventId}/join`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -134,7 +136,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   completeChallenge: async (eventId: string, challengeId: string) => {
     try {
-      const response = await fetch(`/api/events/${eventId}/challenges/${challengeId}/complete`, {
+      const response = await fetch(`${API_BASE}/events/${eventId}/challenges/${challengeId}/complete`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -166,7 +168,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   claimReward: async (eventId: string, rewardId: string) => {
     try {
-      const response = await fetch(`/api/events/${eventId}/rewards/${rewardId}/claim`, {
+      const response = await fetch(`${API_BASE}/events/${eventId}/rewards/${rewardId}/claim`, {
         method: 'POST',
       });
       const data = await response.json();
@@ -227,7 +229,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
     try {
       const params = new URLSearchParams({ scope, period, metric });
-      const response = await fetch(`/api/leaderboards?${params}`);
+      const response = await fetch(`${API_BASE}/leaderboards?${params}`);
       const data = await response.json();
 
       const leaderboardKey = `${scope}Leaderboard` as keyof Pick<
@@ -246,7 +248,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
 
   fetchUserRank: async () => {
     try {
-      const response = await fetch('/api/leaderboards/my-rank');
+      const response = await fetch(`${API_BASE}/leaderboards/my-rank`);
       const data = await response.json();
 
       set({
@@ -277,7 +279,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     const offset = leaderboard.entries.length;
 
     try {
-      const response = await fetch(`/api/leaderboards/${leaderboardId}?offset=${offset}&limit=50`);
+      const response = await fetch(`${API_BASE}/leaderboards/${leaderboardId}?offset=${offset}&limit=50`);
       const data = await response.json();
 
       // Update the appropriate leaderboard

@@ -13,9 +13,19 @@ interface HuntCardProps {
 export function HuntCard({ hunt, onPress }: HuntCardProps) {
   const totalPoints = hunt.challenges?.reduce((sum, c) => sum + c.points, 0) || 0;
   const challengeCount = hunt.challenges?.length || 0;
-  
+
+  const statusLabel = hunt.status === 'active' ? 'Active' :
+    hunt.status === 'draft' ? 'Draft' :
+    hunt.status === 'completed' ? 'Completed' : 'Archived';
+
   return (
-    <Card variant="elevated" onPress={onPress} style={styles.card}>
+    <Card
+      variant="elevated"
+      onPress={onPress}
+      style={styles.card}
+      accessibilityLabel={`${hunt.title}, ${hunt.difficulty} difficulty, ${statusLabel}, ${challengeCount} challenges, ${totalPoints} points`}
+      accessibilityHint="Opens hunt details"
+    >
       <View style={styles.header}>
         <Text style={styles.title} numberOfLines={1}>{hunt.title}</Text>
         {hunt.is_public && (

@@ -7,165 +7,8 @@ import { gemini } from '@/lib/gemini';
 // API base URL - points to your Vercel deployment
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
-// Auth Store
-interface User {
-  id: string;
-  email: string;
-  display_name: string;
-  avatar_url?: string;
-}
-
-interface Session {
-  user: User;
-  token: string;
-  access_token: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  session: Session | null;
-  isAuthenticated: boolean;
-  isInitialized: boolean;
-  isLoading: boolean;
-  error: string | null;
-
-  // Actions
-  initialize: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, displayName: string) => Promise<boolean>;
-  logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
-  clearError: () => void;
-}
-
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      token: null,
-      session: null,
-      isAuthenticated: false,
-      isInitialized: false,
-      isLoading: false,
-      error: null,
-
-      initialize: async () => {
-        const { token, user } = get();
-        if (token && user) {
-          set({
-            session: { user, token, access_token: token },
-            isAuthenticated: true,
-            isInitialized: true
-          });
-        } else {
-          set({ isInitialized: true });
-        }
-      },
-
-      login: async (email: string, password: string) => {
-        set({ isLoading: true, error: null });
-        try {
-          const response = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Login failed');
-          }
-
-          const { user, token } = await response.json();
-          set({
-            user,
-            token,
-            session: { user, token, access_token: token },
-            isAuthenticated: true,
-            isLoading: false
-          });
-          return true;
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Login failed',
-            isLoading: false
-          });
-          return false;
-        }
-      },
-
-      register: async (email: string, password: string, displayName: string) => {
-        set({ isLoading: true, error: null });
-        try {
-          const response = await fetch(`${API_BASE}/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, display_name: displayName }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Registration failed');
-          }
-
-          const { user, token } = await response.json();
-          set({
-            user,
-            token,
-            session: { user, token, access_token: token },
-            isAuthenticated: true,
-            isLoading: false
-          });
-          return true;
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : 'Registration failed',
-            isLoading: false
-          });
-          return false;
-        }
-      },
-
-      logout: async () => {
-        set({ user: null, token: null, session: null, isAuthenticated: false });
-      },
-
-      checkAuth: async () => {
-        const { token } = get();
-        if (!token) return;
-
-        try {
-          const response = await fetch(`${API_BASE}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (!response.ok) {
-            set({ user: null, token: null, isAuthenticated: false });
-            return;
-          }
-
-          const user = await response.json();
-          set({ user, isAuthenticated: true });
-        } catch {
-          set({ user: null, token: null, isAuthenticated: false });
-        }
-      },
-
-      clearError: () => set({ error: null }),
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        session: state.session,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    }
-  )
-);
+// Re-export the canonical auth store (single source of truth)
+export { useAuthStore } from './authStore';
 
 interface HuntState {
   // State
@@ -175,7 +18,7 @@ interface HuntState {
   activeParticipation: Participant | null;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   fetchHunts: () => Promise<void>;
   fetchPublicHunts: () => Promise<void>;
@@ -265,13 +108,13 @@ export const useHuntStore = create<HuntState>()(
           });
           if (!response.ok) throw new Error('Failed to create hunt');
           const newHunt = await response.json();
-          
+
           set(state => ({
             hunts: [newHunt, ...state.hunts],
             currentHunt: newHunt,
             isLoading: false,
           }));
-          
+
           return newHunt;
         } catch (error) {
           console.error('Create hunt error:', error);
@@ -286,7 +129,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           // Generate with Gemini AI
           const generated = await gemini.generateHunt(request);
-          
+
           // Create the hunt
           const hunt: Partial<Hunt> = {
             title: generated.title,
@@ -306,16 +149,16 @@ export const useHuntStore = create<HuntState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(hunt),
           });
-          
+
           if (!response.ok) throw new Error('Failed to save generated hunt');
           const newHunt = await response.json();
-          
+
           set(state => ({
             hunts: [newHunt, ...state.hunts],
             currentHunt: newHunt,
             isLoading: false,
           }));
-          
+
           return newHunt;
         } catch (error) {
           console.error('AI generation error:', error);
@@ -335,7 +178,7 @@ export const useHuntStore = create<HuntState>()(
           });
           if (!response.ok) throw new Error('Failed to update hunt');
           const updated = await response.json();
-          
+
           set(state => ({
             hunts: state.hunts.map(h => h.id === id ? updated : h),
             currentHunt: state.currentHunt?.id === id ? updated : state.currentHunt,
@@ -355,7 +198,7 @@ export const useHuntStore = create<HuntState>()(
             method: 'DELETE',
           });
           if (!response.ok) throw new Error('Failed to delete hunt');
-          
+
           set(state => ({
             hunts: state.hunts.filter(h => h.id !== id),
             currentHunt: state.currentHunt?.id === id ? null : state.currentHunt,
@@ -377,7 +220,7 @@ export const useHuntStore = create<HuntState>()(
           });
           if (!response.ok) throw new Error('Failed to join hunt');
           const participation = await response.json();
-          
+
           set({ activeParticipation: participation, isLoading: false });
           return participation;
         } catch (error) {
@@ -400,7 +243,7 @@ export const useHuntStore = create<HuntState>()(
             }),
           });
           if (!response.ok) throw new Error('Failed to submit challenge');
-          
+
           set({ isLoading: false });
           return true;
         } catch (error) {

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
+import { useRequireAuth } from '@/hooks';
 import { useAuthStore } from '@/store';
 
 interface Team {
@@ -20,6 +21,7 @@ interface Team {
 export default function TeamsScreen() {
   const router = useRouter();
   const { t } = useI18n();
+  useRequireAuth();
   const { user, session } = useAuthStore();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
