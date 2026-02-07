@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { useRouter, Link, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components';
 import { useAuthStore } from '@/store/authStore';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -23,6 +23,35 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Hidden dev login: tap version number 3 times
+  const tapCountRef = useRef(0);
+  const lastTapRef = useRef(0);
+
+  const handleVersionTap = useCallback(() => {
+    const now = Date.now();
+    // Reset if more than 1 second between taps
+    if (now - lastTapRef.current > 1000) {
+      tapCountRef.current = 0;
+    }
+    lastTapRef.current = now;
+    tapCountRef.current += 1;
+
+    if (tapCountRef.current >= 3) {
+      tapCountRef.current = 0;
+      // Dev login: auto-authenticate as dev user
+      useAuthStore.setState({
+        user: {
+          id: 'dev-user-123',
+          email: 'dev@example.com',
+          display_name: 'Dev User',
+        },
+        isAuthenticated: true,
+        isInitialized: true,
+      });
+      router.replace('/(tabs)');
+    }
+  }, [router]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -154,11 +183,20 @@ export default function LoginScreen() {
           </View>
 
           {/* Skip */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.skipButton}
             onPress={() => router.replace('/(tabs)')}
           >
             <Text style={styles.skipText}>Continue as Guest</Text>
+          </TouchableOpacity>
+
+          {/* Version - tap 3 times for dev login */}
+          <TouchableOpacity
+            style={styles.versionButton}
+            onPress={handleVersionTap}
+            activeOpacity={1}
+          >
+            <Text style={styles.versionText}>v{AppConfig.version}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -299,5 +337,14 @@ const styles = StyleSheet.create({
   skipText: {
     color: Colors.textTertiary,
     fontSize: FontSizes.sm,
+  },
+  versionButton: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.sm,
+  },
+  versionText: {
+    color: Colors.textTertiary,
+    fontSize: FontSizes.xs,
   },
 });
