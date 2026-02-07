@@ -21,6 +21,7 @@ export default function HuntDetailScreen() {
   const { getHuntById, joinHunt, isLoading } = useHuntStore();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     loadHunt();
@@ -29,9 +30,15 @@ export default function HuntDetailScreen() {
   const loadHunt = async () => {
     if (!id) return;
     setLoading(true);
-    const huntData = await getHuntById(id);
-    setHunt(huntData);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const huntData = await getHuntById(id);
+      setHunt(huntData);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleJoinHunt = async () => {
@@ -90,7 +97,16 @@ export default function HuntDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color={Colors.error} />
-        <Text style={styles.errorText}>Hunt not found</Text>
+        <Text style={styles.errorText}>
+          {loadError ? 'Failed to load hunt' : 'Hunt not found'}
+        </Text>
+        {loadError && (
+          <Button
+            title="Retry"
+            onPress={loadHunt}
+            style={{ marginBottom: Spacing.sm }}
+          />
+        )}
         <Button
           title="Go Back"
           onPress={() => router.back()}

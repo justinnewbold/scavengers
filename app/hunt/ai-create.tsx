@@ -115,7 +115,7 @@ export default function AICreateScreen() {
   };
   
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardDismissMode="on-drag">
       <View style={styles.header}>
         <Ionicons name="sparkles" size={48} color={Colors.primary} />
         <Text style={styles.title}>AI Quick Create</Text>
@@ -132,6 +132,7 @@ export default function AICreateScreen() {
         multiline
         numberOfLines={3}
         style={styles.themeInput}
+        maxLength={500}
       />
       
       <Input
@@ -139,6 +140,7 @@ export default function AICreateScreen() {
         placeholder="e.g., Central Park, Downtown, Beach..."
         value={location}
         onChangeText={setLocation}
+        maxLength={200}
       />
       
       <Text style={styles.label}>Difficulty</Text>
@@ -163,6 +165,7 @@ export default function AICreateScreen() {
         onChangeText={setChallengeCount}
         keyboardType="number-pad"
         helper="Recommended: 8-15 challenges"
+        maxLength={2}
       />
       
       <Text style={styles.label}>Verification Types</Text>

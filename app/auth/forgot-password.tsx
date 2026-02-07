@@ -113,6 +113,7 @@ export default function ForgotPasswordScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
         >
           {/* Back Button */}
           <TouchableOpacity
@@ -152,6 +153,7 @@ export default function ForgotPasswordScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoFocus
+                maxLength={254}
               />
             </View>
 

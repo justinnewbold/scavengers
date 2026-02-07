@@ -82,6 +82,7 @@ export default function LoginScreen() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
         >
           {/* Header */}
           <View style={styles.header}>
@@ -116,6 +117,7 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                maxLength={254}
               />
             </View>
 
@@ -129,6 +131,7 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                maxLength={128}
               />
               <TouchableOpacity 
                 onPress={() => setShowPassword(!showPassword)}

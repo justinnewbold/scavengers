@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card } from '@/components';
+import { Card, Button } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useDebounce } from '@/hooks/useDebounce';
+
 interface MarketplaceHunt {
   id: string;
   title: string;
@@ -62,15 +64,23 @@ export default function MarketplaceScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'rating' | 'recent'>('popular');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMarketplace();
   }, [selectedTheme, selectedDifficulty, sortBy]);
 
+  // Auto-search on debounced query change
+  useEffect(() => {
+    fetchMarketplace();
+  }, [debouncedSearch]);
+
   const fetchMarketplace = async () => {
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append('q', searchQuery);
@@ -82,24 +92,26 @@ export default function MarketplaceScreen() {
         `${process.env.EXPO_PUBLIC_API_URL}/api/marketplace?${params}`
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        setHunts(data.hunts || []);
-        setFeatured(data.featured || []);
-        setThemes(data.themes || []);
+      if (!response.ok) {
+        throw new Error('Failed to load marketplace');
       }
-    } catch (error) {
-      console.error('Failed to fetch marketplace:', error);
+
+      const data = await response.json();
+      setHunts(data.hunts || []);
+      setFeatured(data.featured || []);
+      setThemes(data.themes || []);
+    } catch (err) {
+      setError('Failed to load marketplace. Check your connection and try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const handleSearch = useCallback(() => {
+  const handleSearch = () => {
     setLoading(true);
     fetchMarketplace();
-  }, [searchQuery, selectedTheme, selectedDifficulty, sortBy]);
+  };
 
   const renderStars = (rating: number) => {
     const stars = [];
@@ -219,6 +231,7 @@ export default function MarketplaceScreen() {
           onChangeText={setSearchQuery}
           onSubmitEditing={handleSearch}
           returnKeyType="search"
+          maxLength={100}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -308,11 +321,25 @@ export default function MarketplaceScreen() {
         }
         ListEmptyComponent={
           !loading ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="search" size={60} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>No hunts found</Text>
-              <Text style={styles.emptyText}>Try adjusting your filters or search terms</Text>
-            </View>
+            error ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="cloud-offline-outline" size={60} color={Colors.error} />
+                <Text style={styles.emptyTitle}>Something went wrong</Text>
+                <Text style={styles.emptyText}>{error}</Text>
+                <Button
+                  title="Retry"
+                  variant="outline"
+                  onPress={() => { setLoading(true); fetchMarketplace(); }}
+                  style={{ marginTop: Spacing.md }}
+                />
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="search" size={60} color={Colors.textTertiary} />
+                <Text style={styles.emptyTitle}>No hunts found</Text>
+                <Text style={styles.emptyText}>Try adjusting your filters or search terms</Text>
+              </View>
+            )
           ) : null
         }
       />

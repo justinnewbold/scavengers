@@ -129,6 +129,7 @@ export default function TeamsScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
+      keyboardDismissMode="on-drag"
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTeams(); }} />}
     >
       <View style={styles.header}>
@@ -166,6 +167,7 @@ export default function TeamsScreen() {
             placeholderTextColor={Colors.textTertiary}
             value={newTeamName}
             onChangeText={setNewTeamName}
+            maxLength={50}
           />
           <TextInput
             style={[styles.input, styles.textArea]}
@@ -175,6 +177,7 @@ export default function TeamsScreen() {
             onChangeText={setNewTeamDesc}
             multiline
             numberOfLines={3}
+            maxLength={500}
           />
           <View style={styles.modalActions}>
             <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowCreate(false)} />
@@ -194,6 +197,7 @@ export default function TeamsScreen() {
             value={joinCode}
             onChangeText={setJoinCode}
             autoCapitalize="characters"
+            maxLength={20}
           />
           <View style={styles.modalActions}>
             <Button title={t('common.cancel')} variant="ghost" onPress={() => setShowJoin(false)} />

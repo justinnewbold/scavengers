@@ -322,6 +322,7 @@ export default function GalleryScreen() {
                         placeholder="Add a caption..."
                         placeholderTextColor={Colors.textTertiary}
                         multiline
+                        maxLength={300}
                       />
                       <View style={styles.captionActions}>
                         <Button title="Cancel" variant="ghost" size="sm" onPress={() => setEditingCaption(false)} />

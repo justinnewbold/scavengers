@@ -80,6 +80,7 @@ export default function RegisterScreen() {
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
         >
           {/* Back Button */}
           <TouchableOpacity 
@@ -120,6 +121,7 @@ export default function RegisterScreen() {
                 value={displayName}
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
+                maxLength={50}
               />
             </View>
 
@@ -134,6 +136,7 @@ export default function RegisterScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                maxLength={254}
               />
             </View>
 
@@ -147,6 +150,7 @@ export default function RegisterScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                maxLength={128}
               />
               <TouchableOpacity 
                 onPress={() => setShowPassword(!showPassword)}
@@ -170,6 +174,7 @@ export default function RegisterScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                maxLength={128}
               />
             </View>
 
