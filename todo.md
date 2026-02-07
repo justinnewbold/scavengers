@@ -10,13 +10,13 @@
 - [x] **#5** Race conditions in offline storage (`lib/offlineStorage.ts:108-126,171-198`) - Add mutex/lock for read-modify-write operations
 - [x] **#6** Stale closure in `soloModeStore.finishSoloHunt` (`store/soloModeStore.ts:256`) - Snapshot state once at start of function
 - [x] **#7** Social store like/unlike race condition (`store/socialStore.ts:225-295`) - Add in-flight tracking to prevent concurrent toggle
-- [ ] **#8** Vulnerable transitive dependencies (tar, lodash, undici) - Run `npm audit fix`
+- [x] **#8** Vulnerable transitive dependencies - Fixed lodash & undici via npm audit fix (tar remains, requires Expo SDK 54 upgrade)
 
 ## Medium Priority
 - [x] **#9** Off-by-one in theme selection (`store/soloModeStore.ts:139-141`) - Fix random index range
 - [x] **#10** 87.5% of stores have no tests - Added tests for soloModeStore (26 tests) and achievementStore (30 tests)
 - [x] **#11** Inconsistent error handling - Standardize across stores
-- [ ] **#12** No internationalization support - Establish i18n pattern
+- [x] **#12** i18n wired into login, register, home, and profile screens with expo-localization auto-detection
 - [x] **#13** Missing memoization in heavy components - Added `React.memo` and `useMemo` to BountyBoard, SpectatorOverlay, GlobalLeaderboard, TournamentBracket
 - [x] **#14** Location subscription memory leak (`store/tagModeStore.ts:100`) - Guard against overwrite
 - [x] **#15** Duplicate AuthStore implementations (`store/index.ts` vs `store/authStore.ts`) - Consolidate to single source
@@ -29,8 +29,8 @@
 - [x] **#24** `error: any` bypassing strict mode in authStore - Replaced with `error: unknown` + proper narrowing
 
 ## Low Priority (Remaining)
-- [ ] **#8** Vulnerable transitive dependencies (tar, lodash, undici) - Run `npm audit fix`
-- [ ] **#12** No internationalization support - Establish i18n pattern
+- [x] **#8** Fixed lodash & undici via npm audit fix (tar remains, requires Expo SDK 54 upgrade)
+- [x] **#12** i18n wired into login, register, home, and profile screens with expo-localization auto-detection
 - [x] **#10** Added tests for soloModeStore (26 tests) and achievementStore (30 tests)
 - [x] **#16** Large components decomposed - SpectatorOverlay (3 sub-components), ReplayPlayer (3), GlobalLeaderboard (4), EventBanner (4)
 - [x] **#19** Theme contrast fixed - `textTertiary` changed from `#707080` to `#9090A0` (5.48:1 ratio), borders improved

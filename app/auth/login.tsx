@@ -15,11 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
-  
+  const { t } = useI18n();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -55,7 +57,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert(t('common.error'), t('auth.enterEmailAndPassword'));
       return;
     }
     
@@ -86,8 +88,8 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
               <Ionicons name="map" size={48} color={Colors.primary} />
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue your adventure</Text>
+            <Text style={styles.title}>{t('auth.welcomeBack')}</Text>
+            <Text style={styles.subtitle}>{t('auth.signInSubtitle')}</Text>
           </View>
 
           {/* Error Message */}
@@ -107,7 +109,7 @@ export default function LoginScreen() {
               <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email"
+                placeholder={t('auth.email')}
                 placeholderTextColor={Colors.textTertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -121,7 +123,7 @@ export default function LoginScreen() {
               <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder={t('auth.password')}
                 placeholderTextColor={Colors.textTertiary}
                 value={password}
                 onChangeText={setPassword}
@@ -144,11 +146,11 @@ export default function LoginScreen() {
               style={styles.forgotPassword}
               onPress={() => router.push('/auth/forgot-password')}
             >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
 
             <Button
-              title={isLoading ? 'Signing In...' : 'Sign In'}
+              title={isLoading ? t('auth.signingIn') : t('auth.signIn')}
               onPress={handleLogin}
               disabled={isLoading}
               style={styles.loginButton}
@@ -158,7 +160,7 @@ export default function LoginScreen() {
           {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
+            <Text style={styles.dividerText}>{t('auth.or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -174,10 +176,10 @@ export default function LoginScreen() {
 
           {/* Sign Up Link */}
           <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
+            <Text style={styles.signupText}>{t('auth.noAccount')} </Text>
             <Link href="/auth/register" asChild>
               <TouchableOpacity>
-                <Text style={styles.signupLink}>Sign Up</Text>
+                <Text style={styles.signupLink}>{t('auth.signUp')}</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -187,7 +189,7 @@ export default function LoginScreen() {
             style={styles.skipButton}
             onPress={() => router.replace('/(tabs)')}
           >
-            <Text style={styles.skipText}>Continue as Guest</Text>
+            <Text style={styles.skipText}>{t('auth.continueAsGuest')}</Text>
           </TouchableOpacity>
 
           {/* Version - tap 3 times for dev login */}

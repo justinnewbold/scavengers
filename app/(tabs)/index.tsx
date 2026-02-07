@@ -11,11 +11,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { HuntCard, Button, DiscoverSkeleton, HuntCardSkeleton } from '@/components';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function DiscoverScreen() {
   const router = useRouter();
   const { publicHunts, isLoading, fetchPublicHunts } = useHuntStore();
   const [hasLoaded, setHasLoaded] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     fetchPublicHunts().finally(() => setHasLoaded(true));
@@ -46,19 +48,19 @@ export default function DiscoverScreen() {
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>🎯 Scavengers</Text>
         <Text style={styles.heroSubtitle}>
-          AI-Powered Scavenger Hunts{'\n'}Free • Offline • Fun
+          {t('home.subtitleFull')}
         </Text>
 
         <View style={styles.heroButtons}>
           <Button
-            title="Solo Mode"
+            title={t('home.soloMode')}
             onPress={() => router.push('/solo')}
             variant="outline"
             style={styles.heroButtonHalf}
             icon={<Ionicons name="person" size={18} color={Colors.primary} />}
           />
           <Button
-            title="Create Hunt"
+            title={t('home.createHunt')}
             onPress={() => router.push('/hunt/ai-create')}
             style={styles.heroButtonHalf}
             icon={<Ionicons name="sparkles" size={18} color="#fff" />}
@@ -73,14 +75,14 @@ export default function DiscoverScreen() {
             <Ionicons name="flash" size={24} color={Colors.warning} />
           </View>
           <View style={styles.soloPromoText}>
-            <Text style={styles.soloPromoTitle}>Play Solo</Text>
+            <Text style={styles.soloPromoTitle}>{t('home.playSolo')}</Text>
             <Text style={styles.soloPromoSubtitle}>
-              AI generates unique hunts instantly
+              {t('home.playSoloSubtitle')}
             </Text>
           </View>
         </View>
         <Button
-          title="Start"
+          title={t('home.start')}
           size="sm"
           onPress={() => router.push('/solo')}
           style={styles.soloPromoButton}
@@ -91,30 +93,30 @@ export default function DiscoverScreen() {
       <View style={styles.stats}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{publicHunts.length}</Text>
-          <Text style={styles.statLabel}>Public Hunts</Text>
+          <Text style={styles.statLabel}>{t('home.publicHunts')}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>Free</Text>
-          <Text style={styles.statLabel}>Up to 15 players</Text>
+          <Text style={styles.statLabel}>{t('home.upTo15Players')}</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>🔒</Text>
-          <Text style={styles.statLabel}>Works Offline</Text>
+          <Text style={styles.statLabel}>{t('home.worksOffline')}</Text>
         </View>
       </View>
       
       {/* Public Hunts */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Discover Hunts</Text>
+          <Text style={styles.sectionTitle}>{t('home.discoverHunts')}</Text>
           <Ionicons name="arrow-forward" size={20} color={Colors.textSecondary} />
         </View>
         
         {publicHunts.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>No public hunts yet</Text>
-            <Text style={styles.emptySubtext}>Be the first to create one!</Text>
+            <Text style={styles.emptyText}>{t('home.noPublicHunts')}</Text>
+            <Text style={styles.emptySubtext}>{t('home.beFirstToCreate')}</Text>
           </View>
         ) : (
           publicHunts.map((hunt) => (
@@ -129,16 +131,16 @@ export default function DiscoverScreen() {
       
       {/* Features */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Why Scavengers?</Text>
+        <Text style={styles.sectionTitle}>{t('home.whyScavengers')}</Text>
         
         <View style={styles.feature}>
           <View style={styles.featureIcon}>
             <Ionicons name="sparkles" size={24} color={Colors.primary} />
           </View>
           <View style={styles.featureContent}>
-            <Text style={styles.featureTitle}>AI-Powered Creation</Text>
+            <Text style={styles.featureTitle}>{t('home.aiPoweredCreation')}</Text>
             <Text style={styles.featureText}>
-              Generate complete hunts in seconds with Google Gemini AI
+              {t('home.aiPoweredDesc')}
             </Text>
           </View>
         </View>
@@ -148,9 +150,9 @@ export default function DiscoverScreen() {
             <Ionicons name="camera" size={24} color={Colors.secondary} />
           </View>
           <View style={styles.featureContent}>
-            <Text style={styles.featureTitle}>Smart Verification</Text>
+            <Text style={styles.featureTitle}>{t('home.smartVerification')}</Text>
             <Text style={styles.featureText}>
-              Photo AI, GPS, QR codes - multiple ways to verify challenges
+              {t('home.smartVerificationDesc')}
             </Text>
           </View>
         </View>
@@ -160,9 +162,9 @@ export default function DiscoverScreen() {
             <Ionicons name="wallet-outline" size={24} color={Colors.success} />
           </View>
           <View style={styles.featureContent}>
-            <Text style={styles.featureTitle}>Affordable & Fair</Text>
+            <Text style={styles.featureTitle}>{t('home.affordableAndFair')}</Text>
             <Text style={styles.featureText}>
-              Free for small groups, $4.99/mo for unlimited - no ads ever
+              {t('home.affordableDesc')}
             </Text>
           </View>
         </View>

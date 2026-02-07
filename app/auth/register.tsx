@@ -15,10 +15,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { useI18n } from '@/hooks/useI18n';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading, error, clearError } = useAuthStore();
+  const { t } = useI18n();
   
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -28,32 +30,32 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert(t('common.error'), t('auth.fillAllFields'));
       return;
     }
     
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      Alert.alert(t('common.error'), t('auth.passwordsNoMatch'));
       return;
     }
     
     if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
+      Alert.alert(t('common.error'), t('auth.passwordTooShort'));
       return;
     }
 
     if (!/[A-Z]/.test(password)) {
-      Alert.alert('Error', 'Password must contain an uppercase letter');
+      Alert.alert(t('common.error'), t('auth.passwordNeedUpper'));
       return;
     }
 
     if (!/[a-z]/.test(password)) {
-      Alert.alert('Error', 'Password must contain a lowercase letter');
+      Alert.alert(t('common.error'), t('auth.passwordNeedLower'));
       return;
     }
 
     if (!/[0-9]/.test(password)) {
-      Alert.alert('Error', 'Password must contain a number');
+      Alert.alert(t('common.error'), t('auth.passwordNeedNumber'));
       return;
     }
     
@@ -92,8 +94,8 @@ export default function RegisterScreen() {
             <View style={styles.logoContainer}>
               <Ionicons name="person-add" size={48} color={Colors.primary} />
             </View>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join the adventure today</Text>
+            <Text style={styles.title}>{t('auth.signUp')}</Text>
+            <Text style={styles.subtitle}>{t('auth.joinAdventure')}</Text>
           </View>
 
           {/* Error Message */}
@@ -113,7 +115,7 @@ export default function RegisterScreen() {
               <Ionicons name="person-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Display Name (optional)"
+                placeholder={t('auth.displayNameOptional')}
                 placeholderTextColor={Colors.textTertiary}
                 value={displayName}
                 onChangeText={setDisplayName}
@@ -125,7 +127,7 @@ export default function RegisterScreen() {
               <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email *"
+                placeholder={t('auth.email')}
                 placeholderTextColor={Colors.textTertiary}
                 value={email}
                 onChangeText={setEmail}
@@ -139,7 +141,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password *"
+                placeholder={t('auth.password')}
                 placeholderTextColor={Colors.textTertiary}
                 value={password}
                 onChangeText={setPassword}
@@ -162,7 +164,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Confirm Password *"
+                placeholder={t('auth.confirmPassword')}
                 placeholderTextColor={Colors.textTertiary}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -172,11 +174,11 @@ export default function RegisterScreen() {
             </View>
 
             <Text style={styles.passwordHint}>
-              Password: 8+ chars, uppercase, lowercase, number
+              {t('auth.passwordHint')}
             </Text>
 
             <Button
-              title={isLoading ? 'Creating Account...' : 'Create Account'}
+              title={isLoading ? t('auth.creatingAccount') : t('auth.signUp')}
               onPress={handleRegister}
               disabled={isLoading}
               style={styles.registerButton}
@@ -192,10 +194,10 @@ export default function RegisterScreen() {
 
           {/* Sign In Link */}
           <View style={styles.signinContainer}>
-            <Text style={styles.signinText}>Already have an account? </Text>
+            <Text style={styles.signinText}>{t('auth.hasAccount')} </Text>
             <Link href="/auth/login" asChild>
               <TouchableOpacity>
-                <Text style={styles.signinLink}>Sign In</Text>
+                <Text style={styles.signinLink}>{t('auth.signIn')}</Text>
               </TouchableOpacity>
             </Link>
           </View>

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '@/hooks';
+import { useI18n } from '@/hooks/useI18n';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -21,6 +22,7 @@ interface UserStats {
 export default function ProfileScreen() {
   const router = useRouter();
   useRequireAuth();
+  const { t } = useI18n();
   const { user, logout } = useAuthStore();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -71,11 +73,11 @@ export default function ProfileScreen() {
 
   const handleSignOut = () => {
     Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
+      t('auth.signOut'),
+      t('auth.signOutConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: logout },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('auth.signOut'), style: 'destructive', onPress: logout },
       ]
     );
   };
@@ -84,17 +86,17 @@ export default function ProfileScreen() {
     return (
       <View style={styles.authPrompt}>
         <Ionicons name="person-circle-outline" size={80} color={Colors.textTertiary} />
-        <Text style={styles.authTitle}>Welcome to Scavengers!</Text>
+        <Text style={styles.authTitle}>{t('profile.welcomeTitle')}</Text>
         <Text style={styles.authText}>
-          Sign in to track your hunts, save progress, and compete with friends.
+          {t('profile.welcomeText')}
         </Text>
         <Button
-          title="Sign In"
+          title={t('auth.signIn')}
           onPress={() => router.push('/auth/login')}
           style={styles.authButton}
         />
         <Button
-          title="Create Account"
+          title={t('auth.signUp')}
           onPress={() => router.push('/auth/register')}
           variant="outline"
           style={styles.authButton}
@@ -129,7 +131,7 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.statNumber}>{stats?.huntsCreated ?? 0}</Text>
           )}
-          <Text style={styles.statLabel}>Created</Text>
+          <Text style={styles.statLabel}>{t('profile.created')}</Text>
         </Card>
         <Card style={styles.statCard}>
           {isLoadingStats ? (
@@ -137,7 +139,7 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.statNumber}>{stats?.huntsPlayed ?? 0}</Text>
           )}
-          <Text style={styles.statLabel}>Played</Text>
+          <Text style={styles.statLabel}>{t('profile.played')}</Text>
         </Card>
         <Card style={styles.statCard}>
           {isLoadingStats ? (
@@ -145,69 +147,69 @@ export default function ProfileScreen() {
           ) : (
             <Text style={styles.statNumber}>{stats?.totalPoints ?? 0}</Text>
           )}
-          <Text style={styles.statLabel}>Points</Text>
+          <Text style={styles.statLabel}>{t('profile.points')}</Text>
         </Card>
       </View>
       
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Discover</Text>
+        <Text style={styles.sectionTitle}>{t('profile.discover')}</Text>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/marketplace')}>
           <Ionicons name="storefront-outline" size={22} color={Colors.primary} />
-          <Text style={styles.menuText}>Hunt Marketplace</Text>
+          <Text style={styles.menuText}>{t('profile.huntMarketplace')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Features</Text>
+        <Text style={styles.sectionTitle}>{t('profile.features')}</Text>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/gallery')}>
           <Ionicons name="images-outline" size={22} color={Colors.primary} />
-          <Text style={styles.menuText}>Photo Gallery</Text>
+          <Text style={styles.menuText}>{t('profile.photoGallery')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/achievements')}>
           <Ionicons name="trophy-outline" size={22} color={Colors.warning} />
-          <Text style={styles.menuText}>Achievements</Text>
+          <Text style={styles.menuText}>{t('profile.achievements')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/teams')}>
           <Ionicons name="people-outline" size={22} color={Colors.success} />
-          <Text style={styles.menuText}>Teams</Text>
+          <Text style={styles.menuText}>{t('teams.title')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
         <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/settings')}>
           <Ionicons name="settings-outline" size={22} color={Colors.primary} />
-          <Text style={styles.menuText}>Settings</Text>
+          <Text style={styles.menuText}>{t('profile.settings')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>{t('profile.account')}</Text>
 
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="help-circle-outline" size={22} color={Colors.text} />
-          <Text style={styles.menuText}>Help & Support</Text>
+          <Text style={styles.menuText}>{t('profile.helpSupport')}</Text>
         </Card>
 
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="document-text-outline" size={22} color={Colors.text} />
-          <Text style={styles.menuText}>Terms of Service</Text>
+          <Text style={styles.menuText}>{t('profile.termsOfService')}</Text>
         </Card>
 
         <Card variant="default" style={styles.menuCard}>
           <Ionicons name="shield-outline" size={22} color={Colors.text} />
-          <Text style={styles.menuText}>Privacy Policy</Text>
+          <Text style={styles.menuText}>{t('profile.privacyPolicy')}</Text>
         </Card>
       </View>
       
       <Button
-        title="Sign Out"
+        title={t('auth.signOut')}
         onPress={handleSignOut}
         variant="ghost"
         style={styles.signOutButton}

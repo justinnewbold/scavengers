@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store';
 import { Colors } from '@/constants/theme';
 import { ErrorBoundary, OfflineIndicator } from '@/components';
 import { initSentry, setUser } from '@/lib/sentry';
+import { i18n } from '@/lib/i18n';
 
 // Initialize Sentry as early as possible
 initSentry();
@@ -19,6 +20,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function setup() {
+      await i18n.initialize();
       await initialize();
       await SplashScreen.hideAsync();
     }
