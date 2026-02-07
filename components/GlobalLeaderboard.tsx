@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   FlatList,
   ScrollView,
 } from 'react-native';
@@ -13,12 +12,13 @@ import { Card } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useEventsStore } from '@/store/eventsStore';
 import type {
-  LeaderboardEntry,
   LeaderboardScope,
   LeaderboardPeriod,
   LeaderboardMetric,
 } from '@/types/events';
 import { METRIC_LABELS, PERIOD_LABELS } from '@/types/events';
+import { LeaderboardRow } from '@/components/leaderboard/LeaderboardRow';
+import { LeaderboardPodium } from '@/components/leaderboard/LeaderboardPodium';
 
 interface GlobalLeaderboardProps {
   initialScope?: LeaderboardScope;
@@ -39,108 +39,6 @@ const PERIOD_OPTIONS: { value: LeaderboardPeriod; label: string }[] = [
   { value: 'monthly', label: 'Month' },
   { value: 'all_time', label: 'All Time' },
 ];
-
-function RankBadge({ rank }: { rank: number }) {
-  const getMedalColor = () => {
-    switch (rank) {
-      case 1: return '#FFD700'; // Gold
-      case 2: return '#C0C0C0'; // Silver
-      case 3: return '#CD7F32'; // Bronze
-      default: return null;
-    }
-  };
-
-  const medalColor = getMedalColor();
-
-  if (medalColor) {
-    return (
-      <View style={[styles.medalBadge, { backgroundColor: medalColor }]}>
-        <Ionicons name="trophy" size={14} color="#fff" />
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.rankBadge}>
-      <Text style={styles.rankText}>{rank}</Text>
-    </View>
-  );
-}
-
-function RankChange({ change }: { change?: number }) {
-  if (!change || change === 0) return null;
-
-  const isUp = change > 0;
-  return (
-    <View style={[styles.rankChange, isUp ? styles.rankUp : styles.rankDown]}>
-      <Ionicons
-        name={isUp ? 'arrow-up' : 'arrow-down'}
-        size={10}
-        color={isUp ? Colors.success : Colors.error}
-      />
-      <Text style={[styles.rankChangeText, isUp ? styles.rankUpText : styles.rankDownText]}>
-        {Math.abs(change)}
-      </Text>
-    </View>
-  );
-}
-
-const LeaderboardRow = memo(function LeaderboardRow({
-  entry,
-  isCurrentUser,
-  metric,
-}: {
-  entry: LeaderboardEntry;
-  isCurrentUser: boolean;
-  metric: LeaderboardMetric;
-}) {
-  const formatValue = (value: number) => {
-    const config = METRIC_LABELS[metric];
-    if (metric === 'distance') {
-      return `${value.toFixed(1)} ${config.unit}`;
-    }
-    if (metric === 'speed') {
-      return `${Math.round(value)} ${config.unit}`;
-    }
-    return `${value.toLocaleString()} ${config.unit}`;
-  };
-
-  return (
-    <View style={[styles.leaderboardRow, isCurrentUser && styles.currentUserRow]}>
-      <RankBadge rank={entry.rank} />
-      <RankChange change={entry.rankChange} />
-
-      {entry.avatarUrl ? (
-        <Image source={{ uri: entry.avatarUrl }} style={styles.rowAvatar} />
-      ) : (
-        <View style={[styles.rowAvatar, styles.avatarPlaceholder]}>
-          <Ionicons name="person" size={16} color={Colors.textSecondary} />
-        </View>
-      )}
-
-      <View style={styles.rowInfo}>
-        <View style={styles.nameRow}>
-          <Text style={[styles.rowName, isCurrentUser && styles.currentUserName]} numberOfLines={1}>
-            {entry.displayName}
-          </Text>
-          {entry.isVerified && (
-            <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
-          )}
-          {entry.isFriend && (
-            <Ionicons name="people" size={14} color={Colors.success} />
-          )}
-        </View>
-        {entry.title && (
-          <Text style={styles.rowTitle}>{entry.title}</Text>
-        )}
-      </View>
-
-      <View style={styles.valueContainer}>
-        <Text style={styles.rowValue}>{formatValue(entry.value)}</Text>
-      </View>
-    </View>
-  );
-});
 
 export function GlobalLeaderboard({
   initialScope = 'global',
@@ -198,72 +96,6 @@ export function GlobalLeaderboard({
   const handlePeriodChange = (newPeriod: LeaderboardPeriod) => {
     setPeriod(newPeriod);
     setLeaderboardFilters(scope, newPeriod, metric);
-  };
-
-  const renderPodium = () => {
-    if (!entries || entries.length < 3 || compact) return null;
-
-    const top3 = entries.slice(0, 3);
-    const [first, second, third] = top3;
-
-    return (
-      <View style={styles.podium}>
-        {/* Second place */}
-        <View style={styles.podiumSpot}>
-          <View style={[styles.podiumAvatarContainer, styles.silverBorder]}>
-            {second?.avatarUrl ? (
-              <Image source={{ uri: second.avatarUrl }} style={styles.podiumAvatar} />
-            ) : (
-              <View style={[styles.podiumAvatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={24} color={Colors.textSecondary} />
-              </View>
-            )}
-          </View>
-          <View style={[styles.podiumPillar, styles.silverPillar]}>
-            <Text style={styles.podiumRank}>2</Text>
-          </View>
-          <Text style={styles.podiumName} numberOfLines={1}>{second?.displayName}</Text>
-          <Text style={styles.podiumScore}>{second?.value.toLocaleString()}</Text>
-        </View>
-
-        {/* First place */}
-        <View style={styles.podiumSpot}>
-          <Ionicons name="trophy" size={24} color="#FFD700" style={styles.crownIcon} />
-          <View style={[styles.podiumAvatarContainer, styles.goldBorder]}>
-            {first?.avatarUrl ? (
-              <Image source={{ uri: first.avatarUrl }} style={styles.podiumAvatarLarge} />
-            ) : (
-              <View style={[styles.podiumAvatarLarge, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={32} color={Colors.textSecondary} />
-              </View>
-            )}
-          </View>
-          <View style={[styles.podiumPillar, styles.goldPillar]}>
-            <Text style={styles.podiumRank}>1</Text>
-          </View>
-          <Text style={styles.podiumName} numberOfLines={1}>{first?.displayName}</Text>
-          <Text style={styles.podiumScore}>{first?.value.toLocaleString()}</Text>
-        </View>
-
-        {/* Third place */}
-        <View style={styles.podiumSpot}>
-          <View style={[styles.podiumAvatarContainer, styles.bronzeBorder]}>
-            {third?.avatarUrl ? (
-              <Image source={{ uri: third.avatarUrl }} style={styles.podiumAvatar} />
-            ) : (
-              <View style={[styles.podiumAvatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={24} color={Colors.textSecondary} />
-              </View>
-            )}
-          </View>
-          <View style={[styles.podiumPillar, styles.bronzePillar]}>
-            <Text style={styles.podiumRank}>3</Text>
-          </View>
-          <Text style={styles.podiumName} numberOfLines={1}>{third?.displayName}</Text>
-          <Text style={styles.podiumScore}>{third?.value.toLocaleString()}</Text>
-        </View>
-      </View>
-    );
   };
 
   const renderFilters = () => {
@@ -355,7 +187,7 @@ export function GlobalLeaderboard({
       )}
 
       {renderFilters()}
-      {renderPodium()}
+      <LeaderboardPodium entries={entries} compact={compact} />
       {renderUserPosition()}
 
       <FlatList
@@ -466,84 +298,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: '600',
   },
-  podium: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.lg,
-  },
-  podiumSpot: {
-    alignItems: 'center',
-    width: 100,
-  },
-  crownIcon: {
-    marginBottom: 4,
-  },
-  podiumAvatarContainer: {
-    borderRadius: 30,
-    borderWidth: 3,
-    marginBottom: 8,
-  },
-  goldBorder: {
-    borderColor: '#FFD700',
-  },
-  silverBorder: {
-    borderColor: '#C0C0C0',
-  },
-  bronzeBorder: {
-    borderColor: '#CD7F32',
-  },
-  podiumAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  podiumAvatarLarge: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  avatarPlaceholder: {
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  podiumPillar: {
-    width: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    marginBottom: 4,
-  },
-  goldPillar: {
-    height: 80,
-    backgroundColor: '#FFD700',
-  },
-  silverPillar: {
-    height: 60,
-    backgroundColor: '#C0C0C0',
-  },
-  bronzePillar: {
-    height: 40,
-    backgroundColor: '#CD7F32',
-  },
-  podiumRank: {
-    fontSize: FontSizes.xl,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  podiumName: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.text,
-    maxWidth: 90,
-  },
-  podiumScore: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
-  },
   userPositionCard: {
     marginHorizontal: Spacing.md,
     marginBottom: Spacing.sm,
@@ -560,94 +314,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.md,
-  },
-  leaderboardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  currentUserRow: {
-    backgroundColor: Colors.primary + '10',
-    marginHorizontal: -Spacing.md,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 8,
-  },
-  rankBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  medalBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  rankText: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-  },
-  rankChange: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: Spacing.xs,
-    width: 24,
-  },
-  rankUp: {},
-  rankDown: {},
-  rankChangeText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '600',
-  },
-  rankUpText: {
-    color: Colors.success,
-  },
-  rankDownText: {
-    color: Colors.error,
-  },
-  rowAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: Spacing.sm,
-  },
-  rowInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  rowName: {
-    fontSize: FontSizes.md,
-    fontWeight: '500',
-    color: Colors.text,
-  },
-  currentUserName: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  rowTitle: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
-  },
-  valueContainer: {
-    alignItems: 'flex-end',
-  },
-  rowValue: {
-    fontSize: FontSizes.md,
-    fontWeight: '600',
-    color: Colors.text,
   },
   emptyState: {
     alignItems: 'center',

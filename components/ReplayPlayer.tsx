@@ -7,12 +7,14 @@ import {
   ScrollView,
   Animated,
   Dimensions,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useLiveMultiplayerStore } from '@/store/liveMultiplayerStore';
-import type { RaceReplay, ReplayEvent, ReplayHighlight, ReplaySnapshot } from '@/types/liveMultiplayer';
+import type { RaceReplay, ReplayHighlight, ReplaySnapshot } from '@/types/liveMultiplayer';
+import { TimelineMarker } from './replay/TimelineMarker';
+import { HighlightCard } from './replay/HighlightCard';
+import { LeaderboardSnapshot } from './replay/LeaderboardSnapshot';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -22,100 +24,11 @@ interface ReplayPlayerProps {
   autoPlay?: boolean;
 }
 
-function formatTime(ms: number): string {
+export function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function TimelineMarker({
-  event,
-  duration,
-  onPress,
-}: {
-  event: ReplayEvent;
-  duration: number;
-  onPress: () => void;
-}) {
-  const position = (event.timestamp / duration) * 100;
-
-  const getMarkerColor = () => {
-    switch (event.type) {
-      case 'position_change': return Colors.warning;
-      case 'streak_achieved': return Colors.error;
-      case 'finish': return Colors.success;
-      default: return Colors.primary;
-    }
-  };
-
-  return (
-    <TouchableOpacity
-      style={[styles.timelineMarker, { left: `${position}%`, backgroundColor: getMarkerColor() }]}
-      onPress={onPress}
-    />
-  );
-}
-
-function HighlightCard({
-  highlight,
-  onPress,
-  isActive,
-}: {
-  highlight: ReplayHighlight;
-  onPress: () => void;
-  isActive: boolean;
-}) {
-  const getHighlightIcon = () => {
-    switch (highlight.type) {
-      case 'lead_change': return 'swap-horizontal';
-      case 'photo_finish': return 'camera';
-      case 'comeback': return 'trending-up';
-      case 'streak': return 'flame';
-      case 'record': return 'ribbon';
-      default: return 'star';
-    }
-  };
-
-  return (
-    <TouchableOpacity
-      style={[styles.highlightCard, isActive && styles.highlightCardActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <View style={styles.highlightIcon}>
-        <Ionicons name={getHighlightIcon() as keyof typeof Ionicons.glyphMap} size={16} color={Colors.primary} />
-      </View>
-      <View style={styles.highlightInfo}>
-        <Text style={styles.highlightTitle} numberOfLines={1}>{highlight.title}</Text>
-        <Text style={styles.highlightTime}>{formatTime(highlight.startTime)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function LeaderboardSnapshot({
-  snapshot,
-  participantNames,
-}: {
-  snapshot: ReplaySnapshot;
-  participantNames: Record<string, string>;
-}) {
-  const sortedParticipants = [...snapshot.participants].sort((a, b) => a.position - b.position);
-
-  return (
-    <View style={styles.snapshotLeaderboard}>
-      {sortedParticipants.slice(0, 5).map((p, index) => (
-        <View key={p.userId} style={styles.snapshotRow}>
-          <Text style={styles.snapshotPosition}>{index + 1}</Text>
-          <Text style={styles.snapshotName} numberOfLines={1}>
-            {participantNames[p.userId] || 'Unknown'}
-          </Text>
-          <Text style={styles.snapshotScore}>{p.score}</Text>
-        </View>
-      ))}
-    </View>
-  );
 }
 
 export function ReplayPlayer({ replay, onClose, autoPlay = false }: ReplayPlayerProps) {
@@ -464,30 +377,6 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     minWidth: 150,
   },
-  snapshotLeaderboard: {
-    gap: 4,
-  },
-  snapshotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  snapshotPosition: {
-    width: 20,
-    fontSize: FontSizes.sm,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  snapshotName: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: '#fff',
-  },
-  snapshotScore: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.primary,
-    marginLeft: Spacing.xs,
-  },
   timestampOverlay: {
     position: 'absolute',
     bottom: Spacing.sm,
@@ -521,14 +410,6 @@ const styles = StyleSheet.create({
   timelineProgress: {
     height: '100%',
     backgroundColor: Colors.primary,
-  },
-  timelineMarker: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    top: 8,
-    marginLeft: -4,
   },
   scrubber: {
     position: 'absolute',
@@ -619,41 +500,6 @@ const styles = StyleSheet.create({
   highlightsList: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-  },
-  highlightCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: Spacing.sm,
-    marginRight: Spacing.sm,
-    minWidth: 140,
-  },
-  highlightCardActive: {
-    backgroundColor: Colors.primary + '20',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  highlightIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.xs,
-  },
-  highlightInfo: {
-    flex: 1,
-  },
-  highlightTitle: {
-    fontSize: FontSizes.sm,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  highlightTime: {
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
   },
   statsRow: {
     flexDirection: 'row',

@@ -10,3 +10,4 @@ export { useProximityHaptics } from './useProximityHaptics';
 export { useStreak } from './useStreak';
 export { useAccessibility } from './useAccessibility';
 export { useRequireAuth } from './useRequireAuth';
+export { useAbortController } from './useAbortController';

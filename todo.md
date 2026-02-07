@@ -14,7 +14,7 @@
 
 ## Medium Priority
 - [x] **#9** Off-by-one in theme selection (`store/soloModeStore.ts:139-141`) - Fix random index range
-- [ ] **#10** 87.5% of stores have no tests - Add tests for critical stores
+- [x] **#10** 87.5% of stores have no tests - Added tests for soloModeStore (26 tests) and achievementStore (30 tests)
 - [x] **#11** Inconsistent error handling - Standardize across stores
 - [ ] **#12** No internationalization support - Establish i18n pattern
 - [x] **#13** Missing memoization in heavy components - Added `React.memo` and `useMemo` to BountyBoard, SpectatorOverlay, GlobalLeaderboard, TournamentBracket
@@ -30,9 +30,9 @@
 
 ## Low Priority (Remaining)
 - [ ] **#8** Vulnerable transitive dependencies (tar, lodash, undici) - Run `npm audit fix`
-- [ ] **#10** 87.5% of stores have no tests - Add tests for critical stores
 - [ ] **#12** No internationalization support - Establish i18n pattern
-- [ ] **#16** Large components need decomposition (SpectatorOverlay, ReplayPlayer, GlobalLeaderboard, EventBanner)
-- [ ] **#19** Theme contrast concerns (`constants/theme.ts` - `textTertiary` on `background`)
-- [ ] **#20** Missing deep link configuration
-- [ ] **#23** No request cancellation on navigation - AbortController for in-flight fetches
+- [x] **#10** Added tests for soloModeStore (26 tests) and achievementStore (30 tests)
+- [x] **#16** Large components decomposed - SpectatorOverlay (3 sub-components), ReplayPlayer (3), GlobalLeaderboard (4), EventBanner (4)
+- [x] **#19** Theme contrast fixed - `textTertiary` changed from `#707080` to `#9090A0` (5.48:1 ratio), borders improved
+- [x] **#20** Deep link configuration added - iOS associatedDomains + Android intentFilters in app.json
+- [x] **#23** AbortController hook added - `useAbortController` for request cancellation on navigation

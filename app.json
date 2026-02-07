@@ -26,7 +26,10 @@
       },
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:scavengers.newbold.cloud"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -43,6 +46,25 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE",
         "android.permission.INTERNET"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "scavengers.newbold.cloud",
+              "pathPrefix": "/hunt/"
+            },
+            {
+              "scheme": "https",
+              "host": "scavengers.newbold.cloud",
+              "pathPrefix": "/join/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {
