@@ -16,11 +16,13 @@ import { Button } from '@/components';
 import { useAuthStore } from '@/store/authStore';
 import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
+import { useHapticPatterns } from '@/hooks/useHapticPatterns';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
   const { t } = useI18n();
+  const { celebration, error: hapticError } = useHapticPatterns();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,13 +59,17 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
+      hapticError();
       Alert.alert(t('common.error'), t('auth.enterEmailAndPassword'));
       return;
     }
-    
+
     const success = await login(email.trim(), password);
     if (success) {
+      celebration();
       router.replace('/(tabs)');
+    } else {
+      hapticError();
     }
   };
 

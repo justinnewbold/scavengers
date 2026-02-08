@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, BottomSheet } from '@/components';
+import { Button, BottomSheet, SegmentedControl, Skeleton } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -300,25 +300,12 @@ export default function GalleryScreen() {
       </View>
 
       {/* Filter Bar */}
-      <View style={styles.filterBar}>
-        <TouchableOpacity
-          style={[styles.filterChip, !showFavoritesOnly && styles.filterChipActive]}
-          onPress={() => setShowFavoritesOnly(false)}
-        >
-          <Text style={[styles.filterText, !showFavoritesOnly && styles.filterTextActive]}>
-            All Photos
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterChip, showFavoritesOnly && styles.filterChipActive]}
-          onPress={() => setShowFavoritesOnly(true)}
-        >
-          <Ionicons name="heart" size={14} color={showFavoritesOnly ? Colors.text : Colors.error} />
-          <Text style={[styles.filterText, showFavoritesOnly && styles.filterTextActive]}>
-            Favorites
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <SegmentedControl
+        segments={['All Photos', 'Favorites']}
+        selectedIndex={showFavoritesOnly ? 1 : 0}
+        onChange={(index) => setShowFavoritesOnly(index === 1)}
+        style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
+      />
 
       {shareMode && selectedForShare.length > 0 && (
         <View style={styles.shareBar}>
@@ -335,7 +322,13 @@ export default function GalleryScreen() {
         }
       >
         {loading ? (
-          <Text style={styles.loadingText}>Loading photos...</Text>
+          <View style={styles.photoSkeletonGrid}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <View key={i} style={styles.photoSkeletonCard}>
+                <Skeleton width={PHOTO_SIZE} height={PHOTO_SIZE} borderRadius={12} />
+              </View>
+            ))}
+          </View>
         ) : photos.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="camera-outline" size={60} color={Colors.textTertiary} />
@@ -467,28 +460,6 @@ const styles = StyleSheet.create({
   },
   backButton: { padding: Spacing.xs },
   title: { fontSize: FontSizes.xl, fontWeight: '700', color: Colors.text },
-  filterBar: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  filterText: { fontSize: FontSizes.sm, color: Colors.textSecondary },
-  filterTextActive: { color: Colors.text, fontWeight: '600' },
   shareBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -537,7 +508,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   challengeTitle: { fontSize: FontSizes.xs, color: Colors.text },
-  loadingText: { textAlign: 'center', color: Colors.textSecondary, width: '100%' },
+  photoSkeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  photoSkeletonCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   emptyState: { alignItems: 'center', padding: Spacing.xxl, width: '100%' },
   emptyTitle: { fontSize: FontSizes.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.md },
   emptyText: { fontSize: FontSizes.sm, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm },

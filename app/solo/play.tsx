@@ -7,18 +7,46 @@ import {
   Alert,
   Animated,
   Share,
-  Platform,
   BackHandler,
   AppState,
+  TouchableOpacity,
+  Dimensions,
   type AppStateStatus,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, MysteryChallenge, StreakDisplay, Confetti } from '@/components';
+import * as Haptics from 'expo-haptics';
+import { Button, Card, CardStack, StreakDisplay, Confetti } from '@/components';
 import { useSoloModeStore, type SoloHuntResult } from '@/store/soloModeStore';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
+import { useHapticPatterns } from '@/hooks/useHapticPatterns';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import type { Challenge } from '@/types';
+import type { Challenge, VerificationType } from '@/types';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CARD_STACK_HEIGHT = SCREEN_HEIGHT * 0.55;
+
+const getVerificationIcon = (type: VerificationType): string => {
+  switch (type) {
+    case 'photo': return 'camera';
+    case 'gps': return 'location';
+    case 'qr_code': return 'qr-code';
+    case 'text_answer': return 'text';
+    case 'manual': return 'checkmark-circle';
+    default: return 'help-circle';
+  }
+};
+
+const getVerificationLabel = (type: VerificationType): string => {
+  switch (type) {
+    case 'photo': return 'Photo Verify';
+    case 'gps': return 'GPS Verify';
+    case 'qr_code': return 'QR Code';
+    case 'text_answer': return 'Text Answer';
+    case 'manual': return 'Self Verify';
+    default: return 'Verify';
+  }
+};
 
 export default function SoloPlayScreen() {
   const router = useRouter();
@@ -31,6 +59,8 @@ export default function SoloPlayScreen() {
     pauseSession,
     resumeSession,
   } = useSoloModeStore();
+
+  const { celebration } = useHapticPatterns();
 
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [revealedMysteries, setRevealedMysteries] = useState<Set<string>>(new Set());
@@ -71,7 +101,7 @@ export default function SoloPlayScreen() {
       }
     : null;
 
-  const { distance, isRevealed: proximityRevealed, intensity } = useProximityHaptics({
+  const { distance, isRevealed: proximityRevealed } = useProximityHaptics({
     enabled: Boolean(currentChallenge?.is_mystery),
     target: proximityTarget,
     onReveal: useCallback(() => {
@@ -207,6 +237,7 @@ export default function SoloPlayScreen() {
 
     // Celebrate
     triggerHaptic('success');
+    celebration();
     Animated.sequence([
       Animated.spring(scoreAnim, { toValue: 1.3, useNativeDriver: true }),
       Animated.spring(scoreAnim, { toValue: 1, useNativeDriver: true }),
@@ -226,35 +257,197 @@ export default function SoloPlayScreen() {
     const newCompletedCount = completedChallenges.size + 1;
     if (hunt?.challenges && newCompletedCount >= hunt.challenges.length) {
       setShowConfetti(true);
+      celebration();
       setTimeout(() => {
         const huntResult = finishSoloHunt();
         if (huntResult) {
           setResult(huntResult);
         }
       }, 1000);
-    } else {
-      // Move to next challenge
-      const nextIndex = currentChallengeIndex + 1;
-      if (nextIndex < (hunt?.challenges?.length || 0)) {
-        setCurrentChallengeIndex(nextIndex);
-      }
     }
   };
 
-  const handleVerification = (challenge: Challenge) => {
-    // For solo mode, we simplify verification - just confirm and complete
-    Alert.alert(
-      'Complete Challenge?',
-      `Did you find and photograph: "${challenge.title}"?`,
-      [
-        { text: 'Not Yet', style: 'cancel' },
-        {
-          text: 'Yes, Done!',
-          onPress: () => handleChallengeComplete(challenge),
-        },
-      ]
-    );
-  };
+  const handleShowHint = useCallback((challenge: Challenge) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (challenge.hint) {
+      Alert.alert('Hint', challenge.hint);
+    } else {
+      Alert.alert('No Hint', 'No hint is available for this challenge.');
+    }
+  }, []);
+
+  const handleSwipeRightAction = useCallback(
+    (challenge: Challenge, _index: number) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      if (completedChallenges.has(challenge.id!)) return;
+
+      // Complete the challenge in solo mode store
+      handleChallengeComplete(challenge);
+
+      // For challenges requiring device verification, also navigate to the verification screen
+      switch (challenge.verification_type) {
+        case 'photo':
+          router.push({
+            pathname: '/play/camera',
+            params: {
+              challengeId: challenge.id!,
+              challengeTitle: challenge.title,
+              challengeDescription: challenge.description,
+            },
+          });
+          break;
+        case 'gps':
+          router.push({
+            pathname: '/play/location',
+            params: {
+              challengeId: challenge.id!,
+              targetLat: String(challenge.verification_data?.latitude || 0),
+              targetLng: String(challenge.verification_data?.longitude || 0),
+              radius: String(challenge.verification_data?.radius_meters || 50),
+            },
+          });
+          break;
+        case 'qr_code':
+          router.push({
+            pathname: '/play/qr-scanner',
+            params: {
+              challengeId: challenge.id!,
+              expectedCode: challenge.verification_data?.expected_code || '',
+            },
+          });
+          break;
+      }
+    },
+    [completedChallenges, handleChallengeComplete, router]
+  );
+
+  const handleSwipeLeftAction = useCallback(
+    (_challenge: Challenge, _index: number) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Skip challenge - CardStack handles index advancement automatically
+    },
+    []
+  );
+
+  const handleSwipeUpAction = useCallback(
+    (challenge: Challenge, _index: number) => {
+      handleShowHint(challenge);
+    },
+    [handleShowHint]
+  );
+
+  const handleCardIndexChange = useCallback((newIndex: number) => {
+    setCurrentChallengeIndex(newIndex);
+  }, []);
+
+  const renderChallengeCard = useCallback(
+    (challenge: Challenge, index: number) => {
+      const isMysteryChallenge = challenge.is_mystery;
+      const isRevealed =
+        !isMysteryChallenge ||
+        revealedMysteries.has(challenge.id || '') ||
+        (index === currentChallengeIndex && proximityRevealed);
+      const isCompleted = completedChallenges.has(challenge.id!);
+
+      if (isMysteryChallenge && !isRevealed) {
+        return (
+          <View style={styles.cardContent}>
+            <View style={styles.mysteryCardContent}>
+              <Ionicons name="help-circle" size={48} color={Colors.primary} />
+              <Text style={styles.mysteryCardTitle}>Mystery Challenge</Text>
+              <Text style={styles.mysteryCardDescription}>
+                Get closer to reveal this challenge!
+              </Text>
+              {distance !== null && (
+                <Text style={styles.mysteryCardDistance}>
+                  ~{Math.round(distance)}m away
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      }
+
+      return (
+        <View style={styles.cardContent}>
+          {/* Challenge header: number and points */}
+          <View style={styles.cardHeader}>
+            <View style={styles.challengeBadge}>
+              <Text style={styles.challengeBadgeText}>
+                {index + 1} of {hunt?.challenges?.length}
+              </Text>
+            </View>
+            <View style={styles.pointsContainer}>
+              <Text style={styles.challengePoints}>
+                {currentMultiplier > 1
+                  ? `${calculatePoints(challenge.points)} pts`
+                  : `${challenge.points} pts`}
+              </Text>
+              {currentMultiplier > 1 && (
+                <Text style={styles.bonusLabel}>({currentMultiplier}x)</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Mystery revealed badge */}
+          {isMysteryChallenge && (
+            <View style={styles.revealedBadge}>
+              <Ionicons name="sparkles" size={14} color={Colors.warning} />
+              <Text style={styles.revealedBadgeText}>Mystery Revealed!</Text>
+            </View>
+          )}
+
+          {/* Title and description */}
+          <Text style={styles.challengeTitle}>{challenge.title}</Text>
+          <Text style={styles.challengeDescription}>{challenge.description}</Text>
+
+          {/* Verification type badge */}
+          <View style={styles.verificationBadge}>
+            <Ionicons
+              name={getVerificationIcon(challenge.verification_type) as any}
+              size={16}
+              color={Colors.primary}
+            />
+            <Text style={styles.verificationBadgeText}>
+              {getVerificationLabel(challenge.verification_type)}
+            </Text>
+          </View>
+
+          {/* Hint button */}
+          {challenge.hint && (
+            <TouchableOpacity
+              style={styles.hintButton}
+              onPress={() => handleShowHint(challenge)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="bulb-outline" size={18} color={Colors.warning} />
+              <Text style={styles.hintButtonText}>Show Hint</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Completed indicator */}
+          {isCompleted && (
+            <View style={styles.completedBadge}>
+              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
+              <Text style={styles.completedBadgeText}>Completed</Text>
+            </View>
+          )}
+        </View>
+      );
+    },
+    [
+      hunt?.challenges?.length,
+      currentMultiplier,
+      calculatePoints,
+      completedChallenges,
+      revealedMysteries,
+      proximityRevealed,
+      distance,
+      currentChallengeIndex,
+      handleShowHint,
+    ]
+  );
 
   const handleShare = async () => {
     if (!result) return;
@@ -366,7 +559,7 @@ export default function SoloPlayScreen() {
     );
   }
 
-  if (!hunt || !currentChallenge || !activeSession) {
+  if (!hunt || !activeSession) {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading...</Text>
@@ -374,9 +567,8 @@ export default function SoloPlayScreen() {
     );
   }
 
-  const isMystery = currentChallenge.is_mystery;
-  const isCurrentRevealed = !isMystery || revealedMysteries.has(currentChallenge.id || '') || proximityRevealed;
   const score = activeSession.score + activeSession.bonusPoints;
+  const challenges = hunt.challenges || [];
 
   return (
     <>
@@ -442,10 +634,9 @@ export default function SoloPlayScreen() {
           </View>
         </View>
 
-        {/* Challenge Content */}
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
-          {/* Streak Display */}
-          {isStreakActive && streak.count >= 2 && (
+        {/* Streak Display */}
+        {isStreakActive && streak.count >= 2 && (
+          <View style={styles.streakContainer}>
             <StreakDisplay
               streak={streak.count}
               multiplier={currentMultiplier}
@@ -453,138 +644,61 @@ export default function SoloPlayScreen() {
               timeRemainingFormatted={timeRemainingFormatted}
               isActive={isStreakActive}
             />
-          )}
+          </View>
+        )}
 
-          {/* Challenge Card */}
-          {isMystery && !isCurrentRevealed ? (
-            <MysteryChallenge
-              challenge={currentChallenge}
-              isRevealed={false}
-              distance={distance}
-              intensity={intensity}
+        {/* Card Stack */}
+        <View style={styles.cardStackContainer}>
+          {currentChallengeIndex < challenges.length ? (
+            <CardStack
+              items={challenges}
+              currentIndex={currentChallengeIndex}
+              onIndexChange={handleCardIndexChange}
+              renderItem={renderChallengeCard}
+              onSwipeRight={handleSwipeRightAction}
+              onSwipeLeft={handleSwipeLeftAction}
+              onSwipeUp={handleSwipeUpAction}
             />
           ) : (
-            <Card style={styles.challengeCard}>
-              <View style={styles.challengeHeader}>
-                <View style={styles.challengeBadge}>
-                  <Text style={styles.challengeBadgeText}>
-                    {currentChallengeIndex + 1} of {hunt.challenges?.length}
-                  </Text>
-                </View>
-                <View style={styles.pointsContainer}>
-                  <Text style={styles.challengePoints}>
-                    {currentMultiplier > 1
-                      ? `${calculatePoints(currentChallenge.points)} pts`
-                      : `${currentChallenge.points} pts`}
-                  </Text>
-                  {currentMultiplier > 1 && (
-                    <Text style={styles.bonusLabel}>({currentMultiplier}x)</Text>
-                  )}
-                </View>
-              </View>
-
-              {isMystery && (
-                <View style={styles.revealedBadge}>
-                  <Ionicons name="sparkles" size={14} color={Colors.warning} />
-                  <Text style={styles.revealedBadgeText}>Mystery Revealed!</Text>
-                </View>
-              )}
-
-              <Text style={styles.challengeTitle}>{currentChallenge.title}</Text>
-              <Text style={styles.challengeDescription}>{currentChallenge.description}</Text>
-
-              {currentChallenge.hint && (
-                <View style={styles.hintContainer}>
-                  <Ionicons name="bulb-outline" size={16} color={Colors.warning} />
-                  <Text style={styles.hintText}>{currentChallenge.hint}</Text>
-                </View>
-              )}
-
-              <View style={styles.verificationInfo}>
-                <Ionicons name="camera" size={20} color={Colors.primary} />
-                <Text style={styles.verificationText}>
-                  Take a photo when you find it!
-                </Text>
-              </View>
-
+            <View style={styles.allCardsSwipedContainer}>
+              <Ionicons name="checkmark-done-circle" size={64} color={Colors.success} />
+              <Text style={styles.allCardsSwipedTitle}>All challenges reviewed!</Text>
+              <Text style={styles.allCardsSwipedSubtitle}>
+                {completedChallenges.size} of {challenges.length} completed
+              </Text>
               <Button
-                title={
-                  completedChallenges.has(currentChallenge.id!)
-                    ? '✓ Completed'
-                    : 'Mark as Complete'
-                }
-                onPress={() => handleVerification(currentChallenge)}
-                disabled={completedChallenges.has(currentChallenge.id!)}
-                style={styles.verifyButton}
+                title="Finish Hunt"
+                onPress={() => {
+                  const huntResult = finishSoloHunt();
+                  if (huntResult) {
+                    celebration();
+                    setShowConfetti(true);
+                    setResult(huntResult);
+                  }
+                }}
+                style={styles.finishButton}
               />
-            </Card>
+            </View>
           )}
+        </View>
 
-          {/* Navigation */}
-          <View style={styles.navigation}>
-            <Button
-              title="Previous"
-              variant="outline"
-              onPress={() => setCurrentChallengeIndex((prev) => Math.max(0, prev - 1))}
-              disabled={currentChallengeIndex === 0}
-              style={styles.navButton}
-            />
-            <Button
-              title="Next"
-              variant="outline"
-              onPress={() =>
-                setCurrentChallengeIndex((prev) =>
-                  Math.min((hunt.challenges?.length || 1) - 1, prev + 1)
-                )
-              }
-              disabled={currentChallengeIndex >= (hunt.challenges?.length || 1) - 1}
-              style={styles.navButton}
-            />
+        {/* Swipe Instructions */}
+        {currentChallengeIndex < challenges.length && (
+          <View style={styles.swipeInstructions}>
+            <View style={styles.swipeHint}>
+              <Ionicons name="arrow-forward" size={14} color={Colors.success} />
+              <Text style={styles.swipeHintText}>Complete</Text>
+            </View>
+            <View style={styles.swipeHint}>
+              <Ionicons name="arrow-back" size={14} color={Colors.error} />
+              <Text style={styles.swipeHintText}>Skip</Text>
+            </View>
+            <View style={styles.swipeHint}>
+              <Ionicons name="arrow-up" size={14} color={Colors.warning} />
+              <Text style={styles.swipeHintText}>Hint</Text>
+            </View>
           </View>
-
-          {/* Challenge List */}
-          <View style={styles.challengeList}>
-            <Text style={styles.listTitle}>All Challenges</Text>
-            {hunt.challenges?.map((challenge, index) => {
-              const isMysteryChallenge = challenge.is_mystery;
-              const isRevealed = !isMysteryChallenge || revealedMysteries.has(challenge.id || '');
-              const isCompleted = completedChallenges.has(challenge.id!);
-
-              return (
-                <Card
-                  key={challenge.id || index}
-                  style={[
-                    styles.listItem,
-                    index === currentChallengeIndex && styles.listItemActive,
-                    isCompleted && styles.listItemCompleted,
-                  ]}
-                  onPress={() => setCurrentChallengeIndex(index)}
-                >
-                  <View style={styles.listItemContent}>
-                    {isCompleted ? (
-                      <Ionicons name="checkmark-circle" size={24} color={Colors.success} />
-                    ) : isMysteryChallenge && !isRevealed ? (
-                      <Ionicons name="help-circle" size={24} color={Colors.primary} />
-                    ) : (
-                      <View style={styles.listItemNumber}>
-                        <Text style={styles.listItemNumberText}>{index + 1}</Text>
-                      </View>
-                    )}
-                    <Text
-                      style={[styles.listItemTitle, isCompleted && styles.listItemTitleCompleted]}
-                      numberOfLines={1}
-                    >
-                      {isMysteryChallenge && !isRevealed ? 'Mystery Challenge' : challenge.title}
-                    </Text>
-                    <Text style={styles.listItemPoints}>
-                      {isMysteryChallenge && !isRevealed ? '?' : challenge.points}
-                    </Text>
-                  </View>
-                </Card>
-              );
-            })}
-          </View>
-        </ScrollView>
+        )}
       </View>
     </>
   );
@@ -643,17 +757,21 @@ const styles = StyleSheet.create({
   scoreText: {
     color: Colors.primary,
   },
-  content: {
+  streakContainer: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+  },
+  cardStackContainer: {
     flex: 1,
+    height: CARD_STACK_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
   },
-  contentContainer: {
-    padding: Spacing.md,
-    gap: Spacing.md,
+  cardContent: {
+    minHeight: 280,
   },
-  challengeCard: {
-    marginBottom: Spacing.md,
-  },
-  challengeHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -711,93 +829,111 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: Spacing.lg,
   },
-  hintContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: Colors.warning + '15',
-    padding: Spacing.md,
-    borderRadius: 12,
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  hintText: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: Colors.warning,
-    lineHeight: 20,
-  },
-  verificationInfo: {
+  verificationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  verificationText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-  },
-  verifyButton: {
-    marginTop: Spacing.sm,
-  },
-  navigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  navButton: {
-    flex: 1,
-  },
-  challengeList: {
-    marginTop: Spacing.md,
-  },
-  listTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: '700',
-    color: Colors.text,
+    backgroundColor: Colors.primary + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
-  listItem: {
-    marginBottom: Spacing.xs,
-    padding: Spacing.sm,
-  },
-  listItemActive: {
-    borderColor: Colors.primary,
-    borderWidth: 2,
-  },
-  listItemCompleted: {
-    opacity: 0.7,
-  },
-  listItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  listItemNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listItemNumberText: {
-    fontSize: FontSizes.xs,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  listItemTitle: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    color: Colors.text,
-  },
-  listItemTitleCompleted: {
-    textDecorationLine: 'line-through',
-    color: Colors.textSecondary,
-  },
-  listItemPoints: {
+  verificationBadgeText: {
     fontSize: FontSizes.xs,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  hintButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warning + '15',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 10,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    minHeight: 48,
+  },
+  hintButtonText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.warning,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  completedBadgeText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+    color: Colors.success,
+  },
+  mysteryCardContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    gap: Spacing.md,
+  },
+  mysteryCardTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  mysteryCardDescription: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  mysteryCardDistance: {
+    fontSize: FontSizes.lg,
+    fontWeight: '600',
+    color: Colors.primary,
+    marginTop: Spacing.sm,
+  },
+  allCardsSwipedContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    padding: Spacing.xl,
+  },
+  allCardsSwipedTitle: {
+    fontSize: FontSizes.xl,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  allCardsSwipedSubtitle: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  finishButton: {
+    marginTop: Spacing.md,
+    minWidth: 200,
+  },
+  swipeInstructions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  swipeHintText: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   // Results styles
   resultsContent: {

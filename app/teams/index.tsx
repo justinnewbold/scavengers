@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Button, BottomSheet } from '@/components';
+import { Card, Button, BottomSheet, Skeleton } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -202,7 +202,17 @@ export default function TeamsScreen() {
 
       {/* Teams List */}
       {loading ? (
-        <Text style={styles.loadingText}>{t('common.loading')}</Text>
+        <View style={styles.skeletonContainer}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.skeletonCard}>
+              <Skeleton width={48} height={48} borderRadius={24} />
+              <View style={styles.skeletonText}>
+                <Skeleton width="60%" height={16} />
+                <Skeleton width="30%" height={12} />
+              </View>
+            </View>
+          ))}
+        </View>
       ) : teams.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="people-outline" size={60} color={Colors.textTertiary} />
@@ -275,7 +285,16 @@ const styles = StyleSheet.create({
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm },
-  loadingText: { textAlign: 'center', color: Colors.textSecondary, marginTop: Spacing.xl },
+  skeletonContainer: { padding: Spacing.md, gap: Spacing.md },
+  skeletonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+  },
+  skeletonText: { flex: 1, gap: Spacing.xs },
   emptyState: { alignItems: 'center', paddingVertical: Spacing.xxl },
   emptyText: { fontSize: FontSizes.lg, color: Colors.text, marginTop: Spacing.md },
   emptySubtext: { fontSize: FontSizes.sm, color: Colors.textSecondary, marginTop: Spacing.xs },

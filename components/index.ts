@@ -34,3 +34,6 @@ export { SwipeableRow } from './SwipeableRow';
 export type { SwipeAction } from './SwipeableRow';
 export { SwipeableCard } from './SwipeableCard';
 export { CardStack } from './CardStack';
+export { DismissableView } from './DismissableView';
+export { AnimatedListItem } from './AnimatedListItem';
+export { SegmentedControl } from './SegmentedControl';

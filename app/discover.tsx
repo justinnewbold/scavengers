@@ -11,16 +11,24 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
+import { AnimatedListItem } from '@/components/AnimatedListItem';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useDiscoveryStore } from '@/store/discoveryStore';
 import type { DiscoverableHunt, DiscoveryFilters, HuntDifficulty, HuntEnvironment } from '@/types/discovery';
 import { POPULAR_TAGS } from '@/types/discovery';
+
+const AnimatedFlatList = Animated.FlatList as unknown as React.ComponentType<
+  React.ComponentProps<typeof FlatList<DiscoverableHunt>> & {
+    itemLayoutAnimation?: ReturnType<typeof LinearTransition.springify>;
+  }
+>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -193,39 +201,41 @@ export default function DiscoverScreen() {
     </TouchableOpacity>
   );
 
-  const renderSearchResult = ({ item }: { item: DiscoverableHunt }) => (
-    <TouchableOpacity
-      style={styles.searchResultCard}
-      onPress={() => handleHuntPress(item.id)}
-    >
-      {item.coverImageUrl ? (
-        <Image source={{ uri: item.coverImageUrl }} style={styles.searchResultImage} />
-      ) : (
-        <View style={[styles.searchResultImage, styles.huntImagePlaceholder]}>
-          <Ionicons name="map" size={24} color={Colors.textTertiary} />
-        </View>
-      )}
-
-      <View style={styles.searchResultInfo}>
-        <Text style={styles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.searchResultCreator}>by {item.creatorName}</Text>
-
-        <View style={styles.searchResultMeta}>
-          <View style={styles.huntRating}>
-            <Ionicons name="star" size={12} color={Colors.warning} />
-            <Text style={styles.searchResultRating}>{item.averageRating.toFixed(1)}</Text>
+  const renderSearchResult = ({ item, index }: { item: DiscoverableHunt; index: number }) => (
+    <AnimatedListItem index={index} key={item.id}>
+      <TouchableOpacity
+        style={styles.searchResultCard}
+        onPress={() => handleHuntPress(item.id)}
+      >
+        {item.coverImageUrl ? (
+          <Image source={{ uri: item.coverImageUrl }} style={styles.searchResultImage} />
+        ) : (
+          <View style={[styles.searchResultImage, styles.huntImagePlaceholder]}>
+            <Ionicons name="map" size={24} color={Colors.textTertiary} />
           </View>
-          {item.distance !== undefined && (
-            <Text style={styles.searchResultDistance}>
-              {formatDistance(item.distance)}
-            </Text>
-          )}
-          <Text style={styles.searchResultDuration}>~{item.estimatedDuration}min</Text>
-        </View>
-      </View>
+        )}
 
-      <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
-    </TouchableOpacity>
+        <View style={styles.searchResultInfo}>
+          <Text style={styles.searchResultTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.searchResultCreator}>by {item.creatorName}</Text>
+
+          <View style={styles.searchResultMeta}>
+            <View style={styles.huntRating}>
+              <Ionicons name="star" size={12} color={Colors.warning} />
+              <Text style={styles.searchResultRating}>{item.averageRating.toFixed(1)}</Text>
+            </View>
+            {item.distance !== undefined && (
+              <Text style={styles.searchResultDistance}>
+                {formatDistance(item.distance)}
+              </Text>
+            )}
+            <Text style={styles.searchResultDuration}>~{item.estimatedDuration}min</Text>
+          </View>
+        </View>
+
+        <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+      </TouchableOpacity>
+    </AnimatedListItem>
   );
 
   const renderFilters = () => (
@@ -357,13 +367,14 @@ export default function DiscoverScreen() {
 
       {/* Search results */}
       {searchResults.length > 0 ? (
-        <FlatList
+        <AnimatedFlatList
           data={searchResults}
           keyExtractor={(item) => item.id}
           renderItem={renderSearchResult}
           contentContainerStyle={styles.searchResultsList}
           onEndReached={() => hasMoreResults && searchHunts(searchQuery, true)}
           onEndReachedThreshold={0.3}
+          itemLayoutAnimation={LinearTransition.springify().damping(15)}
           ListFooterComponent={isSearching ? (
             <View style={styles.loadingMore}>
               <Text style={styles.loadingMoreText}>Loading more...</Text>

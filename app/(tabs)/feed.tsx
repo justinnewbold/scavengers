@@ -6,7 +6,6 @@ import {
   FlatList,
   RefreshControl,
   ActivityIndicator,
-  TouchableOpacity,
   ActionSheetIOS,
   Platform,
   Share,
@@ -14,12 +13,15 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PhotoFeedItem, FeedItemSkeleton } from '@/components';
+import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { FeedItem, ReactionType } from '@/types';
 
 type FilterType = 'all' | 'following' | 'mine';
+
+const FILTER_SEGMENTS = ['Everyone', 'My Photos'] as const;
+const FILTER_MAP: FilterType[] = ['all', 'mine'];
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -30,7 +32,8 @@ export default function FeedScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filterIndex, setFilterIndex] = useState(0);
+  const filter = FILTER_MAP[filterIndex];
 
   const fetchFeed = useCallback(async (pageNum: number = 1, refresh: boolean = false) => {
     if (!token) return;
@@ -223,27 +226,6 @@ export default function FeedScreen() {
     }
   }, [token]);
 
-  const renderFilterButton = (type: FilterType, label: string, icon: string) => (
-    <TouchableOpacity
-      style={[styles.filterButton, filter === type && styles.filterButtonActive]}
-      onPress={() => setFilter(type)}
-    >
-      <Ionicons
-        name={icon as any}
-        size={16}
-        color={filter === type ? Colors.primary : Colors.textSecondary}
-      />
-      <Text
-        style={[
-          styles.filterButtonText,
-          filter === type && styles.filterButtonTextActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: FeedItem }) => (
       <Pressable onLongPress={() => showFeedPhotoActions(item)} delayLongPress={200}>
@@ -293,8 +275,11 @@ export default function FeedScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.filterContainer}>
-          {renderFilterButton('all', 'Everyone', 'globe-outline')}
-          {renderFilterButton('mine', 'My Photos', 'person-outline')}
+          <SegmentedControl
+            segments={[...FILTER_SEGMENTS]}
+            selectedIndex={filterIndex}
+            onChange={setFilterIndex}
+          />
         </View>
         <View style={styles.skeletonContainer}>
           <FeedItemSkeleton />
@@ -309,8 +294,11 @@ export default function FeedScreen() {
     <View style={styles.container}>
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
-        {renderFilterButton('all', 'Everyone', 'globe-outline')}
-        {renderFilterButton('mine', 'My Photos', 'person-outline')}
+        <SegmentedControl
+          segments={[...FILTER_SEGMENTS]}
+          selectedIndex={filterIndex}
+          onChange={setFilterIndex}
+        />
       </View>
 
       <FlatList
@@ -372,33 +360,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   filterContainer: {
-    flexDirection: 'row',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: Spacing.sm,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
     backgroundColor: Colors.background,
-    gap: Spacing.xs,
-  },
-  filterButtonActive: {
-    backgroundColor: Colors.primary + '20',
-  },
-  filterButtonText: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  filterButtonTextActive: {
-    color: Colors.primary,
   },
   listContent: {
     padding: Spacing.md,

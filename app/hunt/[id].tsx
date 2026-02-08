@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Alert,
   Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card } from '@/components';
+import { Button, Card, Skeleton } from '@/components';
+import { DismissableView } from '@/components/DismissableView';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { Hunt } from '@/types';
@@ -87,8 +87,37 @@ export default function HuntDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading hunt...</Text>
+        <View style={styles.skeletonContent}>
+          {/* Title skeleton */}
+          <Skeleton width="75%" height={28} borderRadius={8} />
+          {/* Description lines */}
+          <View style={styles.skeletonDescriptionBlock}>
+            <Skeleton width="100%" height={14} />
+            <Skeleton width="90%" height={14} />
+            <Skeleton width="60%" height={14} />
+          </View>
+          {/* Meta badges */}
+          <View style={styles.skeletonMeta}>
+            <Skeleton width={80} height={24} borderRadius={12} />
+            <Skeleton width={100} height={24} borderRadius={12} />
+            <Skeleton width={70} height={24} borderRadius={12} />
+          </View>
+          {/* Challenge card skeletons */}
+          <Skeleton width={120} height={20} borderRadius={8} style={{ marginTop: Spacing.lg }} />
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={styles.skeletonChallengeCard}>
+              <View style={styles.skeletonChallengeHeader}>
+                <Skeleton width={28} height={28} borderRadius={14} />
+                <View style={{ flex: 1, gap: Spacing.xs }}>
+                  <Skeleton width="70%" height={16} />
+                  <Skeleton width="30%" height={12} />
+                </View>
+                <Skeleton width={20} height={20} borderRadius={4} />
+              </View>
+              <Skeleton width="90%" height={12} />
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -135,80 +164,82 @@ export default function HuntDetailScreen() {
         }}
       />
       
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Hunt Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>{hunt.title}</Text>
-          <Text style={styles.description}>{hunt.description}</Text>
-          
-          <View style={styles.meta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="trophy" size={20} color={Colors.primary} />
-              <Text style={styles.metaText}>{totalPoints} points</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="list" size={20} color={Colors.secondary} />
-              <Text style={styles.metaText}>
-                {hunt.challenges?.length || 0} challenges
-              </Text>
-            </View>
-            <View style={styles.metaItem}>
-              <View style={[
-                styles.difficultyBadge,
-                { backgroundColor: getDifficultyColor(hunt.difficulty) + '20' }
-              ]}>
-                <Text style={[
-                  styles.difficultyText,
-                  { color: getDifficultyColor(hunt.difficulty) }
-                ]}>
-                  {hunt.difficulty?.toUpperCase()}
+      <DismissableView onDismiss={() => router.back()}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+          {/* Hunt Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>{hunt.title}</Text>
+            <Text style={styles.description}>{hunt.description}</Text>
+
+            <View style={styles.meta}>
+              <View style={styles.metaItem}>
+                <Ionicons name="trophy" size={20} color={Colors.primary} />
+                <Text style={styles.metaText}>{totalPoints} points</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="list" size={20} color={Colors.secondary} />
+                <Text style={styles.metaText}>
+                  {hunt.challenges?.length || 0} challenges
                 </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <View style={[
+                  styles.difficultyBadge,
+                  { backgroundColor: getDifficultyColor(hunt.difficulty) + '20' }
+                ]}>
+                  <Text style={[
+                    styles.difficultyText,
+                    { color: getDifficultyColor(hunt.difficulty) }
+                  ]}>
+                    {hunt.difficulty?.toUpperCase()}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        {/* Challenges Preview */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Challenges</Text>
-          
-          {hunt.challenges?.map((challenge, index) => (
-            <Card key={challenge.id || index} style={styles.challengeCard}>
-              <View style={styles.challengeHeader}>
-                <View style={styles.challengeNumber}>
-                  <Text style={styles.challengeNumberText}>{index + 1}</Text>
-                </View>
-                <View style={styles.challengeInfo}>
-                  <Text style={styles.challengeTitle}>{challenge.title}</Text>
-                  <Text style={styles.challengePoints}>{challenge.points} pts</Text>
-                </View>
-                <Ionicons
-                  name={getVerificationIcon(challenge.verification_type)}
-                  size={20}
-                  color={Colors.textSecondary}
-                />
-              </View>
-              <Text style={styles.challengeDescription} numberOfLines={2}>
-                {challenge.description}
-              </Text>
-            </Card>
-          ))}
-        </View>
+          {/* Challenges Preview */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Challenges</Text>
 
-        {/* Join Button */}
-        <View style={styles.joinSection}>
-          <Button
-            title="Start Hunt 🎯"
-            onPress={handleJoinHunt}
-            size="lg"
-            loading={isLoading}
-            style={styles.joinButton}
-          />
-          <Text style={styles.joinHint}>
-            Free for groups up to 15 people
-          </Text>
-        </View>
-      </ScrollView>
+            {hunt.challenges?.map((challenge, index) => (
+              <Card key={challenge.id || index} style={styles.challengeCard}>
+                <View style={styles.challengeHeader}>
+                  <View style={styles.challengeNumber}>
+                    <Text style={styles.challengeNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.challengeInfo}>
+                    <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                    <Text style={styles.challengePoints}>{challenge.points} pts</Text>
+                  </View>
+                  <Ionicons
+                    name={getVerificationIcon(challenge.verification_type)}
+                    size={20}
+                    color={Colors.textSecondary}
+                  />
+                </View>
+                <Text style={styles.challengeDescription} numberOfLines={2}>
+                  {challenge.description}
+                </Text>
+              </Card>
+            ))}
+          </View>
+
+          {/* Join Button */}
+          <View style={styles.joinSection}>
+            <Button
+              title="Start Hunt 🎯"
+              onPress={handleJoinHunt}
+              size="lg"
+              loading={isLoading}
+              style={styles.joinButton}
+            />
+            <Text style={styles.joinHint}>
+              Free for groups up to 15 people
+            </Text>
+          </View>
+        </ScrollView>
+      </DismissableView>
     </>
   );
 }
@@ -223,14 +254,32 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: Colors.background,
   },
-  loadingText: {
+  skeletonContent: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  skeletonDescriptionBlock: {
+    gap: Spacing.sm,
     marginTop: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+  },
+  skeletonMeta: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  skeletonChallengeCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  skeletonChallengeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   errorContainer: {
     flex: 1,

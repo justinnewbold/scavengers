@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   Share,
   Alert,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { HuntCard, Button } from '@/components';
+import { HuntCard, Button, SegmentedControl, HuntCardSkeleton } from '@/components';
+import { AnimatedListItem } from '@/components/AnimatedListItem';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import type { SwipeAction } from '@/components/SwipeableRow';
 import { useHuntStore, useAuthStore } from '@/store';
@@ -108,37 +110,34 @@ export default function MyHuntsScreen() {
     }
   }, [handleShare, handleEdit, handleDelete, handleArchive]);
 
-  const renderHuntCard = useCallback((hunt: Hunt) => {
+  const renderHuntCard = useCallback((hunt: Hunt, index: number) => {
     const rightActions = hunt.status === 'active'
       ? RIGHT_ACTIONS_ACTIVE
       : RIGHT_ACTIONS_DEFAULT;
 
     return (
-      <SwipeableRow
-        key={hunt.id}
-        leftActions={LEFT_ACTIONS}
-        rightActions={rightActions}
-        onActionPress={(actionId) => handleActionPress(actionId, hunt)}
-      >
-        <HuntCard
-          hunt={hunt}
-          onPress={() => router.push(`/hunt/${hunt.id}`)}
-        />
-      </SwipeableRow>
+      <AnimatedListItem key={hunt.id} index={index}>
+        <SwipeableRow
+          leftActions={LEFT_ACTIONS}
+          rightActions={rightActions}
+          onActionPress={(actionId) => handleActionPress(actionId, hunt)}
+        >
+          <HuntCard
+            hunt={hunt}
+            onPress={() => router.push(`/hunt/${hunt.id}`)}
+          />
+        </SwipeableRow>
+      </AnimatedListItem>
     );
   }, [handleActionPress, router]);
 
-  const activeHunts = useMemo(
-    () => myHunts.filter(h => h.status === 'active'),
-    [myHunts],
-  );
-  const draftHunts = useMemo(
-    () => myHunts.filter(h => h.status === 'draft'),
-    [myHunts],
-  );
-  const completedHunts = useMemo(
-    () => myHunts.filter(h => h.status === 'completed'),
-    [myHunts],
+  const [statusIndex, setStatusIndex] = useState(0);
+
+  const STATUS_MAP = useMemo(() => ['active', 'draft', 'completed'] as const, []);
+
+  const filteredHunts = useMemo(
+    () => myHunts.filter(h => h.status === STATUS_MAP[statusIndex]),
+    [myHunts, statusIndex, STATUS_MAP],
   );
 
   if (!user) {
@@ -185,7 +184,20 @@ export default function MyHuntsScreen() {
         />
       </View>
 
-      {myHunts.length === 0 ? (
+      <SegmentedControl
+        segments={['Active', 'Drafts', 'Completed']}
+        selectedIndex={statusIndex}
+        onChange={setStatusIndex}
+        style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.md }}
+      />
+
+      {isLoading && myHunts.length === 0 ? (
+        <View style={styles.skeletonContainer}>
+          <HuntCardSkeleton />
+          <HuntCardSkeleton />
+          <HuntCardSkeleton />
+        </View>
+      ) : myHunts.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="map-outline" size={64} color={Colors.textTertiary} />
           <Text style={styles.emptyTitle}>No hunts yet</Text>
@@ -204,32 +216,20 @@ export default function MyHuntsScreen() {
             style={styles.emptyButton}
           />
         </View>
+      ) : filteredHunts.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="folder-open-outline" size={64} color={Colors.textTertiary} />
+          <Text style={styles.emptyTitle}>No {STATUS_MAP[statusIndex]} hunts</Text>
+          <Text style={styles.emptyText}>
+            You don't have any {STATUS_MAP[statusIndex]} hunts right now.
+          </Text>
+        </View>
       ) : (
-        <>
-          {/* Active Hunts */}
-          {activeHunts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🟢 Active</Text>
-              {activeHunts.map(renderHuntCard)}
-            </View>
-          )}
-
-          {/* Draft Hunts */}
-          {draftHunts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📝 Drafts</Text>
-              {draftHunts.map(renderHuntCard)}
-            </View>
-          )}
-
-          {/* Completed Hunts */}
-          {completedHunts.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>✅ Completed</Text>
-              {completedHunts.map(renderHuntCard)}
-            </View>
-          )}
-        </>
+        <View style={styles.section}>
+          <Animated.View>
+            {filteredHunts.map((hunt, i) => renderHuntCard(hunt, i))}
+          </Animated.View>
+        </View>
       )}
     </ScrollView>
   );
@@ -256,12 +256,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: Spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: FontSizes.lg,
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    marginBottom: Spacing.md,
   },
   empty: {
     alignItems: 'center',
@@ -309,5 +303,8 @@ const styles = StyleSheet.create({
   authButton: {
     minWidth: 200,
     marginBottom: Spacing.md,
+  },
+  skeletonContainer: {
+    gap: Spacing.md,
   },
 });
