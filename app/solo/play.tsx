@@ -141,10 +141,12 @@ export default function SoloPlayScreen() {
   useEffect(() => {
     if (!hunt?.challenges?.length) return;
     const progress = completedChallenges.size / hunt.challenges.length;
-    Animated.spring(progressAnim, {
+    const animation = Animated.spring(progressAnim, {
       toValue: progress,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
 
   // Clean up completion timeout on unmount
@@ -187,10 +189,14 @@ export default function SoloPlayScreen() {
     return () => subscription.remove();
   }, [activeSession?.isPaused, pauseSession, resumeSession]);
 
+  // Use ref to always get latest handlePause without re-subscribing
+  const handlePauseRef = useRef(handlePause);
+  handlePauseRef.current = handlePause;
+
   // Handle back button
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handlePause();
+      handlePauseRef.current();
       return true;
     });
 

@@ -57,13 +57,15 @@ export function ARChallenge({ objects, onCollect, onClose }: ARChallengeProps) {
 
   useEffect(() => {
     // Pulse animation for nearby objects
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.2, duration: 800, useNativeDriver: true }),
         Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
-    ).start();
-  }, []);
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulseAnim]);
 
   useEffect(() => {
     if (!userLocation) return;

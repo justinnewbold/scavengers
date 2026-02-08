@@ -40,7 +40,13 @@ export const useDailyHuntStore = create<DailyHuntState>()(
 
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch(`${API_BASE}/hunts/daily`);
+          const token = await AsyncStorage.getItem('auth_token');
+          const headers: Record<string, string> = {};
+          if (token) {
+            headers.Authorization = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`${API_BASE}/hunts/daily`, { headers });
           if (!response.ok) throw new Error('Failed to fetch daily hunt');
           const data = await response.json();
 
@@ -62,7 +68,7 @@ export const useDailyHuntStore = create<DailyHuntState>()(
 
       isDailyCompleted: () => {
         const { dailyHunt, completedDailyIds } = get();
-        return dailyHunt ? completedDailyIds.includes(dailyHunt.id) : false;
+        return dailyHunt?.id ? completedDailyIds.includes(dailyHunt.id) : false;
       },
     }),
     {
