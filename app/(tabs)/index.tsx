@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { HuntCard, Button, DiscoverSkeleton, HuntCardSkeleton } from '@/components';
 import { useHuntStore } from '@/store';
+import { useDailyHuntStore } from '@/store/dailyHuntStore';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 
@@ -188,6 +189,7 @@ const starStyles = StyleSheet.create({
 export default function DiscoverScreen() {
   const router = useRouter();
   const { publicHunts, isLoading, fetchPublicHunts } = useHuntStore();
+  const { dailyHunt, fetchDailyHunt, isDailyCompleted } = useDailyHuntStore();
   const [hasLoaded, setHasLoaded] = useState(false);
   const { t } = useI18n();
 
@@ -199,7 +201,7 @@ export default function DiscoverScreen() {
   const statsBarOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    fetchPublicHunts().finally(() => setHasLoaded(true));
+    Promise.all([fetchPublicHunts(), fetchDailyHunt()]).finally(() => setHasLoaded(true));
   }, []);
 
   // Pulsing glow effect for the fire emoji
@@ -347,6 +349,42 @@ export default function DiscoverScreen() {
           style={styles.soloPromoButton}
         />
       </View>
+
+      {/* ── Daily Hunt ────────────────────────────────────────────────── */}
+      {dailyHunt && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.dailyHuntCard}
+          onPress={() => router.push(`/hunt/${dailyHunt.id}`)}
+        >
+          <View style={styles.dailyHuntBadge}>
+            <Ionicons name="calendar" size={14} color="#fff" />
+            <Text style={styles.dailyHuntBadgeText}>DAILY HUNT</Text>
+          </View>
+          <Text style={styles.dailyHuntTitle}>{dailyHunt.title}</Text>
+          <Text style={styles.dailyHuntDescription} numberOfLines={2}>
+            {dailyHunt.description}
+          </Text>
+          <View style={styles.dailyHuntMeta}>
+            <View style={styles.dailyHuntMetaItem}>
+              <Ionicons name="fitness" size={14} color={Colors.textSecondary} />
+              <Text style={styles.dailyHuntMetaText}>{dailyHunt.difficulty}</Text>
+            </View>
+            <View style={styles.dailyHuntMetaItem}>
+              <Ionicons name="list" size={14} color={Colors.textSecondary} />
+              <Text style={styles.dailyHuntMetaText}>
+                {dailyHunt.challenges?.length || 0} challenges
+              </Text>
+            </View>
+            {isDailyCompleted() && (
+              <View style={styles.dailyCompletedBadge}>
+                <Ionicons name="checkmark-circle" size={14} color={Colors.success} />
+                <Text style={styles.dailyCompletedText}>Completed</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* ── Trending This Week Section ────────────────────────────────── */}
       <View style={styles.section}>
@@ -910,5 +948,69 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+
+  // ── Daily Hunt ───────────────────────────────────────────────────
+  dailyHuntCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.md,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
+  },
+  dailyHuntBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: 6,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  dailyHuntBadgeText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 1,
+  },
+  dailyHuntTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  dailyHuntDescription: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  dailyHuntMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  dailyHuntMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  dailyHuntMetaText: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    textTransform: 'capitalize',
+  },
+  dailyCompletedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  dailyCompletedText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '600',
+    color: Colors.success,
   },
 });

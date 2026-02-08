@@ -177,6 +177,12 @@ export default function ProfileScreen() {
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/leaderboards'); }}>
+          <Ionicons name="podium-outline" size={22} color={Colors.secondary} />
+          <Text style={styles.menuText}>Leaderboards</Text>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </Card>
+
         <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/teams'); }}>
           <Ionicons name="people-outline" size={22} color={Colors.success} />
           <Text style={styles.menuText}>{t('teams.title')}</Text>

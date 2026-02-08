@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   UserProfile,
   Friend,
@@ -77,7 +79,9 @@ interface SocialState {
 // Track in-flight like/unlike requests to prevent race conditions
 const likeInFlight = new Set<string>();
 
-export const useSocialStore = create<SocialState>((set, get) => ({
+export const useSocialStore = create<SocialState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   friends: [],
   friendRequests: [],
@@ -519,4 +523,15 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       return [];
     }
   },
-}));
+}),
+    {
+      name: 'social-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        friends: state.friends,
+        followedCreators: state.followedCreators,
+        challengeHistory: state.challengeHistory,
+      }),
+    }
+  )
+);

@@ -16,7 +16,7 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Button, Card, CardStack, StreakDisplay, Confetti } from '@/components';
+import { Button, Card, CardStack, StreakDisplay, Confetti, RatingModal } from '@/components';
 import { useSoloModeStore, type SoloHuntResult } from '@/store/soloModeStore';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
 import { useHapticPatterns } from '@/hooks/useHapticPatterns';
@@ -66,6 +66,7 @@ export default function SoloPlayScreen() {
   const [revealedMysteries, setRevealedMysteries] = useState<Set<string>>(new Set());
   const [showConfetti, setShowConfetti] = useState(false);
   const [result, setResult] = useState<SoloHuntResult | null>(null);
+  const [showRating, setShowRating] = useState(false);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
@@ -549,10 +550,25 @@ export default function SoloPlayScreen() {
           </View>
 
           <Button
+            title="Rate This Hunt"
+            variant="outline"
+            onPress={() => setShowRating(true)}
+            icon={<Ionicons name="star-outline" size={20} color={Colors.primary} />}
+            style={styles.actionButton}
+          />
+
+          <Button
             title="Back to Home"
             variant="ghost"
             onPress={() => router.replace('/')}
             style={styles.homeButton}
+          />
+
+          <RatingModal
+            visible={showRating}
+            huntId={result.huntId || activeSession?.hunt?.id || ''}
+            huntTitle={result.huntTitle}
+            onClose={() => setShowRating(false)}
           />
         </ScrollView>
       </>
