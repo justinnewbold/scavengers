@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Alert,
   Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card } from '@/components';
+import { Button, Card, Skeleton } from '@/components';
 import { DismissableView } from '@/components/DismissableView';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
@@ -88,8 +87,37 @@ export default function HuntDetailScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading hunt...</Text>
+        <View style={styles.skeletonContent}>
+          {/* Title skeleton */}
+          <Skeleton width="75%" height={28} borderRadius={8} />
+          {/* Description lines */}
+          <View style={styles.skeletonDescriptionBlock}>
+            <Skeleton width="100%" height={14} />
+            <Skeleton width="90%" height={14} />
+            <Skeleton width="60%" height={14} />
+          </View>
+          {/* Meta badges */}
+          <View style={styles.skeletonMeta}>
+            <Skeleton width={80} height={24} borderRadius={12} />
+            <Skeleton width={100} height={24} borderRadius={12} />
+            <Skeleton width={70} height={24} borderRadius={12} />
+          </View>
+          {/* Challenge card skeletons */}
+          <Skeleton width={120} height={20} borderRadius={8} style={{ marginTop: Spacing.lg }} />
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} style={styles.skeletonChallengeCard}>
+              <View style={styles.skeletonChallengeHeader}>
+                <Skeleton width={28} height={28} borderRadius={14} />
+                <View style={{ flex: 1, gap: Spacing.xs }}>
+                  <Skeleton width="70%" height={16} />
+                  <Skeleton width="30%" height={12} />
+                </View>
+                <Skeleton width={20} height={20} borderRadius={4} />
+              </View>
+              <Skeleton width="90%" height={12} />
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -226,14 +254,32 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: Colors.background,
   },
-  loadingText: {
+  skeletonContent: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  skeletonDescriptionBlock: {
+    gap: Spacing.sm,
     marginTop: Spacing.md,
-    fontSize: FontSizes.md,
-    color: Colors.textSecondary,
+  },
+  skeletonMeta: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  skeletonChallengeCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  skeletonChallengeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
   errorContainer: {
     flex: 1,

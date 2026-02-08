@@ -8,6 +8,7 @@ import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRequireAuth } from '@/hooks';
 import { useI18n } from '@/hooks/useI18n';
+import * as Haptics from 'expo-haptics';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -154,7 +155,7 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('profile.discover')}</Text>
 
-        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/marketplace')}>
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/marketplace'); }}>
           <Ionicons name="storefront-outline" size={22} color={Colors.primary} />
           <Text style={styles.menuText}>{t('profile.huntMarketplace')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
@@ -164,25 +165,25 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('profile.features')}</Text>
 
-        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/gallery')}>
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/gallery'); }}>
           <Ionicons name="images-outline" size={22} color={Colors.primary} />
           <Text style={styles.menuText}>{t('profile.photoGallery')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
-        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/achievements')}>
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/achievements'); }}>
           <Ionicons name="trophy-outline" size={22} color={Colors.warning} />
           <Text style={styles.menuText}>{t('profile.achievements')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
-        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/teams')}>
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/teams'); }}>
           <Ionicons name="people-outline" size={22} color={Colors.success} />
           <Text style={styles.menuText}>{t('teams.title')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
         </Card>
 
-        <Card variant="default" style={styles.menuCard} onTouchEnd={() => router.push('/settings')}>
+        <Card variant="default" style={styles.menuCard} onPress={() => { Haptics.selectionAsync(); router.push('/settings'); }}>
           <Ionicons name="settings-outline" size={22} color={Colors.primary} />
           <Text style={styles.menuText}>{t('profile.settings')}</Text>
           <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />

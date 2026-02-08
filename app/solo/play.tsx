@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { Button, Card, CardStack, StreakDisplay, Confetti } from '@/components';
 import { useSoloModeStore, type SoloHuntResult } from '@/store/soloModeStore';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
+import { useHapticPatterns } from '@/hooks/useHapticPatterns';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { Challenge, VerificationType } from '@/types';
 
@@ -58,6 +59,8 @@ export default function SoloPlayScreen() {
     pauseSession,
     resumeSession,
   } = useSoloModeStore();
+
+  const { celebration } = useHapticPatterns();
 
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   const [revealedMysteries, setRevealedMysteries] = useState<Set<string>>(new Set());
@@ -234,6 +237,7 @@ export default function SoloPlayScreen() {
 
     // Celebrate
     triggerHaptic('success');
+    celebration();
     Animated.sequence([
       Animated.spring(scoreAnim, { toValue: 1.3, useNativeDriver: true }),
       Animated.spring(scoreAnim, { toValue: 1, useNativeDriver: true }),
@@ -253,6 +257,7 @@ export default function SoloPlayScreen() {
     const newCompletedCount = completedChallenges.size + 1;
     if (hunt?.challenges && newCompletedCount >= hunt.challenges.length) {
       setShowConfetti(true);
+      celebration();
       setTimeout(() => {
         const huntResult = finishSoloHunt();
         if (huntResult) {
@@ -666,6 +671,7 @@ export default function SoloPlayScreen() {
                 onPress={() => {
                   const huntResult = finishSoloHunt();
                   if (huntResult) {
+                    celebration();
                     setShowConfetti(true);
                     setResult(huntResult);
                   }
