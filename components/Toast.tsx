@@ -19,10 +19,12 @@ function ToastItem({ id, message, type }: { id: string; message: string; type: T
   const config = TOAST_CONFIG[type];
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.spring(translateY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-    ]).start();
+    ]);
+    animation.start();
+    return () => animation.stop();
   }, [translateY, opacity]);
 
   const handleDismiss = () => {

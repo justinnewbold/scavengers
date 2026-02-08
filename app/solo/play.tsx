@@ -71,6 +71,7 @@ export default function SoloPlayScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const wasManuallyPausedRef = useRef(false);
 
@@ -124,7 +125,8 @@ export default function SoloPlayScreen() {
     }
 
     timerRef.current = setInterval(() => {
-      updateSession({ timeElapsed: (activeSession?.timeElapsed || 0) + 1 });
+      const currentTime = useSoloModeStore.getState().activeSession?.timeElapsed || 0;
+      updateSession({ timeElapsed: currentTime + 1 });
     }, 1000);
 
     return () => {
@@ -144,6 +146,16 @@ export default function SoloPlayScreen() {
       useNativeDriver: false,
     }).start();
   }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
+
+  // Clean up completion timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (completionTimeoutRef.current) {
+        clearTimeout(completionTimeoutRef.current);
+        completionTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Handle app state changes (pause when backgrounded)
   useEffect(() => {
@@ -259,7 +271,7 @@ export default function SoloPlayScreen() {
     if (hunt?.challenges && newCompletedCount >= hunt.challenges.length) {
       setShowConfetti(true);
       celebration();
-      setTimeout(() => {
+      completionTimeoutRef.current = setTimeout(() => {
         const huntResult = finishSoloHunt();
         if (huntResult) {
           setResult(huntResult);

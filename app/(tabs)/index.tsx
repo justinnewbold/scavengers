@@ -131,13 +131,15 @@ function useAnimatedCount(target: number, duration: number = 1500) {
       setDisplayValue(Math.round(value));
     });
 
-    Animated.timing(animValue, {
+    const animation = Animated.timing(animValue, {
       toValue: target,
       duration,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
 
     return () => {
+      animation.stop();
       animValue.removeListener(listener);
     };
   }, [target, duration]);
@@ -226,7 +228,7 @@ export default function DiscoverScreen() {
 
   // Fade in the banner and stats bar on mount
   useEffect(() => {
-    Animated.stagger(200, [
+    const fadeIn = Animated.stagger(200, [
       Animated.timing(bannerOpacity, {
         toValue: 1,
         duration: 600,
@@ -237,7 +239,9 @@ export default function DiscoverScreen() {
         duration: 600,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+    fadeIn.start();
+    return () => fadeIn.stop();
   }, []);
 
   // Show full skeleton on initial load

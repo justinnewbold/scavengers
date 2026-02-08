@@ -51,7 +51,8 @@ export default function CreateRaceScreen() {
       if (raceId) {
         router.replace(`/live/race/${raceId}`);
       }
-    } catch {
+    } catch (error) {
+      console.error('Create race error:', error);
       useToastStore.getState().show('Failed to create race', 'error');
     }
   };
