@@ -40,6 +40,7 @@ export function Leaderboard({ huntId, currentUserId }: LeaderboardProps) {
   const fetchLeaderboard = async () => {
     try {
       const res = await fetch(`${API_BASE}/leaderboard?hunt_id=${huntId}`);
+      if (!res.ok) throw new Error('Failed to fetch leaderboard');
       const data = await res.json();
       setEntries(data.leaderboard || []);
     } catch (error) {

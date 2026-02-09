@@ -87,7 +87,7 @@ export function StreakMilestone({ streak, multiplier, visible, onDismiss }: Stre
       ]).start();
 
       // Bounce animation for emoji
-      Animated.loop(
+      const bounceAnimation = Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, {
             toValue: 1.2,
@@ -101,7 +101,8 @@ export function StreakMilestone({ streak, multiplier, visible, onDismiss }: Stre
           }),
         ]),
         { iterations: 2 }
-      ).start();
+      );
+      bounceAnimation.start();
 
       // Auto dismiss after 2 seconds
       const timer = setTimeout(() => {
@@ -121,7 +122,10 @@ export function StreakMilestone({ streak, multiplier, visible, onDismiss }: Stre
         });
       }, 2000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        bounceAnimation.stop();
+      };
     }
   }, [visible, milestone, scaleAnim, opacityAnim, bounceAnim, onDismiss]);
 

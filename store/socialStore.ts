@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type {
   UserProfile,
   Friend,
@@ -11,6 +13,11 @@ import type {
 } from '@/types/social';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await AsyncStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 interface SocialState {
   // Friends
@@ -77,7 +84,9 @@ interface SocialState {
 // Track in-flight like/unlike requests to prevent race conditions
 const likeInFlight = new Set<string>();
 
-export const useSocialStore = create<SocialState>((set, get) => ({
+export const useSocialStore = create<SocialState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   friends: [],
   friendRequests: [],
@@ -98,7 +107,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchFriends: async () => {
     set({ isLoadingFriends: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/social/friends`);
+      const response = await fetch(`${API_BASE}/social/friends`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load friends');
       const data = await response.json();
       set({ friends: data.friends, isLoadingFriends: false });
@@ -109,7 +120,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   fetchFriendRequests: async () => {
     try {
-      const response = await fetch(`${API_BASE}/social/friend-requests`);
+      const response = await fetch(`${API_BASE}/social/friend-requests`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load friend requests');
       const data = await response.json();
       set({
@@ -125,7 +138,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/social/friend-requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ userId, message }),
       });
       if (!response.ok) throw new Error('Failed to send friend request');
@@ -144,6 +157,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/social/friend-requests/${requestId}/accept`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
       if (!response.ok) throw new Error('Failed to accept friend request');
       const data = await response.json();
@@ -162,6 +176,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/friend-requests/${requestId}/decline`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -177,6 +192,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/friends/${friendId}`, {
         method: 'DELETE',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -192,6 +208,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/block/${userId}`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -209,7 +226,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchActivityFeed: async (page = 1) => {
     set({ isLoadingActivity: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/social/activity?page=${page}`);
+      const response = await fetch(`${API_BASE}/social/activity?page=${page}`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load activity feed');
       const data = await response.json();
 
@@ -224,7 +243,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   fetchFriendsActivity: async () => {
     try {
-      const response = await fetch(`${API_BASE}/social/activity/friends`);
+      const response = await fetch(`${API_BASE}/social/activity/friends`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load friends activity');
       const data = await response.json();
       set({ friendsActivity: data.activities });
@@ -255,6 +276,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/activity/${activityId}/like`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
     } catch (error) {
       // Revert on error
@@ -297,6 +319,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/activity/${activityId}/unlike`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
     } catch (error) {
       // Revert on error
@@ -321,7 +344,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/activity/${activityId}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ content }),
       });
 
@@ -348,7 +371,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   fetchChallenges: async () => {
     set({ isLoadingChallenges: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/social/challenges`);
+      const response = await fetch(`${API_BASE}/social/challenges`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load challenges');
       const data = await response.json();
 
@@ -367,7 +392,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/social/challenges`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ friendId, huntId, stakes }),
       });
       if (!response.ok) throw new Error('Failed to send challenge');
@@ -386,6 +411,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/social/challenges/${challengeId}/accept`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
       if (!response.ok) throw new Error('Failed to accept challenge');
       const data = await response.json();
@@ -404,6 +430,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/challenges/${challengeId}/decline`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -418,7 +445,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Following
   fetchFollowedCreators: async () => {
     try {
-      const response = await fetch(`${API_BASE}/social/following`);
+      const response = await fetch(`${API_BASE}/social/following`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load followed creators');
       const data = await response.json();
       set({ followedCreators: data.creators });
@@ -431,6 +460,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       const response = await fetch(`${API_BASE}/social/follow/${creatorId}`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
       if (!response.ok) throw new Error('Failed to follow creator');
       const data = await response.json();
@@ -448,6 +478,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/unfollow/${creatorId}`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -463,6 +494,7 @@ export const useSocialStore = create<SocialState>((set, get) => ({
     try {
       await fetch(`${API_BASE}/social/following/${creatorId}/notifications`, {
         method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
       });
 
       set(state => ({
@@ -480,7 +512,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Suggestions
   fetchSuggestions: async () => {
     try {
-      const response = await fetch(`${API_BASE}/social/suggestions`);
+      const response = await fetch(`${API_BASE}/social/suggestions`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load suggestions');
       const data = await response.json();
       set({ suggestions: data.suggestions });
@@ -498,7 +532,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
   // Profile
   fetchUserProfile: async (userId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/users/${userId}/profile`);
+      const response = await fetch(`${API_BASE}/users/${userId}/profile`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to load user profile');
       const data = await response.json();
       return data.profile;
@@ -510,7 +546,9 @@ export const useSocialStore = create<SocialState>((set, get) => ({
 
   searchUsers: async (query: string) => {
     try {
-      const response = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_BASE}/users/search?q=${encodeURIComponent(query)}`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to search users');
       const data = await response.json();
       return data.users;
@@ -519,4 +557,15 @@ export const useSocialStore = create<SocialState>((set, get) => ({
       return [];
     }
   },
-}));
+}),
+    {
+      name: 'social-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        friends: state.friends,
+        followedCreators: state.followedCreators,
+        challengeHistory: state.challengeHistory,
+      }),
+    }
+  )
+);

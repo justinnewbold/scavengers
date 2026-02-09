@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
@@ -26,7 +27,7 @@ const FILTER_MAP: FilterType[] = ['all', 'mine'];
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
 export default function FeedScreen() {
-  const { token, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -34,8 +35,15 @@ export default function FeedScreen() {
   const [page, setPage] = useState(1);
   const [filterIndex, setFilterIndex] = useState(0);
   const filter = FILTER_MAP[filterIndex];
+  const tokenRef = useRef<string | null>(null);
+
+  // Load token from AsyncStorage (authStore doesn't expose token directly)
+  useEffect(() => {
+    AsyncStorage.getItem('auth_token').then(t => { tokenRef.current = t; });
+  }, [isAuthenticated]);
 
   const fetchFeed = useCallback(async (pageNum: number = 1, refresh: boolean = false) => {
+    const token = tokenRef.current || await AsyncStorage.getItem('auth_token');
     if (!token) return;
 
     try {
@@ -74,7 +82,7 @@ export default function FeedScreen() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [token, filter]);
+  }, [filter]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -93,6 +101,7 @@ export default function FeedScreen() {
   }, [hasMore, isLoading, page, fetchFeed]);
 
   const handleReaction = useCallback(async (submissionId: string, reactionType: ReactionType) => {
+    const token = tokenRef.current || await AsyncStorage.getItem('auth_token');
     if (!token) return;
 
     try {
@@ -151,7 +160,7 @@ export default function FeedScreen() {
     } catch (error) {
       console.error('Error adding reaction:', error);
     }
-  }, [token]);
+  }, []);
 
   const showFeedPhotoActions = useCallback((item: FeedItem) => {
     const options = ['Cancel', 'Share', 'Report', 'Save to Gallery'];
@@ -177,17 +186,19 @@ export default function FeedScreen() {
                 style: 'destructive',
                 onPress: async () => {
                   try {
-                    await fetch(`${API_BASE}/reports`, {
+                    const authToken = tokenRef.current || await AsyncStorage.getItem('auth_token');
+                    const response = await fetch(`${API_BASE}/reports`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
+                        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
                       },
                       body: JSON.stringify({
                         submission_id: item.submission_id,
                         reason: 'inappropriate',
                       }),
                     });
+                    if (!response.ok) throw new Error('Failed to submit report');
                     Alert.alert('Reported', 'Thank you for your report. We will review it shortly.');
                   } catch (_error) {
                     Alert.alert('Error', 'Failed to submit report. Please try again.');
@@ -224,7 +235,7 @@ export default function FeedScreen() {
         ]
       );
     }
-  }, [token]);
+  }, []);
 
   const renderItem = useCallback(
     ({ item }: { item: FeedItem }) => (

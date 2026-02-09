@@ -209,7 +209,7 @@ export const useAchievementStore = create<AchievementStore>()(persist((set, get)
           currentValue = userStats.streakDays;
           break;
         case 'current_streak':
-          currentValue = userStats.maxStreak;
+          currentValue = userStats.streakDays;
           break;
         case 'hunts_created':
           currentValue = userStats.huntsCreated;
@@ -296,7 +296,7 @@ export const useAchievementStore = create<AchievementStore>()(persist((set, get)
 
       set({
         userAchievements: [...userAchievements, ...newUserAchievements],
-        recentUnlocks: [...get().recentUnlocks, ...newUnlocks],
+        recentUnlocks: [...get().recentUnlocks, ...newUnlocks].slice(-20),
       });
     }
 

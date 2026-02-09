@@ -66,13 +66,19 @@ export function ReplayPlayer({ replay, onClose, autoPlay = false }: ReplayPlayer
     };
   }, [autoPlay]);
 
+  // Use refs to avoid stale closures in the interval callback
+  const replayPlaybackTimeRef = useRef(replayPlaybackTime);
+  replayPlaybackTimeRef.current = replayPlaybackTime;
+  const replayDurationRef = useRef(replay.duration);
+  replayDurationRef.current = replay.duration;
+
   useEffect(() => {
     if (isPlayingReplay) {
       playbackInterval.current = setInterval(() => {
-        const newTime = replayPlaybackTime + (100 * playbackSpeed);
-        if (newTime >= replay.duration) {
+        const newTime = replayPlaybackTimeRef.current + (100 * playbackSpeed);
+        if (newTime >= replayDurationRef.current) {
           pauseReplay();
-          seekReplay(replay.duration);
+          seekReplay(replayDurationRef.current);
         } else {
           seekReplay(newTime);
         }
@@ -87,7 +93,7 @@ export function ReplayPlayer({ replay, onClose, autoPlay = false }: ReplayPlayer
         clearInterval(playbackInterval.current);
       }
     };
-  }, [isPlayingReplay, playbackSpeed]);
+  }, [isPlayingReplay, playbackSpeed, pauseReplay, seekReplay]);
 
   useEffect(() => {
     const progress = replayPlaybackTime / replay.duration;

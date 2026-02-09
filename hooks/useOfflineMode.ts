@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { offlineStorage, CachedHunt, PendingSubmission } from '@/lib/offlineStorage';
 import type { Hunt, Challenge } from '@/types';
 
@@ -121,14 +122,23 @@ export function useOfflineMode(): UseOfflineModeResult {
     submissionType: string;
     submissionData: Record<string, unknown>;
   }) => {
+    // Check current online status from source of truth (not stale closure)
+    const currentlyOnline = offlineStorage.getIsOnline();
+
     // If online, try to submit directly first
-    if (isOnline) {
+    if (currentlyOnline) {
       try {
+        const token = await AsyncStorage.getItem('auth_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
         const response = await fetch(
-          `${process.env.EXPO_PUBLIC_API_URL}/submissions`,
+          `${process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api'}/submissions`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
               participant_id: submission.participantId,
               challenge_id: submission.challengeId,
@@ -158,7 +168,7 @@ export function useOfflineMode(): UseOfflineModeResult {
 
     setPendingSubmissions(prev => prev + 1);
     return { queued: true, submissionId };
-  }, [isOnline]);
+  }, []);
 
   // Manual sync trigger
   const syncNow = useCallback(async () => {

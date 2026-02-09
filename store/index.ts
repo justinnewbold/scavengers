@@ -7,6 +7,11 @@ import { gemini } from '@/lib/gemini';
 // API base URL - points to your Vercel deployment
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await AsyncStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Re-export the canonical auth store (single source of truth)
 export { useAuthStore } from './authStore';
 
@@ -48,7 +53,9 @@ export const useHuntStore = create<HuntState>()(
       fetchHunts: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch(`${API_BASE}/hunts`);
+          const response = await fetch(`${API_BASE}/hunts`, {
+            headers: { ...(await getAuthHeaders()) },
+          });
           if (!response.ok) throw new Error('Failed to fetch hunts');
           const data = await response.json();
           set({ hunts: data.hunts || [], isLoading: false });
@@ -62,7 +69,9 @@ export const useHuntStore = create<HuntState>()(
       fetchPublicHunts: async () => {
         set({ isLoading: true, error: null });
         try {
-          const response = await fetch(`${API_BASE}/hunts?public=true`);
+          const response = await fetch(`${API_BASE}/hunts?public=true`, {
+            headers: { ...(await getAuthHeaders()) },
+          });
           if (!response.ok) throw new Error('Failed to fetch public hunts');
           const data = await response.json();
           set({ publicHunts: data.hunts || [], isLoading: false });
@@ -85,7 +94,9 @@ export const useHuntStore = create<HuntState>()(
           }
 
           // Fetch from API
-          const response = await fetch(`${API_BASE}/hunts/${id}`);
+          const response = await fetch(`${API_BASE}/hunts/${id}`, {
+            headers: { ...(await getAuthHeaders()) },
+          });
           if (!response.ok) throw new Error('Hunt not found');
           const hunt = await response.json();
           set({ currentHunt: hunt, isLoading: false });
@@ -103,7 +114,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           const response = await fetch(`${API_BASE}/hunts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify(hunt),
           });
           if (!response.ok) throw new Error('Failed to create hunt');
@@ -146,7 +157,7 @@ export const useHuntStore = create<HuntState>()(
           // Save to database
           const response = await fetch(`${API_BASE}/hunts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify(hunt),
           });
 
@@ -173,7 +184,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           const response = await fetch(`${API_BASE}/hunts/${id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify(updates),
           });
           if (!response.ok) throw new Error('Failed to update hunt');
@@ -196,6 +207,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           const response = await fetch(`${API_BASE}/hunts/${id}`, {
             method: 'DELETE',
+            headers: { ...(await getAuthHeaders()) },
           });
           if (!response.ok) throw new Error('Failed to delete hunt');
 
@@ -216,7 +228,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           const response = await fetch(`${API_BASE}/hunts/${huntId}/join`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
           });
           if (!response.ok) throw new Error('Failed to join hunt');
           const participation = await response.json();
@@ -236,7 +248,7 @@ export const useHuntStore = create<HuntState>()(
         try {
           const response = await fetch(`${API_BASE}/submissions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify({
               challenge_id: challengeId,
               ...submission,

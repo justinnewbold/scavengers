@@ -285,11 +285,17 @@ class OfflineStorage {
       }
 
       try {
+        const token = await AsyncStorage.getItem('auth_token');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
         const response = await fetchWithTimeout(
           `${process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api'}/submissions`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({
               participant_id: submission.participant_id,
               challenge_id: submission.challenge_id,

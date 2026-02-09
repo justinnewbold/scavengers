@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Text, StyleSheet, Animated, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { offlineStorage } from '@/lib/offlineStorage';
@@ -40,6 +40,12 @@ export function OfflineIndicator({ showPending = true, onSyncComplete }: Offline
     }
   }, [isSyncing, isOnline, refreshPendingCount, onSyncComplete]);
 
+  // Use a ref to avoid re-subscribing on every handleSync change
+  const handleSyncRef = useRef(handleSync);
+  useEffect(() => {
+    handleSyncRef.current = handleSync;
+  }, [handleSync]);
+
   useEffect(() => {
     // Check initial state
     offlineStorage.checkConnection().then(setIsOnline);
@@ -50,7 +56,7 @@ export function OfflineIndicator({ showPending = true, onSyncComplete }: Offline
       setIsOnline(online);
       if (online) {
         // Auto-sync when coming back online
-        handleSync();
+        handleSyncRef.current();
       }
     });
 
@@ -61,7 +67,7 @@ export function OfflineIndicator({ showPending = true, onSyncComplete }: Offline
       unsubscribe();
       clearInterval(interval);
     };
-  }, [refreshPendingCount, handleSync]);
+  }, [refreshPendingCount]);
 
   // Determine if we should show the indicator
   const shouldShow = !isOnline || (showPending && pendingCount > 0) || lastSyncResult !== null;

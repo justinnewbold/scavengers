@@ -134,6 +134,7 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const { userLocation, filters } = get();
 
       if (!userLocation) {
@@ -168,7 +169,14 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
         params.append('tags', filters.tags.join(','));
       }
 
-      const response = await fetch(`${API_BASE}/discovery/nearby?${params.toString()}`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE}/discovery/nearby?${params.toString()}`, {
+        headers,
+      });
 
       if (!response.ok) throw new Error('Failed to fetch nearby hunts');
 
@@ -213,8 +221,15 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
 
   fetchReviews: async (huntId, page = 1) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch(
-        `${API_BASE}/discovery/hunts/${huntId}/reviews?page=${page}`
+        `${API_BASE}/discovery/hunts/${huntId}/reviews?page=${page}`,
+        { headers }
       );
 
       if (!response.ok) throw new Error('Failed to fetch reviews');
@@ -289,7 +304,15 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
         params.append('maxDistance', filters.maxDistance.toString());
       }
 
-      const response = await fetch(`${API_BASE}/discovery/search?${params.toString()}`);
+      const token = await AsyncStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE}/discovery/search?${params.toString()}`, {
+        headers,
+      });
 
       if (!response.ok) throw new Error('Search failed');
 
@@ -395,6 +418,7 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
 
   fetchClusters: async (bounds) => {
     try {
+      const token = await AsyncStorage.getItem('auth_token');
       const params = new URLSearchParams({
         north: bounds.north.toString(),
         south: bounds.south.toString(),
@@ -402,7 +426,14 @@ export const useDiscoveryStore = create<DiscoveryStore>((set, get) => ({
         west: bounds.west.toString(),
       });
 
-      const response = await fetch(`${API_BASE}/discovery/clusters?${params.toString()}`);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE}/discovery/clusters?${params.toString()}`, {
+        headers,
+      });
 
       if (!response.ok) throw new Error('Failed to fetch clusters');
 

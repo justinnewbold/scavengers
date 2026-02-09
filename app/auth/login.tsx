@@ -9,7 +9,9 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Animated,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, Link, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components';
@@ -27,22 +29,38 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [devTapCount, setDevTapCount] = useState(0);
 
-  // Hidden dev login: tap version number 3 times
+  // Hidden dev login: tap version number 3 times (dev builds only)
   const tapCountRef = useRef(0);
   const lastTapRef = useRef(0);
+  const versionOpacity = useRef(new Animated.Value(1)).current;
 
-  const handleVersionTap = useCallback(() => {
+  const handleVersionTap = useCallback(async () => {
+    if (!__DEV__) return;
+
     const now = Date.now();
-    // Reset if more than 1 second between taps
-    if (now - lastTapRef.current > 1000) {
+    // Reset if more than 1.5 seconds between taps
+    if (now - lastTapRef.current > 1500) {
       tapCountRef.current = 0;
     }
     lastTapRef.current = now;
     tapCountRef.current += 1;
+    setDevTapCount(tapCountRef.current);
+
+    // Pulse animation on each tap
+    Animated.sequence([
+      Animated.timing(versionOpacity, { toValue: 0.3, duration: 100, useNativeDriver: true }),
+      Animated.timing(versionOpacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
 
     if (tapCountRef.current >= 3) {
       tapCountRef.current = 0;
+      setDevTapCount(0);
+
+      // Store a dev token so API-dependent features don't break
+      await AsyncStorage.setItem('auth_token', 'dev-token-local');
+
       // Dev login: auto-authenticate as dev user
       useAuthStore.setState({
         user: {
@@ -53,9 +71,10 @@ export default function LoginScreen() {
         isAuthenticated: true,
         isInitialized: true,
       });
+      celebration();
       router.replace('/(tabs)');
     }
-  }, [router]);
+  }, [router, celebration, versionOpacity]);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -207,7 +226,14 @@ export default function LoginScreen() {
             onPress={handleVersionTap}
             activeOpacity={1}
           >
-            <Text style={styles.versionText}>v{AppConfig.version}</Text>
+            <Animated.Text style={[styles.versionText, { opacity: versionOpacity }]}>
+              v{AppConfig.version}
+            </Animated.Text>
+            {__DEV__ && devTapCount > 0 && devTapCount < 3 && (
+              <Text style={styles.devTapHint}>
+                {'·'.repeat(devTapCount)}{'○'.repeat(3 - devTapCount)}
+              </Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -357,5 +383,11 @@ const styles = StyleSheet.create({
   versionText: {
     color: Colors.textTertiary,
     fontSize: FontSizes.xs,
+  },
+  devTapHint: {
+    color: Colors.primary,
+    fontSize: FontSizes.xs,
+    marginTop: 2,
+    letterSpacing: 4,
   },
 });

@@ -16,7 +16,7 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Button, Card, CardStack, StreakDisplay, Confetti } from '@/components';
+import { Button, Card, CardStack, StreakDisplay, Confetti, RatingModal } from '@/components';
 import { useSoloModeStore, type SoloHuntResult } from '@/store/soloModeStore';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
 import { useHapticPatterns } from '@/hooks/useHapticPatterns';
@@ -66,10 +66,12 @@ export default function SoloPlayScreen() {
   const [revealedMysteries, setRevealedMysteries] = useState<Set<string>>(new Set());
   const [showConfetti, setShowConfetti] = useState(false);
   const [result, setResult] = useState<SoloHuntResult | null>(null);
+  const [showRating, setShowRating] = useState(false);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const wasManuallyPausedRef = useRef(false);
 
@@ -123,7 +125,8 @@ export default function SoloPlayScreen() {
     }
 
     timerRef.current = setInterval(() => {
-      updateSession({ timeElapsed: (activeSession?.timeElapsed || 0) + 1 });
+      const currentTime = useSoloModeStore.getState().activeSession?.timeElapsed || 0;
+      updateSession({ timeElapsed: currentTime + 1 });
     }, 1000);
 
     return () => {
@@ -138,11 +141,23 @@ export default function SoloPlayScreen() {
   useEffect(() => {
     if (!hunt?.challenges?.length) return;
     const progress = completedChallenges.size / hunt.challenges.length;
-    Animated.spring(progressAnim, {
+    const animation = Animated.spring(progressAnim, {
       toValue: progress,
       useNativeDriver: false,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [completedChallenges.size, hunt?.challenges?.length, progressAnim]);
+
+  // Clean up completion timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (completionTimeoutRef.current) {
+        clearTimeout(completionTimeoutRef.current);
+        completionTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Handle app state changes (pause when backgrounded)
   useEffect(() => {
@@ -174,10 +189,14 @@ export default function SoloPlayScreen() {
     return () => subscription.remove();
   }, [activeSession?.isPaused, pauseSession, resumeSession]);
 
+  // Use ref to always get latest handlePause without re-subscribing
+  const handlePauseRef = useRef(handlePause);
+  handlePauseRef.current = handlePause;
+
   // Handle back button
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handlePause();
+      handlePauseRef.current();
       return true;
     });
 
@@ -258,7 +277,7 @@ export default function SoloPlayScreen() {
     if (hunt?.challenges && newCompletedCount >= hunt.challenges.length) {
       setShowConfetti(true);
       celebration();
-      setTimeout(() => {
+      completionTimeoutRef.current = setTimeout(() => {
         const huntResult = finishSoloHunt();
         if (huntResult) {
           setResult(huntResult);
@@ -549,10 +568,25 @@ export default function SoloPlayScreen() {
           </View>
 
           <Button
+            title="Rate This Hunt"
+            variant="outline"
+            onPress={() => setShowRating(true)}
+            icon={<Ionicons name="star-outline" size={20} color={Colors.primary} />}
+            style={styles.actionButton}
+          />
+
+          <Button
             title="Back to Home"
             variant="ghost"
             onPress={() => router.replace('/')}
             style={styles.homeButton}
+          />
+
+          <RatingModal
+            visible={showRating}
+            huntId={result.huntId || activeSession?.hunt?.id || ''}
+            huntTitle={result.huntTitle}
+            onClose={() => setShowRating(false)}
           />
         </ScrollView>
       </>

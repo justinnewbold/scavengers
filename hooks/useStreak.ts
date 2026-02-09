@@ -102,20 +102,25 @@ export function useStreak(options: UseStreakOptions = {}) {
 
   // Reset streak (e.g., when time runs out)
   const resetStreak = useCallback(() => {
-    if (streak.count > 0) {
-      onStreakLost?.();
-      triggerHaptic('warning');
-    }
-
-    setStreak({
-      count: 0,
-      multiplier: 1,
-      lastCompletionTime: null,
-      isActive: false,
+    setStreak((prev) => {
+      if (prev.count > 0) {
+        onStreakLost?.();
+        triggerHaptic('warning');
+      }
+      return {
+        count: 0,
+        multiplier: 1,
+        lastCompletionTime: null,
+        isActive: false,
+      };
     });
     setTimeRemaining(null);
     previousMultiplier.current = 1;
-  }, [streak.count, onStreakLost]);
+  }, [onStreakLost]);
+
+  // Use ref for resetStreak to avoid timer effect re-running on every streak change
+  const resetStreakRef = useRef(resetStreak);
+  resetStreakRef.current = resetStreak;
 
   // Timer to track remaining time and reset streak when expired
   useEffect(() => {
@@ -135,7 +140,7 @@ export function useStreak(options: UseStreakOptions = {}) {
       const remaining = Math.max(0, STREAK_CONFIG.STREAK_WINDOW_SECONDS - elapsed);
 
       if (remaining <= 0) {
-        resetStreak();
+        resetStreakRef.current();
       } else {
         setTimeRemaining(Math.ceil(remaining));
       }
@@ -153,7 +158,7 @@ export function useStreak(options: UseStreakOptions = {}) {
         timerRef.current = null;
       }
     };
-  }, [streak.lastCompletionTime, streak.isActive, resetStreak]);
+  }, [streak.lastCompletionTime, streak.isActive]);
 
   // Format time remaining as MM:SS
   const formatTimeRemaining = useCallback((): string => {

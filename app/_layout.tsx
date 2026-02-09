@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store';
 import { Colors } from '@/constants/theme';
 import { ErrorBoundary, OfflineIndicator } from '@/components';
+import { ToastContainer } from '@/components/Toast';
 import { initSentry, setUser } from '@/lib/sentry';
 import { i18n } from '@/lib/i18n';
 
@@ -69,6 +70,7 @@ export default function RootLayout() {
       <View style={styles.container}>
         <StatusBar style="light" />
         <OfflineIndicator />
+        <ToastContainer />
         <Stack
           screenOptions={{
             headerStyle: {
@@ -111,6 +113,13 @@ export default function RootLayout() {
             options={{
               title: 'AI Quick Create',
               presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="leaderboards"
+            options={{
+              title: 'Leaderboards',
+              presentation: 'card',
             }}
           />
           <Stack.Screen

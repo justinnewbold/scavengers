@@ -644,8 +644,9 @@ export const useLiveMultiplayerStore = create<LiveMultiplayerState>((set, get) =
         },
       });
 
+      if (!response.ok) throw new Error('Failed to respond to invite');
+
       if (accept) {
-        if (!response.ok) throw new Error('Failed to respond to invite');
         const data = await response.json();
         set(state => ({
           currentRace: data.race,
