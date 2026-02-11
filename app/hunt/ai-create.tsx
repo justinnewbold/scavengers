@@ -4,7 +4,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, Button, Card } from '@/components';
 import { gemini } from '@/lib/gemini';
-import { db } from '@/lib/supabase';
 import { useAuthStore, useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { AIGenerationRequest } from '@/types';
@@ -26,7 +25,7 @@ export default function AICreateScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ template?: string }>();
   const { user } = useAuthStore();
-  const { setCurrentHunt } = useHuntStore();
+  const { createHunt, setCurrentHunt } = useHuntStore();
   
   const template = params.template ? TEMPLATES[params.template] : null;
   
@@ -59,27 +58,13 @@ export default function AICreateScreen() {
       const generated = await gemini.generateHunt(request);
       
       if (user) {
-        const { data: hunt, error } = await db.hunts.create({
+        const hunt = await createHunt({
           title: generated.title,
           description: generated.description,
-          creator_id: user.id,
           is_public: false,
           max_participants: 15,
           status: 'draft',
-          settings: {
-            allow_hints: true,
-            points_for_hints: 5,
-            require_photo_verification: includePhoto,
-            allow_team_play: false,
-            shuffle_challenges: false,
-          },
-        });
-        
-        if (error) throw error;
-        
-        if (hunt) {
-          const challenges = generated.challenges.map((c, index) => ({
-            hunt_id: hunt.id,
+          challenges: generated.challenges.map((c, index) => ({
             title: c.title,
             description: c.description,
             points: c.points,
@@ -87,15 +72,14 @@ export default function AICreateScreen() {
             verification_type: c.verification_type,
             verification_data: c.verification_data,
             hint: c.hint,
-          }));
-          
-          await db.challenges.createBulk(challenges);
-          
-          const fullHunt = await db.hunts.getById(hunt.id);
-          if (fullHunt.data) {
-            setCurrentHunt(fullHunt.data);
-            router.replace(`/hunt/${hunt.id}`);
-          }
+          })),
+        });
+
+        if (hunt) {
+          setCurrentHunt(hunt);
+          router.replace(`/hunt/${hunt.id}`);
+        } else {
+          throw new Error('Failed to save generated hunt');
         }
       } else {
         Alert.alert(
