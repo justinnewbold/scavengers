@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Input, Button } from '@/components';
-import { db } from '@/lib/supabase';
 import { useAuthStore, useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useRequireAuth } from '@/hooks';
@@ -11,7 +10,7 @@ export default function CreateHuntScreen() {
   const router = useRouter();
   useRequireAuth();
   const { user } = useAuthStore();
-  const { setCurrentHunt } = useHuntStore();
+  const { createHunt, setCurrentHunt } = useHuntStore();
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,29 +32,21 @@ export default function CreateHuntScreen() {
     }
     
     setIsCreating(true);
-    
+
     try {
-      const { data: hunt, error } = await db.hunts.create({
+      const hunt = await createHunt({
         title: title.trim(),
         description: description.trim(),
-        creator_id: user.id,
         is_public: isPublic,
         max_participants: 15,
         status: 'draft',
-        settings: {
-          allow_hints: true,
-          points_for_hints: 5,
-          require_photo_verification: false,
-          allow_team_play: false,
-          shuffle_challenges: false,
-        },
       });
-      
-      if (error) throw error;
-      
+
       if (hunt) {
         setCurrentHunt(hunt);
         router.replace(`/hunt/${hunt.id}`);
+      } else {
+        Alert.alert('Error', 'Failed to create hunt');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to create hunt');
