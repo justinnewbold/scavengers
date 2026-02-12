@@ -6,7 +6,7 @@ import { testConnection, getDbStats } from '@/lib/db';
  * GET /api/health
  *
  * Returns the status of the application and database connection.
- * Use this to verify your Vercel Postgres is connected correctly.
+ * Verifies Supabase Postgres connectivity via pooler.
  */
 export async function GET() {
   const dbConnection = await testConnection();
@@ -15,13 +15,13 @@ export async function GET() {
   const health = {
     status: dbConnection.connected ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
+    version: '2.1.0',
     database: {
       connected: dbConnection.connected,
       serverTime: dbConnection.connected ? dbConnection.time : null,
       error: dbConnection.connected ? null : dbConnection.error,
     },
     stats: dbStats,
-    // Environment info removed for security - don't expose config details
   };
 
   return NextResponse.json(health, {
