@@ -144,7 +144,7 @@ export const AppConfig = {
   
   // AI settings
   ai: {
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-2.5-flash',
     maxChallengesPerGeneration: 25,
     defaultDifficulty: 'medium' as const,
   },
