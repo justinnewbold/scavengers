@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,114 +11,125 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { HuntCard, Button, DiscoverSkeleton, HuntCardSkeleton } from '@/components';
-import { useHuntStore } from '@/store';
+import { HuntCard, Button, DiscoverSkeleton } from '@/components';
+import { useHuntStore, useAuthStore } from '@/store';
 import { useDailyHuntStore } from '@/store/dailyHuntStore';
+import { apiFetch } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
+import type { Hunt } from '@/types';
 
-// ─── Mock Data (replace with real API data later) ────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
-const TRENDING_HUNTS = [
-  {
-    id: 'trending-1',
-    title: 'City Explorer',
-    playCount: 1243,
-    trendDelta: 34,
-    rating: 4.8,
-    difficulty: 'medium' as const,
-    imageColor: Colors.primary,
-  },
-  {
-    id: 'trending-2',
-    title: 'Nature Walk',
-    playCount: 987,
-    trendDelta: 21,
-    rating: 4.6,
-    difficulty: 'easy' as const,
-    imageColor: Colors.success,
-  },
-  {
-    id: 'trending-3',
-    title: 'Campus Mystery',
-    playCount: 756,
-    trendDelta: 45,
-    rating: 4.9,
-    difficulty: 'hard' as const,
-    imageColor: Colors.accent,
-  },
-  {
-    id: 'trending-4',
-    title: 'Food Tour Quest',
-    playCount: 632,
-    trendDelta: 18,
-    rating: 4.5,
-    difficulty: 'easy' as const,
-    imageColor: Colors.warning,
-  },
-  {
-    id: 'trending-5',
-    title: 'Historic Downtown',
-    playCount: 528,
-    trendDelta: 27,
-    rating: 4.7,
-    difficulty: 'medium' as const,
-    imageColor: Colors.secondary,
-  },
-];
-
-const RECENT_COMPLETIONS = [
-  {
-    id: 'completion-1',
-    playerName: 'Sarah',
-    playerInitial: 'S',
-    avatarColor: '#FF6B6B',
-    huntTitle: 'City Explorer',
-    timeAgo: '2h ago',
-    points: 850,
-  },
-  {
-    id: 'completion-2',
-    playerName: 'Marcus',
-    playerInitial: 'M',
-    avatarColor: '#6C63FF',
-    huntTitle: 'Nature Walk',
-    timeAgo: '3h ago',
-    points: 720,
-  },
-  {
-    id: 'completion-3',
-    playerName: 'Aisha',
-    playerInitial: 'A',
-    avatarColor: '#00D9FF',
-    huntTitle: 'Campus Mystery',
-    timeAgo: '5h ago',
-    points: 1100,
-  },
-  {
-    id: 'completion-4',
-    playerName: 'Jake',
-    playerInitial: 'J',
-    avatarColor: '#4CAF50',
-    huntTitle: 'Food Tour Quest',
-    timeAgo: '6h ago',
-    points: 640,
-  },
-];
-
-const GLOBAL_STATS = [
-  { label: 'Hunts Created', value: 15000, display: '15K+' },
-  { label: 'Challenges Completed', value: 50000, display: '50K+' },
-  { label: 'Countries', value: 120, display: '120+' },
-];
-
-// ─── Difficulty badge helper ─────────────────────────────────────────────────
+/** Minimum number of public hunts before a "Popular" ranking is meaningful. */
+const MIN_HUNTS_FOR_POPULAR = 3;
+const POPULAR_LIMIT = 10;
+const ACTIVITY_LIMIT = 5;
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: Colors.success,
   medium: Colors.warning,
   hard: Colors.accent,
 };
+
+const AVATAR_COLORS = ['#FF6B6B', '#4ECDC4', '#FFD93D', '#A78BFA', '#6BCB77'];
+
+// ─── Recent activity (real submissions from /api/feed) ───────────────────────
+
+interface FeedRow {
+  submission_id: string;
+  user_id: string;
+  display_name: string | null;
+  hunt_title: string | null;
+  points_awarded: number | null;
+  created_at: string;
+}
+
+interface ActivityItem {
+  id: string;
+  playerName: string;
+  playerInitial: string;
+  avatarColor: string;
+  huntTitle: string;
+  timeAgo: string;
+  points: number;
+}
+
+/** Stable colour per user so the same person keeps the same avatar tint. */
+function colorForId(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function formatTimeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return 'just now';
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+/**
+ * Loads real recent completions. Returns an empty list (never placeholder
+ * content) when the user is signed out, the feed is empty, or the request
+ * fails — the section simply hides itself rather than inventing activity.
+ */
+function useRecentActivity(isAuthenticated: boolean) {
+  const [items, setItems] = useState<ActivityItem[]>([]);
+
+  const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setItems([]);
+      return;
+    }
+
+    const result = await apiFetch<{ feed?: FeedRow[]; items?: FeedRow[] }>(
+      `/feed?limit=${ACTIVITY_LIMIT}`,
+      { showErrorToast: false },
+    );
+
+    if (!result.ok) {
+      setItems([]);
+      return;
+    }
+
+    const rows = result.data.feed ?? result.data.items ?? [];
+    setItems(
+      rows.slice(0, ACTIVITY_LIMIT).map((row) => {
+        const name = row.display_name?.trim() || 'Someone';
+        return {
+          id: row.submission_id,
+          playerName: name,
+          playerInitial: name.charAt(0).toUpperCase(),
+          avatarColor: colorForId(row.user_id || row.submission_id),
+          huntTitle: row.hunt_title?.trim() || 'a hunt',
+          timeAgo: formatTimeAgo(row.created_at),
+          points: row.points_awarded ?? 0,
+        };
+      }),
+    );
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { activity: items, reloadActivity: load };
+}
 
 // ─── Animated counter hook ───────────────────────────────────────────────────
 
@@ -147,60 +158,37 @@ function useAnimatedCount(target: number, duration: number = 1500) {
   return displayValue;
 }
 
-// ─── Star rating component ───────────────────────────────────────────────────
-
-function StarRating({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalf = rating - fullStars >= 0.5;
-  const stars = [];
-
-  for (let i = 0; i < fullStars; i++) {
-    stars.push(
-      <Ionicons key={`full-${i}`} name="star" size={12} color={Colors.warning} />
-    );
-  }
-  if (hasHalf) {
-    stars.push(
-      <Ionicons key="half" name="star-half" size={12} color={Colors.warning} />
-    );
-  }
-
-  return (
-    <View style={starStyles.container}>
-      {stars}
-      <Text style={starStyles.text}>{rating.toFixed(1)}</Text>
-    </View>
-  );
-}
-
-const starStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  text: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginLeft: 3,
-  },
-});
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function DiscoverScreen() {
   const router = useRouter();
-  const { publicHunts, isLoading, fetchPublicHunts } = useHuntStore();
+  const { publicHunts, isLoading, error, fetchPublicHunts } = useHuntStore();
   const { dailyHunt, fetchDailyHunt, isDailyCompleted } = useDailyHuntStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { activity, reloadActivity } = useRecentActivity(isAuthenticated);
   const [hasLoaded, setHasLoaded] = useState(false);
   const { t } = useI18n();
 
+  const huntCount = publicHunts.length;
+  const hasError = !!error;
+
+  /** Real ranking: most-joined public hunts first. No invented play counts. */
+  const popularHunts = useMemo<Hunt[]>(() => {
+    if (huntCount < MIN_HUNTS_FOR_POPULAR) return [];
+    return [...publicHunts]
+      .sort((a, b) => (b.participant_count ?? 0) - (a.participant_count ?? 0))
+      .slice(0, POPULAR_LIMIT);
+  }, [publicHunts, huntCount]);
+
   // Animated values
-  const happeningNowCount = useAnimatedCount(127, 1800);
-  const nearbyPlayersCount = useAnimatedCount(23, 1400);
+  const availableCount = useAnimatedCount(huntCount, 1200);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const bannerOpacity = useRef(new Animated.Value(0)).current;
-  const statsBarOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleRefresh = useCallback(() => {
+    fetchPublicHunts();
+    reloadActivity();
+  }, [fetchPublicHunts, reloadActivity]);
 
   useEffect(() => {
     Promise.all([fetchPublicHunts(), fetchDailyHunt()]).finally(() => setHasLoaded(true));
@@ -226,20 +214,13 @@ export default function DiscoverScreen() {
     return () => pulse.stop();
   }, []);
 
-  // Fade in the banner and stats bar on mount
+  // Fade in the banner on mount
   useEffect(() => {
-    const fadeIn = Animated.stagger(200, [
-      Animated.timing(bannerOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(statsBarOpacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]);
+    const fadeIn = Animated.timing(bannerOpacity, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    });
     fadeIn.start();
     return () => fadeIn.stop();
   }, []);
@@ -260,7 +241,7 @@ export default function DiscoverScreen() {
       refreshControl={
         <RefreshControl
           refreshing={isLoading}
-          onRefresh={fetchPublicHunts}
+          onRefresh={handleRefresh}
           tintColor={Colors.primary}
         />
       }
@@ -289,49 +270,58 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      {/* ── Happening Now Banner ──────────────────────────────────────── */}
-      <Animated.View style={{ opacity: bannerOpacity }}>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => router.push('/(tabs)/index')}
-          style={styles.happeningNowBanner}
-        >
-          <View style={styles.happeningNowLeft}>
-            <Animated.Text
-              style={[
-                styles.happeningNowEmoji,
-                { transform: [{ scale: pulseAnim }] },
-              ]}
-            >
-              🔥
-            </Animated.Text>
+      {/* ── Connection problem notice ─────────────────────────────────── */}
+      {hasError && (
+        <View style={styles.errorCard} accessibilityRole="alert">
+          <Ionicons name="cloud-offline-outline" size={22} color={Colors.warning} />
+          <View style={styles.errorCardText}>
+            <Text style={styles.errorCardTitle}>{t('home.cantReachServer')}</Text>
+            <Text style={styles.errorCardSubtitle}>{t('home.pullToRetry')}</Text>
           </View>
-          <View style={styles.happeningNowContent}>
-            <Text style={styles.happeningNowTitle}>
-              <Text style={styles.happeningNowCount}>{happeningNowCount}</Text> hunts happening right now
-            </Text>
-            <View style={styles.happeningNowNearby}>
-              <Ionicons name="location" size={12} color={Colors.secondary} />
+          <TouchableOpacity
+            onPress={handleRefresh}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.retry')}
+          >
+            <Text style={styles.errorCardRetry}>{t('home.retry')}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Hunts available right now (real count) ────────────────────── */}
+      {!hasError && huntCount > 0 && (
+        <Animated.View style={{ opacity: bannerOpacity }}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/discover')}
+            style={styles.happeningNowBanner}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.huntsReady', { count: huntCount })}
+          >
+            <View style={styles.happeningNowLeft}>
+              <Animated.Text
+                style={[
+                  styles.happeningNowEmoji,
+                  { transform: [{ scale: pulseAnim }] },
+                ]}
+              >
+                🔥
+              </Animated.Text>
+            </View>
+            <View style={styles.happeningNowContent}>
+              <Text style={styles.happeningNowTitle}>
+                <Text style={styles.happeningNowCount}>{availableCount}</Text>{' '}
+                {t('home.huntsReadyToPlay')}
+              </Text>
               <Text style={styles.happeningNowNearbyText}>
-                {nearbyPlayersCount} players hunting near you
+                {t('home.tapToBrowse')}
               </Text>
             </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* ── Quick Stats Bar (Social Proof) ────────────────────────────── */}
-      <Animated.View style={[styles.quickStatsBar, { opacity: statsBarOpacity }]}>
-        {GLOBAL_STATS.map((stat, index) => (
-          <React.Fragment key={stat.label}>
-            {index > 0 && <Text style={styles.quickStatsSeparator}>{'\u2022'}</Text>}
-            <Text style={styles.quickStatsText}>
-              <Text style={styles.quickStatsValue}>{stat.display}</Text> {stat.label}
-            </Text>
-          </React.Fragment>
-        ))}
-      </Animated.View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* Solo Mode Promo Card */}
       <View style={styles.soloPromo}>
@@ -390,140 +380,154 @@ export default function DiscoverScreen() {
         </TouchableOpacity>
       )}
 
-      {/* ── Trending This Week Section ────────────────────────────────── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Trending This Week 🔥</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/(tabs)/index')}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.seeAllText}>See All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <FlatList
-          data={TRENDING_HUNTS}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.trendingList}
-          renderItem={({ item }) => (
+      {/* ── Most Played Section (real join counts) ────────────────────── */}
+      {popularHunts.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('home.mostPlayed')} 🔥</Text>
             <TouchableOpacity
-              activeOpacity={0.85}
-              style={styles.trendingCard}
-              onPress={() => router.push(`/hunt/${item.id}`)}
+              onPress={() => router.push('/discover')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
             >
-              {/* Card color header */}
-              <View
-                style={[
-                  styles.trendingCardHeader,
-                  { backgroundColor: item.imageColor + '25' },
-                ]}
-              >
-                <Ionicons name="flame" size={28} color={item.imageColor} />
-              </View>
+              <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.trendingCardBody}>
-                <Text style={styles.trendingCardTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
+          <FlatList
+            data={popularHunts}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.trendingList}
+            renderItem={({ item }) => {
+              const plays = item.participant_count ?? 0;
+              const accent = DIFFICULTY_COLORS[item.difficulty] ?? Colors.primary;
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.trendingCard}
+                  onPress={() => router.push(`/hunt/${item.id}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.title}
+                >
+                  <View
+                    style={[
+                      styles.trendingCardHeader,
+                      { backgroundColor: accent + '25' },
+                    ]}
+                  >
+                    <Ionicons name="flame" size={28} color={accent} />
+                  </View>
 
-                {/* Play count with trend arrow */}
-                <View style={styles.trendingCardStat}>
-                  <Ionicons name="play-circle-outline" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.trendingCardStatText}>
-                    {item.playCount.toLocaleString()}
-                  </Text>
-                  <Text style={styles.trendingCardTrendArrow}>
-                    {'\u2191'}{item.trendDelta}%
-                  </Text>
-                </View>
+                  <View style={styles.trendingCardBody}>
+                    <Text style={styles.trendingCardTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
 
-                {/* Rating */}
-                <StarRating rating={item.rating} />
+                    {/* Real participant count from the API */}
+                    <View style={styles.trendingCardStat}>
+                      <Ionicons
+                        name="people-outline"
+                        size={14}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.trendingCardStatText}>
+                        {plays === 1
+                          ? t('home.onePlayer')
+                          : t('home.playerCount', { count: plays })}
+                      </Text>
+                    </View>
 
-                {/* Difficulty badge */}
+                    <View style={styles.trendingCardStat}>
+                      <Ionicons
+                        name="list-outline"
+                        size={14}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.trendingCardStatText}>
+                        {item.challenges?.length ?? 0} {t('home.challenges')}
+                      </Text>
+                    </View>
+
+                    <View
+                      style={[
+                        styles.difficultyBadge,
+                        { backgroundColor: accent + '20' },
+                      ]}
+                    >
+                      <Text style={[styles.difficultyBadgeText, { color: accent }]}>
+                        {item.difficulty.charAt(0).toUpperCase() +
+                          item.difficulty.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
+
+      {/* ── Recent Activity (real completions, hidden when empty) ─────── */}
+      {activity.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderLeft}>
+              <Ionicons name="pulse" size={18} color={Colors.secondary} />
+              <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>
+                {t('home.recentActivity')}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.completionsContainer}>
+            {activity.map((completion) => (
+              <View key={completion.id} style={styles.completionItem}>
                 <View
                   style={[
-                    styles.difficultyBadge,
-                    { backgroundColor: DIFFICULTY_COLORS[item.difficulty] + '20' },
+                    styles.completionAvatar,
+                    { backgroundColor: completion.avatarColor + '30' },
                   ]}
                 >
                   <Text
                     style={[
-                      styles.difficultyBadgeText,
-                      { color: DIFFICULTY_COLORS[item.difficulty] },
+                      styles.completionAvatarText,
+                      { color: completion.avatarColor },
                     ]}
                   >
-                    {item.difficulty.charAt(0).toUpperCase() + item.difficulty.slice(1)}
+                    {completion.playerInitial}
                   </Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
 
-      {/* ── Recently Completed Nearby Section ─────────────────────────── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderLeft}>
-            <Ionicons name="location-sharp" size={18} color={Colors.secondary} />
-            <Text style={[styles.sectionTitle, { marginLeft: Spacing.sm }]}>
-              Completed Nearby
-            </Text>
+                <View style={styles.completionDetails}>
+                  <Text style={styles.completionText} numberOfLines={1}>
+                    <Text style={styles.completionPlayerName}>
+                      {completion.playerName}
+                    </Text>
+                    {' completed '}
+                    <Text style={styles.completionHuntName}>
+                      {completion.huntTitle}
+                    </Text>
+                  </Text>
+                  <View style={styles.completionMeta}>
+                    <Text style={styles.completionTimeAgo}>{completion.timeAgo}</Text>
+                    <Text style={styles.completionMetaSep}>{'\u2022'}</Text>
+                    <Text style={styles.completionPoints}>
+                      {'\u2B50'} {completion.points}pts
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
+      )}
 
-        <View style={styles.completionsContainer}>
-          {RECENT_COMPLETIONS.map((completion) => (
-            <View key={completion.id} style={styles.completionItem}>
-              {/* Avatar */}
-              <View
-                style={[
-                  styles.completionAvatar,
-                  { backgroundColor: completion.avatarColor + '30' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.completionAvatarText,
-                    { color: completion.avatarColor },
-                  ]}
-                >
-                  {completion.playerInitial}
-                </Text>
-              </View>
-
-              {/* Details */}
-              <View style={styles.completionDetails}>
-                <Text style={styles.completionText} numberOfLines={1}>
-                  <Text style={styles.completionPlayerName}>
-                    {completion.playerName}
-                  </Text>
-                  {' completed '}
-                  <Text style={styles.completionHuntName}>
-                    '{completion.huntTitle}'
-                  </Text>
-                </Text>
-                <View style={styles.completionMeta}>
-                  <Text style={styles.completionTimeAgo}>{completion.timeAgo}</Text>
-                  <Text style={styles.completionMetaSep}>{'\u2022'}</Text>
-                  <Text style={styles.completionPoints}>
-                    {'\u2B50'} {completion.points}pts
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Quick Stats (existing) */}
+      {/* Quick Stats */}
       <View style={styles.stats}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{publicHunts.length}</Text>
+          <Text style={styles.statNumber}>{huntCount}</Text>
           <Text style={styles.statLabel}>{t('home.publicHunts')}</Text>
         </View>
         <View style={styles.statItem}>
@@ -543,11 +547,27 @@ export default function DiscoverScreen() {
           <Ionicons name="arrow-forward" size={20} color={Colors.textSecondary} />
         </View>
 
-        {publicHunts.length === 0 ? (
+        {huntCount === 0 ? (
           <View style={styles.empty}>
-            <Ionicons name="search-outline" size={48} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>{t('home.noPublicHunts')}</Text>
-            <Text style={styles.emptySubtext}>{t('home.beFirstToCreate')}</Text>
+            <Ionicons
+              name={hasError ? 'cloud-offline-outline' : 'search-outline'}
+              size={48}
+              color={Colors.textTertiary}
+            />
+            <Text style={styles.emptyText}>
+              {hasError ? t('home.cantReachServer') : t('home.noPublicHunts')}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {hasError ? t('home.pullToRetry') : t('home.beFirstToCreate')}
+            </Text>
+            {!hasError && (
+              <Button
+                title={t('home.createHunt')}
+                size="sm"
+                onPress={() => router.push('/hunt/ai-create')}
+                style={styles.emptyButton}
+              />
+            )}
           </View>
         ) : (
           publicHunts.map((hunt) => (
@@ -671,40 +691,12 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: FontSizes.lg,
   },
-  happeningNowNearby: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-    gap: 4,
-  },
   happeningNowNearbyText: {
     fontSize: FontSizes.xs,
     color: Colors.textSecondary,
   },
 
   // ── Quick Stats Bar (Social Proof) ────────────────────────────────
-  quickStatsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  quickStatsText: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-  },
-  quickStatsValue: {
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  quickStatsSeparator: {
-    fontSize: FontSizes.xs,
-    color: Colors.textTertiary,
-    marginHorizontal: Spacing.sm,
-  },
 
   // ── Solo Promo (existing) ─────────────────────────────────────────
   soloPromo: {
@@ -781,12 +773,6 @@ const styles = StyleSheet.create({
   trendingCardStatText: {
     fontSize: FontSizes.xs,
     color: Colors.textSecondary,
-  },
-  trendingCardTrendArrow: {
-    fontSize: FontSizes.xs,
-    color: Colors.success,
-    fontWeight: '700',
-    marginLeft: 2,
   },
   difficultyBadge: {
     alignSelf: 'flex-start',
@@ -1016,5 +1002,38 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontWeight: '600',
     color: Colors.success,
+  },
+
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.warning + '15',
+    borderWidth: 1,
+    borderColor: Colors.warning + '40',
+    borderRadius: 12,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  errorCardText: {
+    flex: 1,
+  },
+  errorCardTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  errorCardSubtitle: {
+    fontSize: FontSizes.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  errorCardRetry: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  emptyButton: {
+    marginTop: Spacing.md,
   },
 });
