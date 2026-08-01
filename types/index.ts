@@ -29,6 +29,8 @@ export interface Hunt {
   max_participants?: number;
   challenges?: Challenge[];
   settings?: HuntSettings;
+  /** Number of players who have joined. Returned by GET /api/hunts. */
+  participant_count?: number;
   created_at?: string;
   updated_at?: string;
 }
