@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { fetchWithTimeout, TimeoutError } from './fetchWithTimeout';
+import type { VerificationData } from '@/types';
 
 // Storage keys
 const KEYS = {
@@ -34,7 +35,7 @@ export interface CachedChallenge {
   description: string;
   points: number;
   verification_type: string;
-  verification_data?: Record<string, unknown>;
+  verification_data?: VerificationData;
   hint?: string;
 }
 

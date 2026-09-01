@@ -53,7 +53,7 @@ export default function LiveHubScreen() {
   const renderRaceItem = ({ item }: { item: LiveRace }) => (
     <LiveRaceCard
       race={item}
-      onPress={() => router.push(`/live/race/${item.id}`)}
+      onJoin={() => router.push(`/live/race/${item.id}`)}
       onSpectate={() => router.push(`/live/spectate/${item.id}`)}
     />
   );
@@ -135,9 +135,9 @@ export default function LiveHubScreen() {
         {/* Tab Selector */}
         <View style={styles.segmentContainer}>
           <SegmentedControl
-            values={['Races', 'Tournaments']}
+            segments={['Races', 'Tournaments']}
             selectedIndex={tab === 'races' ? 0 : 1}
-            onValueChange={(index) => setTab(index === 0 ? 'races' : 'tournaments')}
+            onChange={(index: number) => setTab(index === 0 ? 'races' : 'tournaments')}
           />
         </View>
 

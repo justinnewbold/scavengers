@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, SegmentedControl } from '@/components';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -44,7 +44,7 @@ export default function AchievementsScreen() {
   const router = useRouter();
   const { t } = useI18n();
   useRequireAuth();
-  const { user, session } = useAuthStore();
+  const { user } = useAuthStore();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,14 +56,14 @@ export default function AchievementsScreen() {
   }, []);
 
   const fetchAchievements = async () => {
-    if (!session?.access_token) {
+    if (!(await getAuthHeaders()).Authorization) {
       setLoading(false);
       return;
     }
 
     try {
       const response = await fetch(`${API_BASE}/achievements`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { ...(await getAuthHeaders()) },
       });
 
       if (response.ok) {

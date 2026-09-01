@@ -402,7 +402,7 @@ export default function PlayScreen() {
         }}
       />
 
-      {showConfetti && <Confetti />}
+      <Confetti visible={showConfetti} />
 
       {/* Streak Milestone Celebration */}
       <StreakMilestone
@@ -567,7 +567,7 @@ export default function PlayScreen() {
                   }
                   onPress={() => handleVerification(currentChallenge)}
                   disabled={completedChallenges.has(currentChallenge.id!)}
-                  style={[styles.verifyButton, canSkip && styles.verifyButtonWithSkip]}
+                  style={StyleSheet.flatten([styles.verifyButton, canSkip && styles.verifyButtonWithSkip])}
                 />
                 {canSkip && currentChallengeIndex < (hunt.challenges?.length || 1) - 1 && (
                   <Button

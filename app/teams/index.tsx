@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button, BottomSheet, Skeleton } from '@/components';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -23,7 +23,7 @@ export default function TeamsScreen() {
   const router = useRouter();
   const { t } = useI18n();
   useRequireAuth();
-  const { user, session } = useAuthStore();
+  const { user } = useAuthStore();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,11 +39,11 @@ export default function TeamsScreen() {
   }, []);
 
   const fetchTeams = async () => {
-    if (!session?.access_token) return;
+    if (!(await getAuthHeaders()).Authorization) return;
 
     try {
       const response = await fetch(`${API_BASE}/teams`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { ...(await getAuthHeaders()) },
       });
 
       if (response.ok) {
@@ -59,14 +59,14 @@ export default function TeamsScreen() {
   };
 
   const handleCreateTeam = async () => {
-    if (!newTeamName.trim() || !session?.access_token) return;
+    if (!newTeamName.trim() || !(await getAuthHeaders()).Authorization) return;
 
     try {
       const response = await fetch(`${API_BASE}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify({
           name: newTeamName.trim(),
@@ -90,14 +90,14 @@ export default function TeamsScreen() {
   };
 
   const handleJoinTeam = async () => {
-    if (!joinCode.trim() || !session?.access_token) return;
+    if (!joinCode.trim() || !(await getAuthHeaders()).Authorization) return;
 
     try {
       const response = await fetch(`${API_BASE}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify({ join_code: joinCode.trim() }),
       });

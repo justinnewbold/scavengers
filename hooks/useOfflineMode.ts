@@ -79,7 +79,7 @@ export function useOfflineMode(): UseOfflineModeResult {
         points: c.points,
         verification_type: c.verification_type,
         verification_data: c.verification_data,
-        hint: c.hint,
+        hint: c.hint ?? undefined,
       })),
       cachedAt: Date.now(),
     };
@@ -106,7 +106,7 @@ export function useOfflineMode(): UseOfflineModeResult {
         points: c.points,
         verification_type: c.verification_type as Challenge['verification_type'],
         verification_data: c.verification_data,
-        hint: c.hint,
+        hint: c.hint ?? undefined,
         order_index: index,
       })),
       is_public: false,

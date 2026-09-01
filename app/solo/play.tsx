@@ -96,8 +96,10 @@ export default function SoloPlayScreen() {
   const completedChallenges = new Set(activeSession?.completedChallenges || []);
 
   // Proximity tracking for mystery challenges
-  const proximityTarget = currentChallenge?.verification_data?.latitude
-    ? {
+  const proximityTarget =
+    currentChallenge?.verification_data?.latitude != null &&
+    currentChallenge?.verification_data?.longitude != null
+      ? {
         latitude: currentChallenge.verification_data.latitude,
         longitude: currentChallenge.verification_data.longitude,
         revealRadius: currentChallenge.reveal_distance_meters || 50,
@@ -524,7 +526,7 @@ export default function SoloPlayScreen() {
     return (
       <>
         <Stack.Screen options={{ title: 'Hunt Complete!', headerBackVisible: false }} />
-        {showConfetti && <Confetti />}
+        <Confetti visible={showConfetti} />
 
         <ScrollView style={styles.container} contentContainerStyle={styles.resultsContent}>
           <View style={styles.resultsHeader}>
@@ -645,7 +647,7 @@ export default function SoloPlayScreen() {
         }}
       />
 
-      {showConfetti && <Confetti />}
+      <Confetti visible={showConfetti} />
 
       <View style={styles.container}>
         {/* Progress Header */}
