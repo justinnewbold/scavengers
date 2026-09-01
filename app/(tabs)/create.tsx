@@ -2,14 +2,24 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Card, Button } from '@/components';
+import { Card, Button, SignInRequired } from '@/components';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import { useRequireAuth } from '@/hooks';
+import { useAuthStore } from '@/store';
 
 export default function CreateScreen() {
   const router = useRouter();
-  useRequireAuth();
-  
+  const { user } = useAuthStore();
+
+  // Render in place rather than redirecting - see SignInRequired.
+  if (!user) {
+    return (
+      <SignInRequired
+        title="Sign in to create hunts"
+        message="Create an account to build and share your own scavenger hunts."
+      />
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Create a Hunt</Text>

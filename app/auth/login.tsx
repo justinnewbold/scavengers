@@ -170,12 +170,13 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() => router.push('/auth/forgot-password')}
-            >
-              <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
-            </TouchableOpacity>
+            {/*
+              Password reset is hidden until it actually works. The API stores
+              a reset token but never sends an email (no email provider is
+              configured), and there is no reset-password page to land on - so
+              the flow told users "we sent you a link" and then dead-ended.
+              Re-enable this once the email service and /reset-password exist.
+            */}
 
             <Button
               title={isLoading ? t('auth.signingIn') : t('auth.signIn')}

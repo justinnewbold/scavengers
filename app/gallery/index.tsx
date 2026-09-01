@@ -18,6 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, BottomSheet, SegmentedControl, Skeleton } from '@/components';
+import { API_BASE } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -59,7 +60,7 @@ export default function GalleryScreen() {
       if (showFavoritesOnly) params.append('favorites', 'true');
 
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/gallery?${params}`,
+        `${API_BASE}/gallery?${params}`,
         { headers: { Authorization: `Bearer ${session.access_token}` } }
       );
 
@@ -90,7 +91,7 @@ export default function GalleryScreen() {
     }
 
     try {
-      await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/gallery`, {
+      await fetch(`${API_BASE}/gallery`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export default function GalleryScreen() {
     if (!session?.access_token || !selectedPhoto) return;
 
     try {
-      await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/gallery`, {
+      await fetch(`${API_BASE}/gallery`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -146,7 +147,7 @@ export default function GalleryScreen() {
 
     try {
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/gallery/${photo.id}`,
+        `${API_BASE}/gallery/${photo.id}`,
         {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${session.access_token}` },
@@ -232,7 +233,7 @@ export default function GalleryScreen() {
     try {
       const huntId = photos.find(p => selectedForShare.includes(p.id))?.hunt_title;
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/gallery`, {
+      const response = await fetch(`${API_BASE}/gallery`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

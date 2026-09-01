@@ -11,17 +11,23 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Skeleton } from '@/components';
 import { DismissableView } from '@/components/DismissableView';
-import { useHuntStore } from '@/store';
+import { useHuntStore, useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { Hunt } from '@/types';
 
 export default function HuntDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getHuntById, joinHunt, isLoading } = useHuntStore();
+  const { getHuntById, joinHunt, updateHunt, isLoading } = useHuntStore();
+  const { user } = useAuthStore();
   const [hunt, setHunt] = useState<Hunt | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  const isOwner = !!user && !!hunt && hunt.creator_id === user.id;
+  const isDraft = hunt?.status === 'draft';
+  const hasChallenges = (hunt?.challenges?.length ?? 0) > 0;
 
   useEffect(() => {
     loadHunt();
@@ -43,13 +49,65 @@ export default function HuntDetailScreen() {
 
   const handleJoinHunt = async () => {
     if (!hunt) return;
-    
-    try {
-      await joinHunt(hunt.id);
-      router.push(`/play/${hunt.id}`);
-    } catch (_error) {
-      Alert.alert('Error', 'Failed to join hunt. Please try again.');
+
+    // joinHunt swallows its own errors and returns null, so checking the
+    // return value is the only way to know it worked. Navigating regardless
+    // used to drop the player into the hunt with no participant record -
+    // every later submission then failed.
+    const participation = await joinHunt(hunt.id);
+
+    if (!participation) {
+      Alert.alert(
+        'Could Not Start Hunt',
+        useHuntStore.getState().error || 'Failed to join hunt. Please try again.'
+      );
+      return;
     }
+
+    router.push(`/play/${hunt.id}`);
+  };
+
+  /**
+   * Hunts are created as drafts, but joining and public listing both require
+   * status 'active'. Without this the creator had no way to make their own
+   * hunt playable.
+   */
+  const handlePublish = async () => {
+    if (!hunt) return;
+
+    if (!hasChallenges) {
+      Alert.alert(
+        'Add a Challenge First',
+        'A hunt needs at least one challenge before it can be published.'
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Publish Hunt?',
+      'Publishing makes this hunt playable, so you and anyone you invite can join it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Publish',
+          onPress: async () => {
+            setPublishing(true);
+            try {
+              await updateHunt(hunt.id, { status: 'active' });
+              const error = useHuntStore.getState().error;
+              if (error) {
+                Alert.alert('Publish Failed', error);
+                return;
+              }
+              setHunt((prev) => (prev ? { ...prev, status: 'active' } : prev));
+              Alert.alert('Published!', 'Your hunt is live and ready to play.');
+            } finally {
+              setPublishing(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleShare = async () => {
@@ -225,18 +283,43 @@ export default function HuntDetailScreen() {
             ))}
           </View>
 
-          {/* Join Button */}
+          {/* Join / Publish */}
           <View style={styles.joinSection}>
-            <Button
-              title="Start Hunt 🎯"
-              onPress={handleJoinHunt}
-              size="lg"
-              loading={isLoading}
-              style={styles.joinButton}
-            />
-            <Text style={styles.joinHint}>
-              Free for groups up to 15 people
-            </Text>
+            {isDraft ? (
+              isOwner ? (
+                <>
+                  <Button
+                    title="Publish Hunt 🚀"
+                    onPress={handlePublish}
+                    size="lg"
+                    loading={publishing}
+                    style={styles.joinButton}
+                  />
+                  <Text style={styles.joinHint}>
+                    {hasChallenges
+                      ? 'This hunt is a draft. Publish it to start playing and invite others.'
+                      : 'Add at least one challenge before publishing.'}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.joinHint}>
+                  This hunt hasn&apos;t been published yet.
+                </Text>
+              )
+            ) : (
+              <>
+                <Button
+                  title="Start Hunt 🎯"
+                  onPress={handleJoinHunt}
+                  size="lg"
+                  loading={isLoading}
+                  style={styles.joinButton}
+                />
+                <Text style={styles.joinHint}>
+                  Free for groups up to 15 people
+                </Text>
+              </>
+            )}
           </View>
         </ScrollView>
       </DismissableView>

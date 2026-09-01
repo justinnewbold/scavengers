@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,6 @@ import { SwipeableRow } from '@/components/SwipeableRow';
 import type { SwipeAction } from '@/components/SwipeableRow';
 import { useHuntStore, useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import { useRequireAuth } from '@/hooks';
 import type { Hunt } from '@/types';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud';
@@ -38,7 +37,6 @@ const RIGHT_ACTIONS_ACTIVE: SwipeAction[] = [
 
 export default function MyHuntsScreen() {
   const router = useRouter();
-  useRequireAuth();
   const { user } = useAuthStore();
   const { hunts: myHunts, isLoading, fetchHunts: fetchMyHunts, deleteHunt, updateHunt } = useHuntStore();
 
@@ -132,8 +130,23 @@ export default function MyHuntsScreen() {
   }, [handleActionPress, router]);
 
   const [statusIndex, setStatusIndex] = useState(0);
+  const hasAutoSelectedTab = useRef(false);
 
   const STATUS_MAP = useMemo(() => ['active', 'draft', 'completed'] as const, []);
+
+  // Hunts are created as drafts, so a user who has only just made their first
+  // hunt would land on "Active" and be told they have none. Open on Drafts
+  // instead when that is where their hunts actually are. Runs once, so it
+  // never fights a tab the user picked themselves.
+  useEffect(() => {
+    if (hasAutoSelectedTab.current || myHunts.length === 0) return;
+    hasAutoSelectedTab.current = true;
+
+    const hasActive = myHunts.some(h => h.status === 'active');
+    if (!hasActive && myHunts.some(h => h.status === 'draft')) {
+      setStatusIndex(STATUS_MAP.indexOf('draft'));
+    }
+  }, [myHunts, STATUS_MAP]);
 
   const filteredHunts = useMemo(
     () => myHunts.filter(h => h.status === STATUS_MAP[statusIndex]),

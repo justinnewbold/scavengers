@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, SegmentedControl } from '@/components';
+import { API_BASE } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -61,7 +62,7 @@ export default function AchievementsScreen() {
     }
 
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/achievements`, {
+      const response = await fetch(`${API_BASE}/achievements`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 

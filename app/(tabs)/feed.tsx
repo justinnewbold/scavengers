@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl } from '@/components';
+import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl, SignInRequired } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { FeedItem, ReactionType } from '@/types';
@@ -271,14 +271,13 @@ export default function FeedScreen() {
   };
 
   if (!isAuthenticated) {
+    // Previously this card had no button or link at all, so a signed-out user
+    // who tapped Feed had no way forward.
     return (
-      <View style={styles.authContainer}>
-        <Ionicons name="lock-closed-outline" size={64} color={Colors.textTertiary} />
-        <Text style={styles.authTitle}>Sign In Required</Text>
-        <Text style={styles.authText}>
-          Sign in to see photos from other hunters and react to their submissions!
-        </Text>
-      </View>
+      <SignInRequired
+        title="Sign in to see the feed"
+        message="Sign in to see photos from other hunters and react to their submissions."
+      />
     );
   }
 

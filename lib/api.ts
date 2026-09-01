@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useToastStore } from '@/store/toastStore';
+import { useAuthStore } from '@/store/authStore';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
@@ -84,7 +85,11 @@ export async function apiFetch<T = unknown>(
       }
 
       if (response.status === 401) {
-        await AsyncStorage.removeItem('auth_token');
+        // Clear the whole auth state, not just the token. Removing the token
+        // alone left `user` populated and `isAuthenticated` true, so the UI
+        // kept showing a signed-in profile while every request silently went
+        // out anonymously and failed.
+        await useAuthStore.getState().handleUnauthorized();
       }
 
       if (showErrorToast) {
