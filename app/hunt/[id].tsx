@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, Skeleton } from '@/components';
 import { DismissableView } from '@/components/DismissableView';
 import { useHuntStore, useAuthStore } from '@/store';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, WEB_URL } from '@/constants/theme';
 import type { Hunt } from '@/types';
 
 export default function HuntDetailScreen() {
@@ -115,7 +115,7 @@ export default function HuntDetailScreen() {
     
     try {
       await Share.share({
-        message: `Join my scavenger hunt "${hunt.title}" on Scavengers! 🎯\n\nhttps://scavengers.newbold.cloud/hunt/${hunt.id}`,
+        message: `Join my scavenger hunt "${hunt.title}" on Scavengers! 🎯\n\n${WEB_URL}/hunt/${hunt.id}`,
         title: hunt.title,
       });
     } catch (error) {

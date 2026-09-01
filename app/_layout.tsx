@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store';
 import { useOnboardingStore } from '@/store/onboardingStore';
+import { useDeepLinks } from '@/hooks';
 import { Colors } from '@/constants/theme';
 import { ErrorBoundary, OfflineIndicator } from '@/components';
 import { ToastContainer } from '@/components/Toast';
@@ -18,6 +19,16 @@ initSentry();
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
+
+/**
+ * Activates deep-link handling. useDeepLinks was exported but never called by
+ * any screen, so shared links did nothing. Mounted only once the app is ready,
+ * so an incoming link is not immediately clobbered by the onboarding redirect.
+ */
+function DeepLinkHandler() {
+  useDeepLinks();
+  return null;
+}
 
 export default function RootLayout() {
   const { initialize, isInitialized, user } = useAuthStore();
@@ -83,6 +94,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <View style={styles.container}>
         <StatusBar style="light" />
+        <DeepLinkHandler />
         <OfflineIndicator />
         <ToastContainer />
         <Stack

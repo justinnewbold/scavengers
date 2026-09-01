@@ -1,7 +1,7 @@
 import { AIGenerateRequest, AIGenerateResponse } from '@/types';
 
-// Use gemini-1.5-flash as a more stable model
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// Keep in sync with AppConfig.ai.defaultModel in the mobile app.
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 export async function generateHuntWithAI(
   request: AIGenerateRequest,
@@ -45,10 +45,11 @@ Respond ONLY with valid JSON, no markdown or explanations.`;
 
   let response: Response;
   try {
-    response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    response = await fetch(GEMINI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify({
         contents: [{

@@ -1,262 +1,141 @@
 import type {
   AIGenerationRequest,
   AIGeneratedHunt,
-  VerificationType
+  AIGeneratedChallenge,
+  VerificationType,
 } from '@/types';
+import { fetchWithTimeout, TimeoutError } from './fetchWithTimeout';
 
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
 
+/** Generation can take a while - Gemini is doing real work behind this. */
+const GENERATE_TIMEOUT_MS = 45000;
+
+/** Raised with a message that is safe (and useful) to show the user. */
+export class HuntGenerationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'HuntGenerationError';
+  }
+}
+
+interface ServerChallenge {
+  title?: string;
+  description?: string;
+  points?: number;
+  verification_type?: string;
+  type?: string;
+  hint?: string | null;
+  verification_data?: Record<string, unknown>;
+}
+
+interface ServerHuntResponse {
+  hunt?: { title?: string; description?: string };
+  challenges?: ServerChallenge[];
+  error?: string;
+}
+
+const VALID_VERIFICATION_TYPES: VerificationType[] = [
+  'photo',
+  'gps',
+  'qr_code',
+  'text_answer',
+  'manual',
+];
+
+function normalizeVerificationType(type: string | undefined): VerificationType {
+  const normalized = (type || '').toLowerCase().trim();
+  if ((VALID_VERIFICATION_TYPES as string[]).includes(normalized)) {
+    return normalized as VerificationType;
+  }
+  if (normalized === 'qr' || normalized === 'qrcode') return 'qr_code';
+  if (normalized === 'text') return 'text_answer';
+  return 'manual';
+}
+
+/**
+ * Hunt generation, performed server-side.
+ *
+ * This used to call the Google Generative Language API directly from the
+ * device using EXPO_PUBLIC_GEMINI_API_KEY. That key is inlined into the app
+ * bundle, so anyone could extract it and bill the account. It also had no
+ * empty-key guard, so an unconfigured build sent an empty key and surfaced
+ * `Gemini API error: ` (React Native usually leaves statusText blank) to the
+ * user.
+ *
+ * The server holds the key, and /api/generate already falls back to a
+ * generated hunt when it is unset - so this path degrades gracefully instead
+ * of failing.
+ */
 export class GeminiAI {
-  private apiKey: string;
-  
-  constructor(apiKey: string = GEMINI_API_KEY) {
-    this.apiKey = apiKey;
-  }
-  
   async generateHunt(request: AIGenerationRequest): Promise<AIGeneratedHunt> {
-    const prompt = this.buildHuntPrompt(request);
-    
-    const response = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': this.apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
-        generationConfig: {
-          temperature: 0.8,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        },
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!text) {
-      throw new Error('No response from Gemini API');
-    }
-    
-    return this.parseHuntResponse(text);
-  }
-  
-  async verifyPhoto(imageBase64: string, challengeDescription: string): Promise<{
-    approved: boolean;
-    confidence: number;
-    reason: string;
-  }> {
-    const prompt = `You are a scavenger hunt photo verifier. 
-    
-Challenge: "${challengeDescription}"
+    let response: Response;
 
-Analyze this photo and determine if it successfully completes the challenge.
-
-Respond in JSON format only:
-{
-  "approved": true/false,
-  "confidence": 0.0-1.0,
-  "reason": "Brief explanation"
-}`;
-
-    const response = await fetch(GEMINI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': this.apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: 'image/jpeg',
-                data: imageBase64
-              }
-            }
-          ]
-        }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 256,
-        },
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Photo verification failed: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
     try {
-      const jsonMatch = text?.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
+      response = await fetchWithTimeout(`${API_BASE}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: GENERATE_TIMEOUT_MS,
+        body: JSON.stringify({
+          theme: request.theme,
+          location: request.location,
+          difficulty: request.difficulty,
+          challengeCount: request.challenge_count,
+          duration: request.duration_minutes,
+          customInstructions: request.custom_instructions,
+          includePhoto: request.include_photo_challenges,
+          includeGps: request.include_gps_challenges,
+        }),
+      });
     } catch (error) {
-      // Fall back to manual approval if parsing fails
-      console.warn('Failed to parse Gemini response, falling back to manual approval:', error);
-    }
-    
-    return {
-      approved: false,
-      confidence: 0,
-      reason: 'Unable to verify photo automatically. Manual review required.'
-    };
-  }
-  
-  private buildHuntPrompt(request: AIGenerationRequest): string {
-    const verificationTypes: string[] = [];
-    if (request.include_photo_challenges) verificationTypes.push('photo');
-    if (request.include_gps_challenges) verificationTypes.push('gps');
-    verificationTypes.push('text_answer', 'manual');
-    
-    return `Create a fun and engaging scavenger hunt with the following requirements:
-
-Theme: ${request.theme}
-${request.location ? `Location: ${request.location}` : 'Location: General (can be played anywhere)'}
-Difficulty: ${request.difficulty}
-Number of challenges: ${request.challenge_count}
-${request.duration_minutes ? `Estimated duration: ${request.duration_minutes} minutes` : ''}
-${request.custom_instructions ? `Special instructions: ${request.custom_instructions}` : ''}
-
-Available verification types: ${verificationTypes.join(', ')}
-
-Respond in JSON format only with this structure:
-{
-  "title": "Creative hunt title",
-  "description": "Brief engaging description (2-3 sentences)",
-  "challenges": [
-    {
-      "title": "Challenge name",
-      "description": "What the player needs to do",
-      "points": 10-100 based on difficulty,
-      "verification_type": "photo|gps|text_answer|manual",
-      "hint": "Optional helpful hint",
-      "verification_data": {
-        // For text_answer: { "correct_answer": "answer", "case_sensitive": false }
-        // For photo: { "ai_prompt": "what to look for", "required_objects": ["object1"] }
-        // For gps: { "latitude": 0, "longitude": 0, "radius_meters": 50 }
-        // For manual: {}
+      if (error instanceof TimeoutError) {
+        throw new HuntGenerationError(
+          'Generating took too long. Please try again.'
+        );
       }
-    }
-  ]
-}
-
-Make the challenges creative, fun, and achievable. Vary the difficulty and points. 
-For ${request.difficulty} difficulty:
-- Easy: Simple tasks, common items, clear instructions
-- Medium: Requires some effort, creativity, or exploration
-- Hard: Complex tasks, rare finds, multi-step challenges`;
-  }
-  
-  // Validate that required fields exist and are valid
-  private validateHuntResponse(parsed: Record<string, unknown>): void {
-    // Validate title
-    if (!parsed.title || typeof parsed.title !== 'string' || parsed.title.trim().length === 0) {
-      throw new Error('Invalid response: missing or empty title');
+      throw new HuntGenerationError(
+        'Could not reach the server. Check your connection and try again.'
+      );
     }
 
-    // Validate challenges array
-    if (!Array.isArray(parsed.challenges)) {
-      throw new Error('Invalid response: challenges must be an array');
-    }
-
-    if (parsed.challenges.length === 0) {
-      throw new Error('Invalid response: at least one challenge is required');
-    }
-
-    // Validate each challenge has required fields
-    for (let i = 0; i < parsed.challenges.length; i++) {
-      const challenge = parsed.challenges[i] as Record<string, unknown>;
-
-      if (!challenge || typeof challenge !== 'object') {
-        throw new Error(`Invalid response: challenge ${i + 1} is not an object`);
-      }
-
-      if (!challenge.title || typeof challenge.title !== 'string') {
-        throw new Error(`Invalid response: challenge ${i + 1} missing title`);
-      }
-
-      if (!challenge.description || typeof challenge.description !== 'string') {
-        throw new Error(`Invalid response: challenge ${i + 1} missing description`);
-      }
-
-      // Points must be a positive number
-      const points = Number(challenge.points);
-      if (isNaN(points) || points <= 0) {
-        throw new Error(`Invalid response: challenge ${i + 1} has invalid points`);
-      }
-    }
-  }
-
-  private parseHuntResponse(text: string): AIGeneratedHunt {
-    // Extract JSON from response by finding balanced braces
-    const jsonStart = text.indexOf('{');
-    if (jsonStart === -1) {
-      throw new Error('Failed to parse hunt response: no JSON found');
-    }
-
-    let braceCount = 0;
-    let jsonEnd = -1;
-    for (let i = jsonStart; i < text.length; i++) {
-      if (text[i] === '{') braceCount++;
-      else if (text[i] === '}') braceCount--;
-      if (braceCount === 0) {
-        jsonEnd = i + 1;
-        break;
-      }
-    }
-
-    if (jsonEnd === -1) {
-      throw new Error('Failed to parse hunt response: unbalanced braces');
-    }
-
-    const jsonString = text.slice(jsonStart, jsonEnd);
-
-    let parsed: Record<string, unknown>;
+    let data: ServerHuntResponse;
     try {
-      parsed = JSON.parse(jsonString);
-    } catch (error) {
-      throw new Error('Failed to parse hunt response: invalid JSON');
+      data = await response.json();
+    } catch {
+      throw new HuntGenerationError('The server returned an unexpected response.');
     }
 
-    // Validate required fields before processing
-    this.validateHuntResponse(parsed);
+    if (!response.ok) {
+      throw new HuntGenerationError(
+        data?.error || `Could not generate a hunt (error ${response.status}).`
+      );
+    }
 
-    // Normalize and return validated response
+    const challenges = Array.isArray(data.challenges) ? data.challenges : [];
+    if (challenges.length === 0) {
+      throw new HuntGenerationError(
+        'The server did not return any challenges. Please try a different theme.'
+      );
+    }
+
+    const mapped: AIGeneratedChallenge[] = challenges.map((c, index) => ({
+      title: c.title || `Challenge ${index + 1}`,
+      description: c.description || '',
+      points: Number(c.points) || 10,
+      // The server sends both `type` and `verification_type`; prefer the latter.
+      verification_type: normalizeVerificationType(c.verification_type ?? c.type),
+      hint: c.hint ?? null,
+      verification_data: c.verification_data,
+    }));
+
     return {
-      title: String(parsed.title).trim(),
-      description: parsed.description ? String(parsed.description).trim() : '',
-      challenges: (parsed.challenges as Record<string, unknown>[]).map((c, index) => ({
-        title: String(c.title).trim() || `Challenge ${index + 1}`,
-        description: String(c.description).trim() || '',
-        points: Math.max(1, Math.min(1000, Number(c.points) || 10)), // Clamp points 1-1000
-        verification_type: this.normalizeVerificationType(String(c.verification_type || 'manual')),
-        hint: c.hint ? String(c.hint).trim() : null,
-        verification_data: (c.verification_data as Record<string, unknown>) || {},
-      })),
+      title: data.hunt?.title || request.theme,
+      description: data.hunt?.description || '',
+      challenges: mapped,
     };
-  }
-  
-  private normalizeVerificationType(type: string): VerificationType {
-    const validTypes: VerificationType[] = ['photo', 'gps', 'qr_code', 'text_answer', 'manual'];
-    const normalized = type?.toLowerCase().replace(/[^a-z_]/g, '') as VerificationType;
-    return validTypes.includes(normalized) ? normalized : 'manual';
   }
 }
 
-// Export singleton instance
 export const gemini = new GeminiAI();
+
+export default gemini;

@@ -16,10 +16,9 @@ import { AnimatedListItem } from '@/components/AnimatedListItem';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import type { SwipeAction } from '@/components/SwipeableRow';
 import { useHuntStore, useAuthStore } from '@/store';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, WEB_URL } from '@/constants/theme';
 import type { Hunt } from '@/types';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud';
 
 const LEFT_ACTIONS: SwipeAction[] = [
   { id: 'share', icon: 'share-outline', color: Colors.primary, label: 'Share' },
@@ -50,8 +49,8 @@ export default function MyHuntsScreen() {
     try {
       await Share.share({
         title: hunt.title,
-        message: `Check out this scavenger hunt: ${hunt.title}\n${API_BASE}/hunt/${hunt.id}`,
-        url: `${API_BASE}/hunt/${hunt.id}`,
+        message: `Check out this scavenger hunt: ${hunt.title}\n${WEB_URL}/hunt/${hunt.id}`,
+        url: `${WEB_URL}/hunt/${hunt.id}`,
       });
     } catch (error) {
       // User cancelled or share failed silently

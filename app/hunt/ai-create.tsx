@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Input, Button, Card } from '@/components';
-import { gemini } from '@/lib/gemini';
+import { gemini, HuntGenerationError } from '@/lib/gemini';
 import { useAuthStore, useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { AIGenerationRequest } from '@/types';
@@ -91,8 +91,15 @@ export default function AICreateScreen() {
           ]
         );
       }
-    } catch (error: any) {
-      Alert.alert('Generation Failed', error.message || 'Please try again');
+    } catch (error: unknown) {
+      // gemini.generateHunt throws HuntGenerationError with a message written
+      // for the user; anything else gets a generic fallback rather than a raw
+      // internal string.
+      const message =
+        error instanceof HuntGenerationError
+          ? error.message
+          : 'Something went wrong generating your hunt. Please try again.';
+      Alert.alert('Generation Failed', message);
     } finally {
       setIsGenerating(false);
     }
