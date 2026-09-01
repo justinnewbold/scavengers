@@ -125,10 +125,33 @@ export const Shadows = {
 };
 
 // App configuration
+/**
+ * Public site used for shareable links.
+ *
+ * Must match the domain declared in app.json (iOS `associatedDomains` and the
+ * Android intent filters), or the OS will open shared links in a browser
+ * instead of handing them to the app. This is deliberately NOT derived from
+ * EXPO_PUBLIC_API_URL - that points at the API (".../api"), and building
+ * share links from it produced URLs like "https://host/api/hunt/123".
+ */
+export const WEB_URL = 'https://scavengers.newbold.cloud';
+
+/**
+ * Public pages linked from inside the app.
+ *
+ * Terms and Privacy must resolve to real pages - both Apple and Google expect
+ * reachable links, and they were previously rendered as inert text.
+ */
+export const ExternalLinks = {
+  help: `${WEB_URL}/help`,
+  terms: `${WEB_URL}/terms`,
+  privacy: `${WEB_URL}/privacy`,
+} as const;
+
 export const AppConfig = {
   name: 'Scavengers',
   version: '1.0.0',
-  
+
   // Free tier limits
   freeTier: {
     maxParticipants: 15,

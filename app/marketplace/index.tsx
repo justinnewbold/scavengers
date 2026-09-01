@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
+import { API_BASE } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -89,7 +90,7 @@ export default function MarketplaceScreen() {
       params.append('sort', sortBy);
 
       const response = await fetch(
-        `${process.env.EXPO_PUBLIC_API_URL}/api/marketplace?${params}`
+        `${API_BASE}/marketplace?${params}`
       );
 
       if (!response.ok) {

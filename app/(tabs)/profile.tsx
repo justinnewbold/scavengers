@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button } from '@/components';
 import { useAuthStore } from '@/store';
-import { Colors, Spacing, FontSizes, AppConfig } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, AppConfig, ExternalLinks } from '@/constants/theme';
+import { openExternalLink } from '@/lib/openExternalLink';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRequireAuth } from '@/hooks';
 import { useI18n } from '@/hooks/useI18n';
 import * as Haptics from 'expo-haptics';
 
@@ -22,7 +22,6 @@ interface UserStats {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  useRequireAuth();
   const { t } = useI18n();
   const { user, logout } = useAuthStore();
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -199,17 +198,35 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('profile.account')}</Text>
 
-        <Card variant="default" style={styles.menuCard}>
+        {/* These three had no onPress at all - they looked tappable and did
+            nothing. Terms and Privacy in particular are an app-store
+            requirement. */}
+        <Card
+          variant="default"
+          style={styles.menuCard}
+          onPress={() => openExternalLink(ExternalLinks.help)}
+          accessibilityLabel={t('profile.helpSupport')}
+        >
           <Ionicons name="help-circle-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>{t('profile.helpSupport')}</Text>
         </Card>
 
-        <Card variant="default" style={styles.menuCard}>
+        <Card
+          variant="default"
+          style={styles.menuCard}
+          onPress={() => openExternalLink(ExternalLinks.terms)}
+          accessibilityLabel={t('profile.termsOfService')}
+        >
           <Ionicons name="document-text-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>{t('profile.termsOfService')}</Text>
         </Card>
 
-        <Card variant="default" style={styles.menuCard}>
+        <Card
+          variant="default"
+          style={styles.menuCard}
+          onPress={() => openExternalLink(ExternalLinks.privacy)}
+          accessibilityLabel={t('profile.privacyPolicy')}
+        >
           <Ionicons name="shield-outline" size={22} color={Colors.text} />
           <Text style={styles.menuText}>{t('profile.privacyPolicy')}</Text>
         </Card>

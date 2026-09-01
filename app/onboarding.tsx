@@ -13,13 +13,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, FontSizes, BorderRadius } from '@/constants/theme';
+import { useOnboardingStore } from '@/store/onboardingStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const ONBOARDING_KEY = 'onboarding_complete';
 
 interface OnboardingPage {
   icon: keyof typeof Ionicons.glyphMap;
@@ -44,16 +42,20 @@ const pages: OnboardingPage[] = [
     accentColor: Colors.secondary,
   },
   {
-    icon: 'cloud-offline',
+    // Do not promise offline play here. lib/offlineStorage.ts is implemented
+    // but nothing calls queueSubmission or cacheHunts, and solo mode needs a
+    // network round-trip just to start (store/soloModeStore.ts).
+    icon: 'people',
     title: 'Play Anywhere, Anytime',
     description:
-      'Works offline. Play solo or with up to 15 friends. No internet needed.',
+      'Head out solo or bring up to 15 friends along. Free, with no ads.',
     accentColor: Colors.success,
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const markOnboardingComplete = useOnboardingStore((s) => s.completeOnboarding);
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -122,14 +124,12 @@ export default function OnboardingScreen() {
     [currentPage, animateIcon]
   );
 
-  const completeOnboarding = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    } catch {
-      // Silently handle storage errors - user can still proceed
-    }
+  const completeOnboarding = useCallback(() => {
+    // Flip the flag the root layout's redirect reads, then navigate. Setting
+    // this before navigating is what stops the redirect bouncing us back here.
+    markOnboardingComplete();
     router.replace('/(tabs)');
-  }, [router]);
+  }, [markOnboardingComplete, router]);
 
   const isLastPage = currentPage === pages.length - 1;
 

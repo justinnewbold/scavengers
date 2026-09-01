@@ -1,8 +1,28 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Hunt, Participant, Submission, AIGenerationRequest } from '@/types';
+import type { Hunt, Participant, VerificationType, AIGenerationRequest } from '@/types';
 import { gemini } from '@/lib/gemini';
+
+/**
+ * Outcome of a challenge submission.
+ *
+ * Verification happens on the server (the API deliberately withholds
+ * `verification_data` from clients), so this carries the server's verdict
+ * rather than a local guess.
+ */
+export interface SubmissionResult {
+  /** True only when the server approved the submission. */
+  verified: boolean;
+  /** Human-readable explanation, shown to the player on rejection. */
+  reason?: string;
+  /** Points the server actually awarded. 0 when rejected. */
+  pointsAwarded: number;
+  /** True when a human needs to review (AI was not confident enough). */
+  requiresManualReview?: boolean;
+  /** Set when the request itself failed, as opposed to being rejected. */
+  error?: string;
+}
 
 // API base URL - points to your Vercel deployment
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://scavengers.newbold.cloud/api';
@@ -21,6 +41,13 @@ interface HuntState {
   publicHunts: Hunt[];
   currentHunt: Hunt | null;
   activeParticipation: Participant | null;
+  /**
+   * Result of the most recent submission, waiting to be picked up by the play
+   * screen. The verifier screens (camera/location/qr-scanner) are pushed routes
+   * and cannot return a value directly, so they leave the outcome here and the
+   * play screen consumes it when it regains focus.
+   */
+  lastSubmission: { challengeId: string; result: SubmissionResult } | null;
   isLoading: boolean;
   error: string | null;
 
@@ -33,7 +60,20 @@ interface HuntState {
   updateHunt: (id: string, updates: Partial<Hunt>) => Promise<void>;
   deleteHunt: (id: string) => Promise<void>;
   joinHunt: (huntId: string) => Promise<Participant | null>;
-  submitChallenge: (challengeId: string, submission: Partial<Submission>) => Promise<boolean>;
+  submitChallenge: (
+    challengeId: string,
+    submissionType: VerificationType,
+    submissionData: Record<string, unknown>
+  ) => Promise<SubmissionResult>;
+  /**
+   * Records a verification decided on-device, for solo mode. Solo hunts are
+   * generated client-side with local ids and no participant record, so they
+   * cannot go through /api/submissions - and there is nothing to cheat, since
+   * the player is only competing with themselves.
+   */
+  recordLocalVerification: (challengeId: string, result: SubmissionResult) => void;
+  /** Returns the pending submission result and clears it, so it fires once. */
+  consumeLastSubmission: () => { challengeId: string; result: SubmissionResult } | null;
   setCurrentHunt: (hunt: Hunt | null) => void;
   clearError: () => void;
 }
@@ -46,6 +86,7 @@ export const useHuntStore = create<HuntState>()(
       publicHunts: [],
       currentHunt: null,
       activeParticipation: null,
+      lastSubmission: null,
       isLoading: false,
       error: null,
 
@@ -242,27 +283,81 @@ export const useHuntStore = create<HuntState>()(
         }
       },
 
-      // Submit challenge completion
-      submitChallenge: async (challengeId: string, submission: Partial<Submission>) => {
+      // Submit challenge completion. The server verifies and awards points -
+      // clients never see verification_data, so they cannot check answers.
+      submitChallenge: async (
+        challengeId: string,
+        submissionType: VerificationType,
+        submissionData: Record<string, unknown>
+      ): Promise<SubmissionResult> => {
+        const participant = get().activeParticipation;
+        if (!participant?.id) {
+          const error = 'You need to join this hunt before submitting.';
+          set({ error });
+          return { verified: false, pointsAwarded: 0, error };
+        }
+
         set({ isLoading: true, error: null });
         try {
           const response = await fetch(`${API_BASE}/submissions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
             body: JSON.stringify({
+              participant_id: participant.id,
               challenge_id: challengeId,
-              ...submission,
+              submission_type: submissionType,
+              submission_data: submissionData,
             }),
           });
-          if (!response.ok) throw new Error('Failed to submit challenge');
 
-          set({ isLoading: false });
-          return true;
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            // Surface the API's own message - it explains *why*
+            // ("Hunt is full", "Challenge already completed", ...).
+            const error = data?.error || 'Failed to submit challenge';
+            set({ error, isLoading: false });
+            return { verified: false, pointsAwarded: 0, error };
+          }
+
+          const pointsAwarded = Number(data.points_awarded) || 0;
+
+          // Keep the local score in step with the server's.
+          if (data.verified) {
+            set(state => ({
+              activeParticipation: state.activeParticipation
+                ? {
+                    ...state.activeParticipation,
+                    score: (state.activeParticipation.score || 0) + pointsAwarded,
+                  }
+                : state.activeParticipation,
+            }));
+          }
+
+          const result: SubmissionResult = {
+            verified: !!data.verified,
+            reason: data.reason,
+            pointsAwarded,
+            requiresManualReview: data.status === 'pending',
+          };
+          set({ isLoading: false, lastSubmission: { challengeId, result } });
+          return result;
         } catch (error) {
           console.error('Submit challenge error:', error);
-          set({ error: 'Failed to submit challenge', isLoading: false });
-          return false;
+          const message = 'Could not reach the server. Check your connection and try again.';
+          set({ error: message, isLoading: false });
+          return { verified: false, pointsAwarded: 0, error: message };
         }
+      },
+
+      recordLocalVerification: (challengeId: string, result: SubmissionResult) => {
+        set({ lastSubmission: { challengeId, result } });
+      },
+
+      consumeLastSubmission: () => {
+        const pending = get().lastSubmission;
+        if (pending) set({ lastSubmission: null });
+        return pending;
       },
 
       // Set current hunt

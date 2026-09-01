@@ -75,28 +75,26 @@ export default function ForgotPasswordScreen() {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
+        {/*
+          Deliberately does NOT claim an email was sent - none is. The API
+          stores a reset token but has no email provider wired up, and there
+          is no reset-password page yet. Telling users to check their inbox
+          left them locked out and waiting for mail that never arrives.
+        */}
         <View style={styles.successContainer}>
           <View style={styles.successIconContainer}>
-            <Ionicons name="mail-outline" size={64} color={Colors.primary} />
+            <Ionicons name="construct-outline" size={64} color={Colors.primary} />
           </View>
-          <Text style={styles.successTitle}>Check Your Email</Text>
+          <Text style={styles.successTitle}>Not Available Yet</Text>
           <Text style={styles.successText}>
-            If an account exists for {email}, we've sent a password reset link. Please check your inbox and spam folder.
+            Password reset isn&apos;t available yet - we can&apos;t email you a link
+            right now. Please contact support to recover your account.
           </Text>
           <Button
             title="Back to Login"
             onPress={() => router.back()}
             style={styles.backButton}
           />
-          <TouchableOpacity
-            style={styles.resendButton}
-            onPress={() => {
-              setIsSubmitted(false);
-              setEmail('');
-            }}
-          >
-            <Text style={styles.resendText}>Try a different email</Text>
-          </TouchableOpacity>
         </View>
       </>
     );

@@ -12,16 +12,21 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card } from '@/components';
+import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function LocationScreen() {
-  const { challengeId: _challengeId, targetLat, targetLng, radius } = useLocalSearchParams<{
+  const { challengeId, targetLat, targetLng, radius, mode } = useLocalSearchParams<{
     challengeId: string;
     targetLat: string;
     targetLng: string;
     radius: string;
+    /** 'solo' verifies on-device; anything else goes through the server. */
+    mode?: string;
   }>();
   const router = useRouter();
+  const { submitChallenge, recordLocalVerification } = useHuntStore();
+  const isSolo = mode === 'solo';
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
@@ -29,12 +34,15 @@ export default function LocationScreen() {
   const [checking, setChecking] = useState(false);
   const [verified, setVerified] = useState(false);
 
-  // Validate and parse coordinates with NaN protection
-  const targetLatNum = parseFloat(targetLat || '0');
-  const targetLngNum = parseFloat(targetLng || '0');
-  const radiusNum = parseFloat(radius || '50');
+  // Parse only when actually provided. Defaulting a missing coordinate to '0'
+  // would produce a *valid-looking* target at (0, 0) - Null Island - and send
+  // the player off toward the Gulf of Guinea. The server withholds
+  // verification_data, so most of the time these params are absent and the
+  // on-screen distance readout is simply hidden.
+  const targetLatNum = targetLat != null && targetLat !== '' ? parseFloat(targetLat) : NaN;
+  const targetLngNum = targetLng != null && targetLng !== '' ? parseFloat(targetLng) : NaN;
+  const radiusNum = parseFloat(radius || '50') || 50;
 
-  // Validate coordinates are valid numbers
   const hasValidTarget = !isNaN(targetLatNum) && !isNaN(targetLngNum) &&
     targetLatNum >= -90 && targetLatNum <= 90 &&
     targetLngNum >= -180 && targetLngNum <= 180;
@@ -112,33 +120,78 @@ export default function LocationScreen() {
   const toRad = (deg: number): number => deg * (Math.PI / 180);
 
   const checkLocation = async () => {
+    if (!challengeId) {
+      Alert.alert('Error', 'Missing challenge details. Please go back and try again.');
+      return;
+    }
+
     setChecking(true);
-    
+
     try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
-      
-      const dist = calculateDistance(
-        location.coords.latitude,
-        location.coords.longitude,
-        targetLatNum,
-        targetLngNum
-      );
-      
-      setDistance(dist);
-      
-      if (dist <= radiusNum) {
+
+      // Local readout is a convenience only when we happen to know the target.
+      const dist = hasValidTarget
+        ? calculateDistance(
+            location.coords.latitude,
+            location.coords.longitude,
+            targetLatNum,
+            targetLngNum
+          )
+        : null;
+
+      if (dist !== null) setDistance(dist);
+
+      let result;
+      if (isSolo) {
+        // Solo hunts never reach the server, so compare locally.
+        if (!hasValidTarget || dist === null) {
+          Alert.alert(
+            'Location Unavailable',
+            'This challenge has no target location set.'
+          );
+          return;
+        }
+        const withinRange = dist <= radiusNum;
+        result = {
+          verified: withinRange,
+          pointsAwarded: 0, // solo scoring is handled by the solo store
+          reason: withinRange
+            ? undefined
+            : `You're ${Math.round(dist)}m away. Get within ${radiusNum}m.`,
+        };
+        recordLocalVerification(challengeId, result);
+      } else {
+        // The server owns the verdict - it has the real target coordinates.
+        result = await submitChallenge(challengeId, 'gps', {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+        });
+      }
+
+      if (result.error) {
+        Alert.alert('Submission Failed', result.error);
+        return;
+      }
+
+      if (result.verified) {
         setVerified(true);
         Alert.alert(
           '✅ Location Verified!',
-          `You're at the right spot! (${Math.round(dist)}m from target)`,
+          result.pointsAwarded > 0
+            ? `You're at the right spot!\n\n+${result.pointsAwarded} points`
+            : "You're at the right spot!",
           [{ text: 'Continue', onPress: () => router.back() }]
         );
       } else {
+        // The API's reason includes the real distance, e.g.
+        // "Too far from target (250m away)".
         Alert.alert(
           'Not Quite There',
-          `You're ${Math.round(dist)}m away. Get within ${radiusNum}m of the target location.`
+          result.reason || `Get within ${radiusNum}m of the target location.`
         );
       }
     } catch (_error) {

@@ -59,7 +59,7 @@ export default {
     start: 'Commencer',
     publicHunts: 'Chasses Publiques',
     upTo15Players: "Jusqu'à 15 joueurs",
-    worksOffline: 'Fonctionne Hors Ligne',
+    noAds: 'Jamais de publicité',
     discoverHunts: 'Découvrir des Chasses',
     noPublicHunts: 'Aucune chasse publique pour le moment',
     beFirstToCreate: 'Soyez le premier à en créer une !',

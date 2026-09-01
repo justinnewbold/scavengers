@@ -59,7 +59,7 @@ export default {
     start: 'Start',
     publicHunts: 'Public Hunts',
     upTo15Players: 'Up to 15 players',
-    worksOffline: 'Works Offline',
+    noAds: 'No Ads, Ever',
     discoverHunts: 'Discover Hunts',
     noPublicHunts: 'No public hunts yet',
     beFirstToCreate: 'Be the first to create one!',

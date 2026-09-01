@@ -11,10 +11,13 @@ import {
   Share,
   Alert,
   Pressable,
+  Linking,
 } from 'react-native';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl } from '@/components';
+import { PhotoFeedItem, FeedItemSkeleton, SegmentedControl, SignInRequired } from '@/components';
 import { useAuthStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import type { FeedItem, ReactionType } from '@/types';
@@ -162,6 +165,54 @@ export default function FeedScreen() {
     }
   }, []);
 
+  /**
+   * Downloads the photo and adds it to the device's photo library.
+   *
+   * This previously just showed an "Saved!" alert and did nothing at all, so
+   * users believed they had a copy of a photo they did not have.
+   */
+  const savePhotoToGallery = useCallback(async (item: FeedItem) => {
+    if (!item.photo_url) {
+      Alert.alert('Nothing to Save', 'This post has no photo attached.');
+      return;
+    }
+
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission Needed',
+          permission.canAskAgain
+            ? 'Allow photo library access to save photos.'
+            : 'Allow photo library access in Settings to save photos.',
+          permission.canAskAgain
+            ? [{ text: 'OK' }]
+            : [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+              ]
+        );
+        return;
+      }
+
+      // MediaLibrary needs a local file, so pull the remote image down first.
+      const target = `${FileSystem.cacheDirectory}scavengers-${Date.now()}.jpg`;
+      const { uri, status } = await FileSystem.downloadAsync(item.photo_url, target);
+
+      if (status !== 200) {
+        throw new Error(`Download failed with status ${status}`);
+      }
+
+      await MediaLibrary.saveToLibraryAsync(uri);
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+
+      Alert.alert('Saved', 'Photo has been saved to your gallery.');
+    } catch (error) {
+      console.error('Save to gallery failed:', error);
+      Alert.alert('Save Failed', 'Could not save the photo. Please try again.');
+    }
+  }, []);
+
   const showFeedPhotoActions = useCallback((item: FeedItem) => {
     const options = ['Cancel', 'Share', 'Report', 'Save to Gallery'];
     const cancelButtonIndex = 0;
@@ -209,7 +260,7 @@ export default function FeedScreen() {
           );
           break;
         case 3:
-          Alert.alert('Saved!', 'Photo has been saved to your gallery.');
+          savePhotoToGallery(item);
           break;
       }
     };
@@ -271,14 +322,13 @@ export default function FeedScreen() {
   };
 
   if (!isAuthenticated) {
+    // Previously this card had no button or link at all, so a signed-out user
+    // who tapped Feed had no way forward.
     return (
-      <View style={styles.authContainer}>
-        <Ionicons name="lock-closed-outline" size={64} color={Colors.textTertiary} />
-        <Text style={styles.authTitle}>Sign In Required</Text>
-        <Text style={styles.authText}>
-          Sign in to see photos from other hunters and react to their submissions!
-        </Text>
-      </View>
+      <SignInRequired
+        title="Sign in to see the feed"
+        message="Sign in to see photos from other hunters and react to their submissions."
+      />
     );
   }
 

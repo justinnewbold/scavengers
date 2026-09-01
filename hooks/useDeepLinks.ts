@@ -4,8 +4,9 @@ import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { Share, Platform } from 'react-native';
 
+import { WEB_URL } from '@/constants/theme';
+
 const APP_SCHEME = 'scavengers';
-const WEB_URL = 'https://scavengers-ten.vercel.app';
 
 export interface DeepLinkData {
   type: 'hunt' | 'team' | 'challenge' | 'profile' | 'invite';
@@ -69,34 +70,35 @@ export function useDeepLinks() {
     const data = parseDeepLink(url);
     if (!data) return;
 
+    // Every target below must be a route that exists under app/. Pushing a
+    // path with no matching file lands the user on expo-router's "Unmatched
+    // Route" screen, which is a dead end - previously the case for every
+    // shared hunt invite, since those always carry action=join.
     switch (data.type) {
       case 'hunt':
-        if (data.action === 'join') {
-          router.push(`/hunt/${data.id}/join`);
-        } else {
-          router.push(`/hunt/${data.id}`);
-        }
+        // The hunt detail screen is where you join from, so both cases go
+        // there. There is no /hunt/[id]/join route.
+        router.push(`/hunt/${data.id}`);
         break;
 
       case 'team':
-        if (data.action === 'join') {
-          router.push(`/teams?join=${data.id}`);
-        } else {
-          router.push(`/teams/${data.id}`);
-        }
+        // Only app/teams/index.tsx exists; it accepts a join code as a param.
+        router.push(`/teams?join=${data.id}`);
         break;
 
       case 'challenge':
-        router.push(`/challenge/${data.id}`);
+        // Challenges are played within their hunt - there is no standalone
+        // challenge route, so treat the id as the hunt to open.
+        router.push(`/hunt/${data.id}`);
         break;
 
       case 'profile':
-        router.push(`/profile/${data.id}`);
+        // Only the current user's profile tab exists; there is no /profile/[id].
+        router.push('/(tabs)/profile');
         break;
 
       case 'invite':
-        // Handle invite codes
-        router.push(`/invite/${data.id}`);
+        router.push(`/teams?join=${data.id}`);
         break;
 
       default:

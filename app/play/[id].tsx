@@ -9,9 +9,9 @@ import {
   Share,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, MysteryChallenge, StreakDisplay, Confetti, StreakMilestone, getMilestoneForStreak } from '@/components';
+import { Button, Card, MysteryChallenge, StreakDisplay, Confetti, StreakMilestone, getMilestoneForStreak, TextPromptModal } from '@/components';
 import { useHuntStore } from '@/store';
 import { useStreak, useProximityHaptics, triggerHaptic, useAccessibility, useRequireAuth } from '@/hooks';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
@@ -20,7 +20,7 @@ import type { Hunt, Challenge } from '@/types';
 export default function PlayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getHuntById } = useHuntStore();
+  const { getHuntById, submitChallenge, consumeLastSubmission } = useHuntStore();
   useRequireAuth();
 
   const [hunt, setHunt] = useState<Hunt | null>(null);
@@ -33,6 +33,8 @@ export default function PlayScreen() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [showStreakMilestone, setShowStreakMilestone] = useState(false);
   const [lastMilestoneStreak, setLastMilestoneStreak] = useState(0);
+  const [answerPrompt, setAnswerPrompt] = useState<Challenge | null>(null);
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
   const progressAnim = useRef(new Animated.Value(0)).current;
   const scoreAnim = useRef(new Animated.Value(1)).current;
@@ -113,6 +115,24 @@ export default function PlayScreen() {
   useEffect(() => {
     loadHunt();
   }, [id]);
+
+  // The camera/location/qr-scanner screens submit to the server and leave the
+  // outcome in the store, since a pushed route cannot return a value. Pick it
+  // up whenever we regain focus so an approved challenge actually scores.
+  useFocusEffect(
+    useCallback(() => {
+      const pending = consumeLastSubmission();
+      if (!pending?.result.verified) return;
+
+      const challenge = hunt?.challenges?.find((c) => c.id === pending.challengeId);
+      if (challenge && !completedChallenges.has(pending.challengeId)) {
+        handleChallengeComplete(challenge, true);
+      }
+      // handleChallengeComplete is stable enough for this effect's purpose;
+      // re-running on every render would re-consume nothing (the slot is empty).
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hunt?.challenges, completedChallenges, consumeLastSubmission])
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -264,6 +284,48 @@ export default function PlayScreen() {
     }
   };
 
+  /** Submits a text answer. The server holds the correct answer, not us. */
+  const submitTextAnswer = async (challenge: Challenge, answer: string) => {
+    if (!challenge.id) return;
+
+    setSubmittingAnswer(true);
+    try {
+      const result = await submitChallenge(challenge.id, 'text_answer', { answer });
+
+      if (result.error) {
+        Alert.alert('Submission Failed', result.error);
+        return;
+      }
+
+      if (result.verified) {
+        setAnswerPrompt(null);
+        handleChallengeComplete(challenge, true);
+      } else {
+        triggerHaptic('error');
+        Alert.alert('Incorrect', result.reason || 'Try again!');
+      }
+    } finally {
+      setSubmittingAnswer(false);
+    }
+  };
+
+  const submitManualChallenge = async (challenge: Challenge) => {
+    if (!challenge.id) return;
+
+    const result = await submitChallenge(challenge.id, 'manual', {});
+
+    if (result.error) {
+      Alert.alert('Submission Failed', result.error);
+      return;
+    }
+
+    if (result.verified) {
+      handleChallengeComplete(challenge, true);
+    } else {
+      Alert.alert('Not Approved', result.reason || 'This challenge was not approved.');
+    }
+  };
+
   const handleVerification = (challenge: Challenge) => {
     switch (challenge.verification_type) {
       case 'photo':
@@ -290,50 +352,18 @@ export default function PlayScreen() {
       case 'qr_code':
         router.push({
           pathname: '/play/qr-scanner',
-          params: {
-            challengeId: challenge.id,
-            expectedCode: challenge.verification_data?.expected_code,
-          },
+          params: { challengeId: challenge.id },
         });
         break;
       case 'text_answer':
-        Alert.prompt(
-          'Enter Answer',
-          challenge.description,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Submit',
-              onPress: (answer) => {
-                const userAnswer = answer?.trim() || '';
-                const correctAnswer = challenge.verification_data?.correct_answer || '';
-
-                if (!userAnswer) {
-                  Alert.alert('Empty Answer', 'Please enter an answer');
-                  return;
-                }
-
-                const correct = challenge.verification_data?.case_sensitive
-                  ? userAnswer === correctAnswer
-                  : userAnswer.toLowerCase() === correctAnswer.toLowerCase();
-
-                if (correct) {
-                  handleChallengeComplete(challenge, true);
-                } else {
-                  triggerHaptic('error');
-                  Alert.alert('Incorrect', 'Try again!');
-                }
-              },
-            },
-          ],
-          'plain-text'
-        );
+        // Alert.prompt is iOS-only - on Android it is undefined and throws.
+        setAnswerPrompt(challenge);
         break;
       default:
-        // Manual verification - just mark as complete
+        // Manual verification - the server auto-approves these.
         Alert.alert('Mark Complete?', 'Have you completed this challenge?', [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Yes!', onPress: () => handleChallengeComplete(challenge, true) },
+          { text: 'Yes!', onPress: () => submitManualChallenge(challenge) },
         ]);
     }
   };
@@ -380,6 +410,19 @@ export default function PlayScreen() {
         multiplier={currentMultiplier}
         visible={showStreakMilestone}
         onDismiss={() => setShowStreakMilestone(false)}
+      />
+
+      {/* Text-answer entry (replaces iOS-only Alert.prompt) */}
+      <TextPromptModal
+        visible={answerPrompt !== null}
+        title="Enter Answer"
+        message={answerPrompt?.description}
+        placeholder="Your answer"
+        isSubmitting={submittingAnswer}
+        onCancel={() => setAnswerPrompt(null)}
+        onSubmit={(answer) => {
+          if (answerPrompt) submitTextAnswer(answerPrompt, answer);
+        }}
       />
 
       <View style={styles.container}>

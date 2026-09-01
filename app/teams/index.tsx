@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert,
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card, Button, BottomSheet, Skeleton } from '@/components';
+import { API_BASE } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useI18n } from '@/hooks/useI18n';
 import { useRequireAuth } from '@/hooks';
@@ -41,7 +42,7 @@ export default function TeamsScreen() {
     if (!session?.access_token) return;
 
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/teams`, {
+      const response = await fetch(`${API_BASE}/teams`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
@@ -61,7 +62,7 @@ export default function TeamsScreen() {
     if (!newTeamName.trim() || !session?.access_token) return;
 
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/teams`, {
+      const response = await fetch(`${API_BASE}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +93,7 @@ export default function TeamsScreen() {
     if (!joinCode.trim() || !session?.access_token) return;
 
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/teams`, {
+      const response = await fetch(`${API_BASE}/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

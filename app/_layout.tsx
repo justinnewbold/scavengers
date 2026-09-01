@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store';
+import { useOnboardingStore } from '@/store/onboardingStore';
+import { useDeepLinks } from '@/hooks';
 import { Colors } from '@/constants/theme';
 import { ErrorBoundary, OfflineIndicator } from '@/components';
 import { ToastContainer } from '@/components/Toast';
@@ -18,9 +20,21 @@ initSentry();
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
+/**
+ * Activates deep-link handling. useDeepLinks was exported but never called by
+ * any screen, so shared links did nothing. Mounted only once the app is ready,
+ * so an incoming link is not immediately clobbered by the onboarding redirect.
+ */
+function DeepLinkHandler() {
+  useDeepLinks();
+  return null;
+}
+
 export default function RootLayout() {
   const { initialize, isInitialized, user } = useAuthStore();
-  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const isOnboardingHydrated = useOnboardingStore((s) => s.isHydrated);
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
@@ -30,26 +44,33 @@ export default function RootLayout() {
         await i18n.initialize();
         await initialize();
 
-        // Check if onboarding has been completed
-        const onboardingComplete = await AsyncStorage.getItem('onboarding_complete');
-        setShowOnboarding(onboardingComplete !== 'true');
+        // Migrate the pre-store flag so users who already finished onboarding
+        // aren't shown it again. Safe to run repeatedly.
+        const legacyComplete = await AsyncStorage.getItem('onboarding_complete');
+        if (legacyComplete === 'true') {
+          useOnboardingStore.getState().completeOnboarding();
+          await AsyncStorage.removeItem('onboarding_complete');
+        }
       } finally {
+        setIsSetupComplete(true);
         await SplashScreen.hideAsync();
       }
     }
     setup();
   }, []);
 
+  const isReady = isInitialized && isSetupComplete && isOnboardingHydrated;
+
   // Navigate to onboarding when ready and needed
   useEffect(() => {
-    if (!isInitialized || showOnboarding === null) return;
+    if (!isReady) return;
 
     const inOnboarding = segments[0] === 'onboarding';
 
-    if (showOnboarding && !inOnboarding) {
+    if (!hasCompletedOnboarding && !inOnboarding) {
       router.replace('/onboarding');
     }
-  }, [isInitialized, showOnboarding, segments]);
+  }, [isReady, hasCompletedOnboarding, segments, router]);
 
   // Update Sentry user context when user changes
   useEffect(() => {
@@ -60,8 +81,12 @@ export default function RootLayout() {
     }
   }, [user]);
   
-  if (!isInitialized || showOnboarding === null) {
-    return <View style={styles.loading} />;
+  if (!isReady) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
   }
   
   return (
@@ -69,6 +94,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <View style={styles.container}>
         <StatusBar style="light" />
+        <DeepLinkHandler />
         <OfflineIndicator />
         <ToastContainer />
         <Stack

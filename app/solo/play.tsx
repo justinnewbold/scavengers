@@ -13,11 +13,12 @@ import {
   Dimensions,
   type AppStateStatus,
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, CardStack, StreakDisplay, Confetti, RatingModal } from '@/components';
 import { useSoloModeStore, type SoloHuntResult } from '@/store/soloModeStore';
+import { useHuntStore } from '@/store';
 import { useStreak, useProximityHaptics, triggerHaptic } from '@/hooks';
 import { useHapticPatterns } from '@/hooks/useHapticPatterns';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
@@ -189,20 +190,6 @@ export default function SoloPlayScreen() {
     return () => subscription.remove();
   }, [activeSession?.isPaused, pauseSession, resumeSession]);
 
-  // Use ref to always get latest handlePause without re-subscribing
-  const handlePauseRef = useRef(handlePause);
-  handlePauseRef.current = handlePause;
-
-  // Handle back button
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handlePauseRef.current();
-      return true;
-    });
-
-    return () => backHandler.remove();
-  }, []);
-
   // Redirect if no active session
   useEffect(() => {
     if (!activeSession && !result) {
@@ -242,6 +229,22 @@ export default function SoloPlayScreen() {
       ]
     );
   };
+
+  // Use ref to always get latest handlePause without re-subscribing.
+  // Must stay below handlePause's declaration - reading it above would hit the
+  // temporal dead zone and throw on render.
+  const handlePauseRef = useRef(handlePause);
+  handlePauseRef.current = handlePause;
+
+  // Handle back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handlePauseRef.current();
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, []);
 
   const handleChallengeComplete = async (challenge: Challenge) => {
     if (!challenge.id || !activeSession) return;
@@ -295,16 +298,31 @@ export default function SoloPlayScreen() {
     }
   }, []);
 
+  // Score a device-verified challenge only after its verifier reports success.
+  // The verifier screens are pushed routes and cannot return a value, so they
+  // leave the outcome in the hunt store for us to pick up here.
+  useFocusEffect(
+    useCallback(() => {
+      const pending = useHuntStore.getState().consumeLastSubmission();
+      if (!pending?.result.verified) return;
+
+      const challenge = hunt?.challenges?.find((c) => c.id === pending.challengeId);
+      if (challenge && !completedChallenges.has(pending.challengeId)) {
+        handleChallengeComplete(challenge);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hunt?.challenges, completedChallenges])
+  );
+
   const handleSwipeRightAction = useCallback(
     (challenge: Challenge, _index: number) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       if (completedChallenges.has(challenge.id!)) return;
 
-      // Complete the challenge in solo mode store
-      handleChallengeComplete(challenge);
-
-      // For challenges requiring device verification, also navigate to the verification screen
+      // Challenges that need the device to verify are scored only once the
+      // verifier reports success - see the focus effect below. Awarding here
+      // first made every one of them a free swipe regardless of the outcome.
       switch (challenge.verification_type) {
         case 'photo':
           router.push({
@@ -313,30 +331,36 @@ export default function SoloPlayScreen() {
               challengeId: challenge.id!,
               challengeTitle: challenge.title,
               challengeDescription: challenge.description,
+              mode: 'solo',
             },
           });
-          break;
+          return;
         case 'gps':
           router.push({
             pathname: '/play/location',
             params: {
               challengeId: challenge.id!,
-              targetLat: String(challenge.verification_data?.latitude || 0),
-              targetLng: String(challenge.verification_data?.longitude || 0),
+              targetLat: String(challenge.verification_data?.latitude ?? ''),
+              targetLng: String(challenge.verification_data?.longitude ?? ''),
               radius: String(challenge.verification_data?.radius_meters || 50),
+              mode: 'solo',
             },
           });
-          break;
+          return;
         case 'qr_code':
           router.push({
             pathname: '/play/qr-scanner',
             params: {
               challengeId: challenge.id!,
               expectedCode: challenge.verification_data?.expected_code || '',
+              mode: 'solo',
             },
           });
-          break;
+          return;
       }
+
+      // Everything else (text answers, manual) is self-reported in solo mode.
+      handleChallengeComplete(challenge);
     },
     [completedChallenges, handleChallengeComplete, router]
   );

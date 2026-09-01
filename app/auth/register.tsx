@@ -14,7 +14,8 @@ import { useRouter, Link, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components';
 import { useAuthStore } from '@/store/authStore';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, FontSizes, ExternalLinks } from '@/constants/theme';
+import { openExternalLink } from '@/lib/openExternalLink';
 import { useI18n } from '@/hooks/useI18n';
 import { useHapticPatterns } from '@/hooks/useHapticPatterns';
 
@@ -199,11 +200,26 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* Terms */}
+          {/* Terms - these are styled as links, so they must actually open. */}
           <Text style={styles.terms}>
             By creating an account, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            <Text
+              style={styles.termsLink}
+              onPress={() => openExternalLink(ExternalLinks.terms)}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Service"
+            >
+              Terms of Service
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.termsLink}
+              onPress={() => openExternalLink(ExternalLinks.privacy)}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              Privacy Policy
+            </Text>
           </Text>
 
           {/* Sign In Link */}

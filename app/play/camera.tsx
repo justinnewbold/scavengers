@@ -12,19 +12,21 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import { Button } from '@/components';
-import { gemini } from '@/lib/gemini';
 import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function CameraScreen() {
-  const { challengeId: _challengeId, challengeTitle, challengeDescription } = useLocalSearchParams<{
+  const { challengeId, challengeTitle, challengeDescription, mode } = useLocalSearchParams<{
     challengeId: string;
     challengeTitle: string;
     challengeDescription: string;
+    /** 'solo' accepts the photo on-device; anything else goes to the server. */
+    mode?: string;
   }>();
   const router = useRouter();
-  const { submitChallenge: _submitChallenge } = useHuntStore();
-  
+  const { submitChallenge, recordLocalVerification } = useHuntStore();
+  const isSolo = mode === 'solo';
+
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<'off' | 'on'>('off');
@@ -33,7 +35,6 @@ export default function CameraScreen() {
   const [verifying, setVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<{
     approved: boolean;
-    confidence: number;
     reason: string;
   } | null>(null);
   
@@ -60,9 +61,10 @@ export default function CameraScreen() {
     if (!cameraRef.current) return;
     
     try {
+      // No base64 here - verifyPhoto reads the file when it needs it. Asking
+      // for both keeps two full copies of the image in memory.
       const result = await cameraRef.current.takePictureAsync({
         quality: 0.8,
-        base64: true,
       });
       
       if (result) {
@@ -81,44 +83,81 @@ export default function CameraScreen() {
 
   const verifyPhoto = async () => {
     if (!photo) return;
-    
+
+    if (!challengeId) {
+      Alert.alert('Error', 'Missing challenge details. Please go back and try again.');
+      return;
+    }
+
     setVerifying(true);
-    
+
     try {
-      // Read photo as base64
+      // Solo hunts are generated on-device and never reach the server, so
+      // there is no AI check available for them. Accept the photo on the
+      // honour system - the player is only competing with themselves - and
+      // say so plainly rather than implying it was checked.
+      if (isSolo) {
+        const soloResult = {
+          verified: true,
+          pointsAwarded: 0, // solo scoring is handled by the solo store
+          reason: 'Photo captured.',
+        };
+        recordLocalVerification(challengeId, soloResult);
+        setVerificationResult({ approved: true, reason: soloResult.reason });
+        setTimeout(() => {
+          Alert.alert('📸 Photo Captured', 'Challenge complete!', [
+            { text: 'Continue', onPress: () => router.back() },
+          ]);
+        }, 500);
+        return;
+      }
+
+      // Read photo as base64. The API expects a data URL.
       const base64 = await FileSystem.readAsStringAsync(photo, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      
-      // Verify with AI
-      const result = await gemini.verifyPhoto(base64, challengeDescription || '');
-      setVerificationResult(result);
-      
-      if (result.approved) {
-        // Success!
+
+      // The server verifies (and awards points) - it holds the challenge's
+      // verification_data, which clients never receive.
+      const result = await submitChallenge(challengeId, 'photo', {
+        photoData: `data:image/jpeg;base64,${base64}`,
+      });
+
+      if (result.error) {
+        Alert.alert('Submission Failed', result.error, [
+          { text: 'Try Again', style: 'cancel' },
+          { text: 'Go Back', onPress: () => router.back() },
+        ]);
+        return;
+      }
+
+      setVerificationResult({
+        approved: result.verified,
+        reason:
+          result.reason ||
+          (result.verified ? 'Nice work!' : 'That does not match the challenge.'),
+      });
+
+      if (result.verified) {
         setTimeout(() => {
           Alert.alert(
             '✅ Challenge Complete!',
-            result.reason,
+            `${result.reason || 'Nice work!'}\n\n+${result.pointsAwarded} points`,
             [{ text: 'Awesome!', onPress: () => router.back() }]
           );
         }, 500);
+      } else if (result.requiresManualReview) {
+        Alert.alert(
+          'Submitted for Review',
+          'We could not verify this automatically, so it has been sent for manual review.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
       }
     } catch (error) {
       console.error('Verification failed:', error);
       Alert.alert(
         'Verification Failed',
-        'Unable to verify automatically. Would you like to submit for manual review?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Submit', 
-            onPress: () => {
-              // Submit for manual review
-              router.back();
-            }
-          },
-        ]
+        'Could not read the photo. Please retake it and try again.'
       );
     } finally {
       setVerifying(false);

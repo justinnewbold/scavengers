@@ -16,6 +16,8 @@ export { StreakDisplay } from './StreakDisplay';
 export { PhotoFeedItem } from './PhotoFeedItem';
 export { StreakMilestone, getMilestoneForStreak } from './StreakMilestone';
 export { ShareableResultsCard } from './ShareableResultsCard';
+export { TextPromptModal } from './TextPromptModal';
+export { SignInRequired } from './SignInRequired';
 export { Skeleton, HuntCardSkeleton, FeedItemSkeleton, DiscoverSkeleton, ProfileStatsSkeleton } from './SkeletonLoader';
 export { AchievementBadge, AchievementUnlockModal } from './AchievementBadge';
 export { AchievementList } from './AchievementList';

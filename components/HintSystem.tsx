@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { API_BASE } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -58,7 +59,7 @@ export function HintSystem({ huntId, challengeIndex, userLocation, onHintReceive
           onPress: async () => {
             setLoading(true);
             try {
-              const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/hints`, {
+              const response = await fetch(`${API_BASE}/hints`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
