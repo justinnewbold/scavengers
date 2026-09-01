@@ -135,7 +135,10 @@ describe('useHuntStore', () => {
       await useHuntStore.getState().fetchPublicHunts();
 
       expect(useHuntStore.getState().publicHunts).toEqual(publicHunts);
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('public=true'));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('public=true'),
+        expect.any(Object)
+      );
     });
   });
 
@@ -159,7 +162,10 @@ describe('useHuntStore', () => {
       const result = await useHuntStore.getState().getHuntById('hunt-123');
 
       expect(result).toEqual(mockHunt);
-      expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/hunts/hunt-123'));
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/hunts/hunt-123'),
+        expect.any(Object)
+      );
       expect(useHuntStore.getState().currentHunt).toEqual(mockHunt);
     });
 
@@ -309,33 +315,109 @@ describe('useHuntStore', () => {
   });
 
   describe('submitChallenge', () => {
-    it('should submit challenge successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true }),
-      });
+    const participant = {
+      id: '11111111-1111-4111-8111-111111111111',
+      hunt_id: 'hunt-1',
+      user_id: 'user-1',
+      status: 'playing' as const,
+      score: 0,
+    };
 
-      const result = await useHuntStore.getState().submitChallenge('challenge-1', {
-        submission_type: 'photo',
-        submission_data: { image_url: 'https://example.com/photo.jpg' },
-      });
-
-      expect(result).toBe(true);
+    beforeEach(() => {
+      useHuntStore.setState({ activeParticipation: participant, lastSubmission: null });
     });
 
-    it('should handle submission failure', async () => {
+    it('should send the participant, type and data the API expects', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ verified: true, points_awarded: 50 }),
+      });
+
+      const result = await useHuntStore
+        .getState()
+        .submitChallenge('challenge-1', 'photo', { photoData: 'data:image/jpeg;base64,abc' });
+
+      expect(result.verified).toBe(true);
+      expect(result.pointsAwarded).toBe(50);
+
+      const body = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
+      expect(body).toEqual({
+        participant_id: participant.id,
+        challenge_id: 'challenge-1',
+        submission_type: 'photo',
+        submission_data: { photoData: 'data:image/jpeg;base64,abc' },
+      });
+    });
+
+    it('should report the server verdict when a submission is rejected', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ verified: false, reason: 'Incorrect answer', points_awarded: 0 }),
+      });
+
+      const result = await useHuntStore
+        .getState()
+        .submitChallenge('challenge-1', 'text_answer', { answer: 'wrong' });
+
+      expect(result.verified).toBe(false);
+      expect(result.reason).toBe('Incorrect answer');
+      expect(result.pointsAwarded).toBe(0);
+      expect(result.error).toBeUndefined();
+    });
+
+    it('should surface the API error message on failure', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
+        json: async () => ({ error: 'Challenge already completed' }),
       });
 
-      const result = await useHuntStore.getState().submitChallenge('challenge-1', {
-        submission_type: 'text',
-        submission_data: { answer: 'wrong' },
+      const result = await useHuntStore
+        .getState()
+        .submitChallenge('challenge-1', 'qr_code', { code: 'abc' });
+
+      expect(result.verified).toBe(false);
+      expect(result.error).toBe('Challenge already completed');
+      expect(useHuntStore.getState().error).toBe('Challenge already completed');
+    });
+
+    it('should refuse to submit when the user has not joined the hunt', async () => {
+      useHuntStore.setState({ activeParticipation: null });
+
+      const result = await useHuntStore
+        .getState()
+        .submitChallenge('challenge-1', 'gps', { latitude: 1, longitude: 2 });
+
+      expect(result.verified).toBe(false);
+      expect(result.error).toMatch(/join/i);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('should add the awarded points to the local score', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ verified: true, points_awarded: 30 }),
       });
 
-      expect(result).toBe(false);
-      expect(useHuntStore.getState().error).toBe('Failed to submit challenge');
+      await useHuntStore.getState().submitChallenge('challenge-1', 'manual', {});
+
+      expect(useHuntStore.getState().activeParticipation?.score).toBe(30);
+    });
+
+    it('should leave the result for the play screen to consume exactly once', async () => {
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ verified: true, points_awarded: 10 }),
+      });
+
+      await useHuntStore.getState().submitChallenge('challenge-7', 'photo', {});
+
+      const pending = useHuntStore.getState().consumeLastSubmission();
+      expect(pending?.challengeId).toBe('challenge-7');
+      expect(pending?.result.verified).toBe(true);
+
+      // Second read is empty - the challenge must not score twice.
+      expect(useHuntStore.getState().consumeLastSubmission()).toBeNull();
     });
   });
 

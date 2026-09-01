@@ -189,20 +189,6 @@ export default function SoloPlayScreen() {
     return () => subscription.remove();
   }, [activeSession?.isPaused, pauseSession, resumeSession]);
 
-  // Use ref to always get latest handlePause without re-subscribing
-  const handlePauseRef = useRef(handlePause);
-  handlePauseRef.current = handlePause;
-
-  // Handle back button
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      handlePauseRef.current();
-      return true;
-    });
-
-    return () => backHandler.remove();
-  }, []);
-
   // Redirect if no active session
   useEffect(() => {
     if (!activeSession && !result) {
@@ -242,6 +228,22 @@ export default function SoloPlayScreen() {
       ]
     );
   };
+
+  // Use ref to always get latest handlePause without re-subscribing.
+  // Must stay below handlePause's declaration - reading it above would hit the
+  // temporal dead zone and throw on render.
+  const handlePauseRef = useRef(handlePause);
+  handlePauseRef.current = handlePause;
+
+  // Handle back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handlePauseRef.current();
+      return true;
+    });
+
+    return () => backHandler.remove();
+  }, []);
 
   const handleChallengeComplete = async (challenge: Challenge) => {
     if (!challenge.id || !activeSession) return;

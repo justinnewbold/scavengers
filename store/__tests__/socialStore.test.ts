@@ -193,7 +193,8 @@ describe('useSocialStore', () => {
       expect(state.isLoadingFriends).toBe(false);
       expect(state.error).toBeNull();
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/social/friends')
+        expect.stringContaining('/social/friends'),
+        expect.any(Object)
       );
     });
 
@@ -491,7 +492,8 @@ describe('useSocialStore', () => {
       await useSocialStore.getState().fetchActivityFeed();
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/social/activity?page=1')
+        expect.stringContaining('/social/activity?page=1'),
+        expect.any(Object)
       );
     });
 
@@ -868,7 +870,8 @@ describe('useSocialStore', () => {
 
       expect(result).toEqual(users);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/users/search?q=dave')
+        expect.stringContaining('/users/search?q=dave'),
+        expect.any(Object)
       );
     });
 
@@ -890,7 +893,8 @@ describe('useSocialStore', () => {
       await useSocialStore.getState().searchUsers('user name&special=chars');
 
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/users/search?q=user%20name%26special%3Dchars')
+        expect.stringContaining('/users/search?q=user%20name%26special%3Dchars'),
+        expect.any(Object)
       );
     });
   });
@@ -910,7 +914,8 @@ describe('useSocialStore', () => {
 
       expect(result).toEqual(profile);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/users/user-500/profile')
+        expect.stringContaining('/users/user-500/profile'),
+        expect.any(Object)
       );
     });
 
@@ -981,7 +986,8 @@ describe('useSocialStore', () => {
 
       expect(useSocialStore.getState().friendsActivity).toEqual(activities);
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/social/activity/friends')
+        expect.stringContaining('/social/activity/friends'),
+        expect.any(Object)
       );
     });
 

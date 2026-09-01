@@ -9,19 +9,22 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components';
+import { Button, TextPromptModal } from '@/components';
+import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function QRScannerScreen() {
-  const { challengeId: _challengeId, expectedCode } = useLocalSearchParams<{
+  const { challengeId } = useLocalSearchParams<{
     challengeId: string;
-    expectedCode?: string;
   }>();
   const router = useRouter();
-  
+  const { submitChallenge } = useHuntStore();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [scanResult, setScanResult] = useState<'success' | 'failure' | null>(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [submittingManual, setSubmittingManual] = useState(false);
 
   if (!permission) {
     return <View style={styles.container} />;
@@ -40,45 +43,56 @@ export default function QRScannerScreen() {
     );
   }
 
-  const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
+  /**
+   * Submits a scanned or hand-entered code to the server, which holds the
+   * expected value. Previously this compared against an `expectedCode` route
+   * param that the API never sends, so any code at all was accepted.
+   */
+  const submitCode = async (code: string) => {
+    if (!challengeId) {
+      Alert.alert('Error', 'Missing challenge details. Please go back and try again.');
+      return;
+    }
+
+    const result = await submitChallenge(challengeId, 'qr_code', { code });
+
+    if (result.error) {
+      setScanResult(null);
+      setScanned(false);
+      Alert.alert('Submission Failed', result.error);
+      return;
+    }
+
+    if (result.verified) {
+      setScanResult('success');
+      setTimeout(() => {
+        Alert.alert(
+          '✅ QR Code Verified!',
+          `Challenge complete!\n\n+${result.pointsAwarded} points`,
+          [{ text: 'Continue', onPress: () => router.back() }]
+        );
+      }, 500);
+    } else {
+      setScanResult('failure');
+      setTimeout(() => {
+        Alert.alert(
+          '❌ Wrong QR Code',
+          result.reason || 'This is not the correct QR code. Try again!',
+          [{ text: 'OK', onPress: () => {
+            setScanned(false);
+            setScanResult(null);
+          }}]
+        );
+      }, 500);
+    }
+  };
+
+  const handleBarCodeScanned = ({ data }: { type: string; data: string }) => {
     if (scanned) return;
-    
+
     setScanned(true);
     Vibration.vibrate(100);
-    
-    // Check if scanned code matches expected (if provided)
-    if (expectedCode) {
-      if (data === expectedCode) {
-        setScanResult('success');
-        setTimeout(() => {
-          Alert.alert(
-            '✅ QR Code Verified!',
-            'Challenge complete!',
-            [{ text: 'Continue', onPress: () => router.back() }]
-          );
-        }, 500);
-      } else {
-        setScanResult('failure');
-        setTimeout(() => {
-          Alert.alert(
-            '❌ Wrong QR Code',
-            'This is not the correct QR code. Try again!',
-            [{ text: 'OK', onPress: () => {
-              setScanned(false);
-              setScanResult(null);
-            }}]
-          );
-        }, 500);
-      }
-    } else {
-      // No expected code - just verify scan happened
-      setScanResult('success');
-      Alert.alert(
-        '✅ QR Code Scanned!',
-        `Code: ${data.substring(0, 50)}${data.length > 50 ? '...' : ''}`,
-        [{ text: 'Continue', onPress: () => router.back() }]
-      );
-    }
+    submitCode(data);
   };
 
   return (
@@ -156,36 +170,28 @@ export default function QRScannerScreen() {
           <Button
             title="Enter Code Manually"
             variant="outline"
-            onPress={() => {
-              Alert.prompt(
-                'Enter Code',
-                'Type the code shown below the QR:',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Submit',
-                    onPress: (code) => {
-                      const trimmedCode = code?.trim() || '';
-                      if (!trimmedCode) {
-                        Alert.alert('Empty Code', 'Please enter a code');
-                        return;
-                      }
-                      if (expectedCode && trimmedCode === expectedCode) {
-                        Alert.alert('✅ Correct!', 'Challenge complete!', [
-                          { text: 'Continue', onPress: () => router.back() }
-                        ]);
-                      } else {
-                        Alert.alert('❌ Incorrect', 'That code is not correct.');
-                      }
-                    }
-                  },
-                ],
-                'plain-text'
-              );
-            }}
+            onPress={() => setShowManualEntry(true)}
           />
         </View>
       </View>
+
+      <TextPromptModal
+        visible={showManualEntry}
+        title="Enter Code"
+        message="Type the code shown below the QR:"
+        placeholder="Code"
+        isSubmitting={submittingManual}
+        onCancel={() => setShowManualEntry(false)}
+        onSubmit={async (code) => {
+          setSubmittingManual(true);
+          try {
+            await submitCode(code);
+            setShowManualEntry(false);
+          } finally {
+            setSubmittingManual(false);
+          }
+        }}
+      />
     </>
   );
 }
