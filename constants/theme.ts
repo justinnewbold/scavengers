@@ -136,6 +136,18 @@ export const Shadows = {
  */
 export const WEB_URL = 'https://scavengers.newbold.cloud';
 
+/**
+ * Public pages linked from inside the app.
+ *
+ * Terms and Privacy must resolve to real pages - both Apple and Google expect
+ * reachable links, and they were previously rendered as inert text.
+ */
+export const ExternalLinks = {
+  help: `${WEB_URL}/help`,
+  terms: `${WEB_URL}/terms`,
+  privacy: `${WEB_URL}/privacy`,
+} as const;
+
 export const AppConfig = {
   name: 'Scavengers',
   version: '1.0.0',

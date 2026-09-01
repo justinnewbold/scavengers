@@ -65,6 +65,13 @@ interface HuntState {
     submissionType: VerificationType,
     submissionData: Record<string, unknown>
   ) => Promise<SubmissionResult>;
+  /**
+   * Records a verification decided on-device, for solo mode. Solo hunts are
+   * generated client-side with local ids and no participant record, so they
+   * cannot go through /api/submissions - and there is nothing to cheat, since
+   * the player is only competing with themselves.
+   */
+  recordLocalVerification: (challengeId: string, result: SubmissionResult) => void;
   /** Returns the pending submission result and clears it, so it fires once. */
   consumeLastSubmission: () => { challengeId: string; result: SubmissionResult } | null;
   setCurrentHunt: (hunt: Hunt | null) => void;
@@ -341,6 +348,10 @@ export const useHuntStore = create<HuntState>()(
           set({ error: message, isLoading: false });
           return { verified: false, pointsAwarded: 0, error: message };
         }
+      },
+
+      recordLocalVerification: (challengeId: string, result: SubmissionResult) => {
+        set({ lastSubmission: { challengeId, result } });
       },
 
       consumeLastSubmission: () => {

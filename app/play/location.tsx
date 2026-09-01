@@ -16,14 +16,17 @@ import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function LocationScreen() {
-  const { challengeId, targetLat, targetLng, radius } = useLocalSearchParams<{
+  const { challengeId, targetLat, targetLng, radius, mode } = useLocalSearchParams<{
     challengeId: string;
     targetLat: string;
     targetLng: string;
     radius: string;
+    /** 'solo' verifies on-device; anything else goes through the server. */
+    mode?: string;
   }>();
   const router = useRouter();
-  const { submitChallenge } = useHuntStore();
+  const { submitChallenge, recordLocalVerification } = useHuntStore();
+  const isSolo = mode === 'solo';
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
@@ -130,23 +133,44 @@ export default function LocationScreen() {
       });
 
       // Local readout is a convenience only when we happen to know the target.
-      if (hasValidTarget) {
-        setDistance(
-          calculateDistance(
+      const dist = hasValidTarget
+        ? calculateDistance(
             location.coords.latitude,
             location.coords.longitude,
             targetLatNum,
             targetLngNum
           )
-        );
-      }
+        : null;
 
-      // The server owns the verdict - it has the real target coordinates.
-      const result = await submitChallenge(challengeId, 'gps', {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-      });
+      if (dist !== null) setDistance(dist);
+
+      let result;
+      if (isSolo) {
+        // Solo hunts never reach the server, so compare locally.
+        if (!hasValidTarget || dist === null) {
+          Alert.alert(
+            'Location Unavailable',
+            'This challenge has no target location set.'
+          );
+          return;
+        }
+        const withinRange = dist <= radiusNum;
+        result = {
+          verified: withinRange,
+          pointsAwarded: 0, // solo scoring is handled by the solo store
+          reason: withinRange
+            ? undefined
+            : `You're ${Math.round(dist)}m away. Get within ${radiusNum}m.`,
+        };
+        recordLocalVerification(challengeId, result);
+      } else {
+        // The server owns the verdict - it has the real target coordinates.
+        result = await submitChallenge(challengeId, 'gps', {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+        });
+      }
 
       if (result.error) {
         Alert.alert('Submission Failed', result.error);
@@ -157,7 +181,9 @@ export default function LocationScreen() {
         setVerified(true);
         Alert.alert(
           '✅ Location Verified!',
-          `You're at the right spot!\n\n+${result.pointsAwarded} points`,
+          result.pointsAwarded > 0
+            ? `You're at the right spot!\n\n+${result.pointsAwarded} points`
+            : "You're at the right spot!",
           [{ text: 'Continue', onPress: () => router.back() }]
         );
       } else {

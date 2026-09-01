@@ -14,11 +14,16 @@ import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function QRScannerScreen() {
-  const { challengeId } = useLocalSearchParams<{
+  const { challengeId, mode, expectedCode } = useLocalSearchParams<{
     challengeId: string;
+    /** 'solo' verifies on-device; anything else goes through the server. */
+    mode?: string;
+    /** Solo mode only - solo hunts are local, so the code travels with them. */
+    expectedCode?: string;
   }>();
   const router = useRouter();
-  const { submitChallenge } = useHuntStore();
+  const { submitChallenge, recordLocalVerification } = useHuntStore();
+  const isSolo = mode === 'solo';
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -54,7 +59,19 @@ export default function QRScannerScreen() {
       return;
     }
 
-    const result = await submitChallenge(challengeId, 'qr_code', { code });
+    let result;
+    if (isSolo) {
+      // Solo hunts never reach the server, so compare locally.
+      const matches = !!expectedCode && code.trim().toLowerCase() === expectedCode.trim().toLowerCase();
+      result = {
+        verified: matches,
+        pointsAwarded: 0, // solo scoring is handled by the solo store
+        reason: matches ? undefined : 'That is not the correct QR code.',
+      };
+      recordLocalVerification(challengeId, result);
+    } else {
+      result = await submitChallenge(challengeId, 'qr_code', { code });
+    }
 
     if (result.error) {
       setScanResult(null);
@@ -68,7 +85,9 @@ export default function QRScannerScreen() {
       setTimeout(() => {
         Alert.alert(
           '✅ QR Code Verified!',
-          `Challenge complete!\n\n+${result.pointsAwarded} points`,
+          result.pointsAwarded > 0
+            ? `Challenge complete!\n\n+${result.pointsAwarded} points`
+            : 'Challenge complete!',
           [{ text: 'Continue', onPress: () => router.back() }]
         );
       }, 500);

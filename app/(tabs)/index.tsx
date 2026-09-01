@@ -535,8 +535,8 @@ export default function DiscoverScreen() {
           <Text style={styles.statLabel}>{t('home.upTo15Players')}</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>🔒</Text>
-          <Text style={styles.statLabel}>{t('home.worksOffline')}</Text>
+          <Text style={styles.statNumber}>🚫</Text>
+          <Text style={styles.statLabel}>{t('home.noAds')}</Text>
         </View>
       </View>
 

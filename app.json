@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0D1117"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.scavengers.app",
@@ -22,7 +24,8 @@
         "NSCameraUsageDescription": "Scavengers needs camera access to verify photo challenges and capture your adventure moments",
         "NSLocationWhenInUseUsageDescription": "Scavengers uses your location to verify GPS-based challenges and show nearby hunts",
         "NSPhotoLibraryUsageDescription": "Scavengers needs photo library access to save and share your challenge photos",
-        "NSMicrophoneUsageDescription": "Scavengers may use the microphone for video challenge submissions"
+        "NSMicrophoneUsageDescription": "Scavengers may use the microphone for video challenge submissions",
+        "NSPhotoLibraryAddUsageDescription": "Allow Scavengers to save hunt photos to your photo library"
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -63,7 +66,10 @@
               "pathPrefix": "/join/"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -92,7 +98,15 @@
           "photosPermission": "Allow Scavengers to access your photos for submissions"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Scavengers to access your photos for submissions",
+          "savePhotosPermission": "Allow Scavengers to save hunt photos to your photo library",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

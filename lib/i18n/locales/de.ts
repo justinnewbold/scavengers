@@ -59,7 +59,7 @@ export default {
     start: 'Starten',
     publicHunts: 'Öffentliche Jagden',
     upTo15Players: 'Bis zu 15 Spieler',
-    worksOffline: 'Funktioniert Offline',
+    noAds: 'Niemals Werbung',
     discoverHunts: 'Jagden entdecken',
     noPublicHunts: 'Noch keine öffentlichen Jagden',
     beFirstToCreate: 'Seien Sie der Erste, der eine erstellt!',

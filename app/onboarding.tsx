@@ -42,10 +42,13 @@ const pages: OnboardingPage[] = [
     accentColor: Colors.secondary,
   },
   {
-    icon: 'cloud-offline',
+    // Do not promise offline play here. lib/offlineStorage.ts is implemented
+    // but nothing calls queueSubmission or cacheHunts, and solo mode needs a
+    // network round-trip just to start (store/soloModeStore.ts).
+    icon: 'people',
     title: 'Play Anywhere, Anytime',
     description:
-      'Works offline. Play solo or with up to 15 friends. No internet needed.',
+      'Head out solo or bring up to 15 friends along. Free, with no ads.',
     accentColor: Colors.success,
   },
 ];

@@ -16,13 +16,16 @@ import { useHuntStore } from '@/store';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 export default function CameraScreen() {
-  const { challengeId, challengeTitle, challengeDescription } = useLocalSearchParams<{
+  const { challengeId, challengeTitle, challengeDescription, mode } = useLocalSearchParams<{
     challengeId: string;
     challengeTitle: string;
     challengeDescription: string;
+    /** 'solo' accepts the photo on-device; anything else goes to the server. */
+    mode?: string;
   }>();
   const router = useRouter();
-  const { submitChallenge } = useHuntStore();
+  const { submitChallenge, recordLocalVerification } = useHuntStore();
+  const isSolo = mode === 'solo';
 
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
@@ -89,6 +92,26 @@ export default function CameraScreen() {
     setVerifying(true);
 
     try {
+      // Solo hunts are generated on-device and never reach the server, so
+      // there is no AI check available for them. Accept the photo on the
+      // honour system - the player is only competing with themselves - and
+      // say so plainly rather than implying it was checked.
+      if (isSolo) {
+        const soloResult = {
+          verified: true,
+          pointsAwarded: 0, // solo scoring is handled by the solo store
+          reason: 'Photo captured.',
+        };
+        recordLocalVerification(challengeId, soloResult);
+        setVerificationResult({ approved: true, reason: soloResult.reason });
+        setTimeout(() => {
+          Alert.alert('📸 Photo Captured', 'Challenge complete!', [
+            { text: 'Continue', onPress: () => router.back() },
+          ]);
+        }, 500);
+        return;
+      }
+
       // Read photo as base64. The API expects a data URL.
       const base64 = await FileSystem.readAsStringAsync(photo, {
         encoding: FileSystem.EncodingType.Base64,

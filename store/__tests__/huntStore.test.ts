@@ -421,6 +421,52 @@ describe('useHuntStore', () => {
     });
   });
 
+  describe('recordLocalVerification', () => {
+    beforeEach(() => {
+      useHuntStore.setState({ activeParticipation: null, lastSubmission: null });
+    });
+
+    /**
+     * Solo hunts are generated on-device with local ids and no participant
+     * record, so they cannot go through /api/submissions. They must still be
+     * able to hand a verdict to the play screen.
+     */
+    it('records a verdict without touching the network', () => {
+      useHuntStore.getState().recordLocalVerification('solo_challenge_1', {
+        verified: true,
+        pointsAwarded: 0,
+      });
+
+      expect(global.fetch).not.toHaveBeenCalled();
+
+      const pending = useHuntStore.getState().consumeLastSubmission();
+      expect(pending?.challengeId).toBe('solo_challenge_1');
+      expect(pending?.result.verified).toBe(true);
+    });
+
+    it('is consumed exactly once, so a solo challenge cannot score twice', () => {
+      useHuntStore.getState().recordLocalVerification('solo_challenge_1', {
+        verified: true,
+        pointsAwarded: 0,
+      });
+
+      expect(useHuntStore.getState().consumeLastSubmission()).not.toBeNull();
+      expect(useHuntStore.getState().consumeLastSubmission()).toBeNull();
+    });
+
+    it('carries a failed verdict through, so a miss is not scored', () => {
+      useHuntStore.getState().recordLocalVerification('solo_challenge_2', {
+        verified: false,
+        pointsAwarded: 0,
+        reason: "You're 250m away. Get within 50m.",
+      });
+
+      const pending = useHuntStore.getState().consumeLastSubmission();
+      expect(pending?.result.verified).toBe(false);
+      expect(pending?.result.reason).toMatch(/250m/);
+    });
+  });
+
   describe('setCurrentHunt', () => {
     it('should set current hunt', () => {
       useHuntStore.getState().setCurrentHunt(mockHunt);

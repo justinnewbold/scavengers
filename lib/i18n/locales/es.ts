@@ -59,7 +59,7 @@ export default {
     start: 'Iniciar',
     publicHunts: 'Búsquedas Públicas',
     upTo15Players: 'Hasta 15 jugadores',
-    worksOffline: 'Funciona sin conexión',
+    noAds: 'Sin anuncios, nunca',
     discoverHunts: 'Descubrir Búsquedas',
     noPublicHunts: 'Aún no hay búsquedas públicas',
     beFirstToCreate: '¡Sé el primero en crear una!',
