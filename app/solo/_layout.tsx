@@ -12,7 +12,6 @@ export default function SoloLayout() {
         headerTitleStyle: {
           fontWeight: '700',
         },
-        headerBackTitleVisible: false,
       }}
     />
   );

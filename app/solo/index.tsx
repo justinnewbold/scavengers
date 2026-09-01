@@ -72,7 +72,7 @@ const ENVIRONMENTS: Array<{
 }> = [
   { id: 'outdoor', label: 'Outdoor', icon: 'sunny' },
   { id: 'indoor', label: 'Indoor', icon: 'home' },
-  { id: 'any', label: 'Any', icon: 'shuffle' },
+  { id: 'mixed', label: 'Any', icon: 'shuffle' },
 ];
 
 export default function SoloModeScreen() {
@@ -91,7 +91,7 @@ export default function SoloModeScreen() {
   const [selectedType, setSelectedType] = useState<SoloHuntType>('quick');
   const [selectedTheme, setSelectedTheme] = useState('surprise');
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyType>('medium');
-  const [selectedEnvironment, setSelectedEnvironment] = useState<SoloEnvironment>('any');
+  const [selectedEnvironment, setSelectedEnvironment] = useState<SoloEnvironment>('mixed');
   const [showCustomOptions, setShowCustomOptions] = useState(false);
   const [customChallengeCount, setCustomChallengeCount] = useState(8);
   const [useLocation, setUseLocation] = useState(true);
@@ -185,7 +185,7 @@ export default function SoloModeScreen() {
       challengeCount: selectedType === 'custom' ? customChallengeCount : preset.challengeCount!,
       environment: selectedEnvironment,
       duration: selectedType === 'custom' ? customChallengeCount * 3 : preset.duration!,
-      useCurrentLocation: useLocation,
+      useLocation,
       latitude: currentLocation?.latitude,
       longitude: currentLocation?.longitude,
       locationName,

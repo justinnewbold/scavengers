@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -19,7 +19,7 @@ const HINT_LEVELS = [
 ];
 
 export function HintSystem({ huntId, challengeIndex, userLocation, onHintReceived }: HintSystemProps) {
-  const { session } = useAuthStore();
+  
   const [currentHint, setCurrentHint] = useState<string | null>(null);
   const [usedLevels, setUsedLevels] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ export function HintSystem({ huntId, challengeIndex, userLocation, onHintReceive
   };
 
   const requestHint = async (level: 1 | 2 | 3) => {
-    if (!session?.access_token) {
+    if (!(await getAuthHeaders()).Authorization) {
       Alert.alert('Sign In Required', 'Please sign in to use hints.');
       return;
     }
@@ -63,7 +63,7 @@ export function HintSystem({ huntId, challengeIndex, userLocation, onHintReceive
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${session.access_token}`,
+                  ...(await getAuthHeaders()),
                 },
                 body: JSON.stringify({
                   hunt_id: huntId,

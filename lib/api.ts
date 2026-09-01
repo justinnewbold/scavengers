@@ -117,4 +117,17 @@ export async function apiFetch<T = unknown>(
   }
 }
 
+/**
+ * Authorization header for a raw `fetch`, or `{}` when signed out.
+ *
+ * Prefer `apiFetch`, which attaches this itself. This exists for the handful of
+ * screens still using raw fetch - several of which previously read
+ * `session.access_token` from the auth store, a Supabase-style field this app
+ * has never had, so they could never authenticate at all.
+ */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const token = await AsyncStorage.getItem('auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export { API_BASE };

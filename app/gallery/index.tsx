@@ -18,7 +18,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, BottomSheet, SegmentedControl, Skeleton } from '@/components';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, getAuthHeaders } from '@/lib/api';
 import { Colors, Spacing, FontSizes } from '@/constants/theme';
 import { useAuthStore } from '@/store';
 
@@ -37,7 +37,7 @@ const PHOTO_SIZE = (width - Spacing.md * 3) / 2;
 
 export default function GalleryScreen() {
   const router = useRouter();
-  const { user, session } = useAuthStore();
+  const { user } = useAuthStore();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +53,7 @@ export default function GalleryScreen() {
   }, [showFavoritesOnly]);
 
   const fetchPhotos = async () => {
-    if (!session?.access_token) return;
+    if (!(await getAuthHeaders()).Authorization) return;
 
     try {
       const params = new URLSearchParams();
@@ -61,7 +61,7 @@ export default function GalleryScreen() {
 
       const response = await fetch(
         `${API_BASE}/gallery?${params}`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
+        { headers: { ...(await getAuthHeaders()) } }
       );
 
       if (response.ok) {
@@ -77,7 +77,7 @@ export default function GalleryScreen() {
   };
 
   const toggleFavorite = async (photo: Photo) => {
-    if (!session?.access_token) return;
+    if (!(await getAuthHeaders()).Authorization) return;
 
     const newFavoriteStatus = !photo.is_favorite;
 
@@ -95,7 +95,7 @@ export default function GalleryScreen() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify({ photo_id: photo.id, is_favorite: newFavoriteStatus }),
       });
@@ -108,14 +108,14 @@ export default function GalleryScreen() {
   };
 
   const saveCaption = async () => {
-    if (!session?.access_token || !selectedPhoto) return;
+    if (!selectedPhoto || !(await getAuthHeaders()).Authorization) return;
 
     try {
       await fetch(`${API_BASE}/gallery`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify({ photo_id: selectedPhoto.id, caption: captionText }),
       });
@@ -143,14 +143,14 @@ export default function GalleryScreen() {
   };
 
   const deletePhoto = async (photo: Photo) => {
-    if (!session?.access_token) return;
+    if (!(await getAuthHeaders()).Authorization) return;
 
     try {
       const response = await fetch(
         `${API_BASE}/gallery/${photo.id}`,
         {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: { ...(await getAuthHeaders()) },
         }
       );
 
@@ -228,7 +228,7 @@ export default function GalleryScreen() {
       return;
     }
 
-    if (!session?.access_token) return;
+    if (!(await getAuthHeaders()).Authorization) return;
 
     try {
       const huntId = photos.find(p => selectedForShare.includes(p.id))?.hunt_title;
@@ -237,7 +237,7 @@ export default function GalleryScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify({
           hunt_id: huntId,

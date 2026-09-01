@@ -107,15 +107,16 @@ export default function TournamentDetailScreen() {
         {/* Tab Selector */}
         <View style={styles.segmentContainer}>
           <SegmentedControl
-            values={['Bracket', 'Participants', 'Prizes']}
+            segments={['Bracket', 'Participants', 'Prizes']}
             selectedIndex={['bracket', 'participants', 'prizes'].indexOf(tab)}
-            onValueChange={(index) => setTab((['bracket', 'participants', 'prizes'] as Tab[])[index])}
+            onChange={(index: number) => setTab((['bracket', 'participants', 'prizes'] as Tab[])[index])}
           />
         </View>
 
         {/* Tab Content */}
         {tab === 'bracket' && (
           <TournamentBracket
+            tournament={currentTournament}
             brackets={tournamentBrackets}
             currentUserId={user?.id}
           />

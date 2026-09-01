@@ -110,9 +110,9 @@ export default function LeaderboardsScreen() {
       <View style={styles.container}>
         <View style={styles.segmentContainer}>
           <SegmentedControl
-            values={SCOPES.map(s => s.label)}
+            segments={SCOPES.map(s => s.label)}
             selectedIndex={SCOPES.findIndex(s => s.value === scope)}
-            onValueChange={(index) => setScope(SCOPES[index].value)}
+            onChange={(index: number) => setScope(SCOPES[index].value)}
           />
         </View>
 

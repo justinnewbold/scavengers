@@ -52,14 +52,13 @@ export default function SpectateScreen() {
   const leaderboardEntries = [...currentRace.participants]
     .sort((a, b) => b.score - a.score)
     .map((p, idx) => ({
-      rank: idx + 1,
-      participant_id: p.userId,
-      user_id: p.userId,
-      display_name: p.displayName,
-      avatar_url: p.avatarUrl,
+      id: p.userId,
+      userId: p.userId,
+      displayName: p.displayName,
+      avatarUrl: p.avatarUrl,
       score: p.score,
-      challenges_completed: p.completedChallenges,
-      time_elapsed: p.totalTime,
+      rank: idx + 1,
+      challengesCompleted: p.completedChallenges,
     }));
 
   return (
@@ -93,16 +92,7 @@ export default function SpectateScreen() {
         <AnimatedLeaderboard entries={leaderboardEntries} />
 
         {/* Spectator Overlay (reactions, comments) */}
-        <SpectatorOverlay
-          reactions={liveReactions}
-          comments={liveComments}
-          onSendReaction={sendReaction}
-          onSendComment={sendComment}
-          onFollowRacer={followRacer}
-          participants={currentRace.participants}
-          viewMode={spectatorSession?.viewMode || 'overview'}
-          onChangeViewMode={setViewMode}
-        />
+        <SpectatorOverlay race={currentRace} onClose={handleLeave} />
 
         <Button
           title="Leave"
